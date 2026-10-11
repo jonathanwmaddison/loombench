@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoomBench kit</title>
+<link rel="stylesheet" href="/web/app.css">
+</head>
+<body>
+<main class="page">
+  <div id="top"></div>
+
+  <h1>Heading one, the page title</h1>
+  <p class="lede">The lede sits under the title, in ink-2, at up to 68 characters a line.</p>
+  <p class="sub">A sub line sits under a section heading. It is 14px, ink-2, and a little wider than a card.</p>
+  <p class="muted">Muted text is for captions and notes. <span class="small">Small text is 13px.</span></p>
+
+  <h2>Cards</h2>
+  <p class="sub">Cards sit in a row and stack under 760px.</p>
+  <div class="cards">
+    <div class="card">
+      <h2>How a match works</h2>
+      <p class="small muted">A card holds one thing. Its heading is 16px.</p>
+    </div>
+    <div class="card">
+      <h2>Chips and dots</h2>
+      <div class="row" id="chips"></div>
+      <div class="row" id="dots" style="margin-top: 12px"></div>
+    </div>
+    <div class="card">
+      <h2>Marks</h2>
+      <div class="row" id="marks"></div>
+      <div class="spread" style="margin-top: 12px">
+        <span>A spread row: left</span><span class="muted">right</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>Tiles</h2>
+  <div class="tiles">
+    <div class="tile hero">
+      <span class="label">Reached their goal</span>
+      <span class="value">62%</span>
+      <span class="note">14 weavers told a goal</span>
+    </div>
+    <div class="tile">
+      <span class="label">Reached it untold</span>
+      <span class="value">48%</span>
+      <span class="note">the same goals, met by weavers told nothing</span>
+    </div>
+    <div class="tile">
+      <span class="label">Matches</span>
+      <span class="value">44</span>
+      <span class="note">model · 5 weavers each</span>
+    </div>
+  </div>
+
+  <h2>Tracks</h2>
+  <p class="sub">A hollow dot is the score told nothing; a filled dot is the score told the goal. The line joins them.</p>
+  <div class="card">
+    <div id="tracks" style="display: grid; gap: 18px"></div>
+  </div>
+
+  <h2>What decided the score</h2>
+  <p class="sub">The four shares of the spread. Hover a segment for its name and percent.</p>
+  <div id="legend"></div>
+  <div id="splits" style="display: grid; gap: 14px"></div>
+
+  <h2>Buttons, a select, a number, a range</h2>
+  <div class="row">
+    <button class="btn" type="button">Weave</button>
+    <button class="btn quiet" type="button">Deal for me</button>
+    <button class="btn" type="button" disabled>Weaving…</button>
+  </div>
+  <div class="row" style="margin-top: 12px">
+    <select aria-label="Personality">
+      <option>Warm</option>
+      <option>Blunt</option>
+    </select>
+    <input type="number" value="4242" aria-label="Seed">
+    <input type="range" min="0" max="26" value="12" aria-label="Round">
+  </div>
+
+  <h2>A grid</h2>
+  <div id="grid"></div>
+
+  <h2>Matches</h2>
+  <div class="gallery" id="gallery"></div>
+
+  <h2>Options and their weights</h2>
+  <ul class="bars">
+    <li class="bar chosen">
+      <div class="opt">Keep working</div>
+      <div class="bar-row"><span class="bar-track"><span class="fill" style="width: 46%"></span></span><span class="w">46%</span></div>
+    </li>
+    <li class="bar">
+      <div class="opt">Take space from a neighbour</div>
+      <div class="bar-row"><span class="bar-track"><span class="fill" style="width: 31%"></span></span><span class="w">31%</span></div>
+    </li>
+    <li class="bar">
+      <div class="opt">Give space</div>
+      <div class="bar-row"><span class="bar-track"><span class="fill" style="width: 12%"></span></span><span class="w">12%</span></div>
+    </li>
+    <li class="bar">
+      <div class="opt">Offer to share</div>
+      <div class="bar-row"><span class="bar-track"><span class="fill" style="width: 11%"></span></span><span class="w">11%</span></div>
+    </li>
+  </ul>
+
+  <details class="method">
+    <summary>How this is measured</summary>
+    <p>The deal is balanced: every 11 matches each personality holds each goal once. The four scores are read off the rug.</p>
+  </details>
+
+  <p class="sub" style="margin-top: 24px">
+    Tip demo: <span class="small" id="tipdemo" style="border-bottom: 1px dotted var(--axis); cursor: help">hover this word</span>.
+  </p>
+</main>
+
+<script type="module">
+  import {
+    h, topbar, chipPersonality, chipGoal, dot, mark, track, splitbar, splitLegend, tip, signed, pct,
+  } from '/web/ui.mjs';
+
+  const slot = (id, ...nodes) => document.getElementById(id).replaceChildren(...nodes);
+
+  document.getElementById('top').replaceWith(topbar('results'));
+
+  slot('chips', chipPersonality('warm'), chipPersonality('plain'), chipGoal('grow'), chipGoal('none'));
+  slot('dots', ...[0, 1, 2, 3, 4].map(seat => dot(seat)));
+  slot('marks', mark(true), mark(false), mark(null));
+
+  slot('tracks',
+    h('div', null, h('div', { class: 'small muted' }, 'From 30 to 80'),
+      track({ from: 30, to: 80, title: 'Untold 30, told 80' })),
+    h('div', null, h('div', { class: 'small muted' }, 'From 70 to 40'),
+      track({ from: 70, to: 40, title: 'Untold 70, told 40' })),
+    h('div', null, h('div', { class: 'small muted' }, 'Only a filled dot'),
+      track({ to: 60, title: 'Told 60' })));
+
+  slot('legend', splitLegend());
+  slot('splits',
+    splitbar({ goal: 0.42, personality: 0.23, both: 0.08, rest: 0.27 }),
+    splitbar({ goal: 0.6, personality: 0, both: 0.003, rest: 0.397 }),
+    splitbar(null));
+
+  const cell = (from, to, label) => h('div', { class: 'cell' },
+    track({ from, to, title: label }),
+    h('span', { class: 'num' }, Math.round(to)));
+
+  slot('grid', h('div', { class: 'scroll' },
+    h('table', { class: 'grid' },
+      h('thead', null, h('tr', null,
+        h('th', null, 'Personality'),
+        h('th', null, 'Grow', h('div', { class: 'small muted' }, 'End with the most space')),
+        h('th', null, 'Give', h('div', { class: 'small muted' }, 'End with the least space')))),
+      h('tbody', null,
+        h('tr', null,
+          h('td', null, 'Warm', h('span', { class: 'small muted' }, 'Warm, a sentence beneath')),
+          h('td', { class: 'pick' }, cell(40, 62, 'Warm, told to grow: 62')),
+          h('td', { class: 'pick on' }, cell(55, 81, 'Warm, told to give: 81'))),
+        h('tr', null,
+          h('td', null, 'Blunt', h('span', { class: 'small muted' }, 'Blunt, a sentence beneath')),
+          h('td', { class: 'pick' }, cell(52, 30, 'Blunt, told to grow: 30')),
+          h('td', { class: 'pick' }, cell(48, 70, 'Blunt, told to give: 70')))))));
+
+  const thumb = (caption, lines) => h('a', { class: 'thumb', href: '#' },
+    h('span', { class: 'pic' }),
+    h('div', { class: 'caption' }, caption),
+    lines.map(([seat, name, goalName, score, reached]) => h('div', { class: 'line' },
+      dot(seat), h('span', null, name), h('span', null, '→'), h('span', null, goalName),
+      h('span', { class: 'score' }, score), mark(reached))));
+
+  slot('gallery',
+    thumb('Match 12 · Dune', [
+      [0, 'Warm', 'Grow', '62', true],
+      [1, 'Blunt', 'Hold', '34', false],
+      [2, 'Calm', 'No goal', null, null],
+    ]),
+    thumb('Match 13 · Fen', [
+      [0, 'Curious', 'Give', '88', true],
+      [1, 'Anxious', 'Borrow', '51', false],
+    ]),
+    thumb('Match 14 · Ochre', [
+      [3, 'Organised', 'Borrow', '100', true],
+    ]));
+
+  const tipDemo = h('span', { class: 'small', style: { borderBottom: '1px dotted var(--axis)', cursor: 'help' },
+    onpointermove: e => tip.show(e, `A tip: 13px, follows the pointer, flips near an edge. Lift ${signed(12.4)}, ${pct(0.62)}.`),
+    onpointerleave: () => tip.hide() }, 'hover this word');
+  document.getElementById('tipdemo').replaceWith(tipDemo);
+</script>
+</body>
+</html>

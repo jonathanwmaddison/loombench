@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoomBench results</title>
+<link rel="stylesheet" href="/web/app.css">
+<style>
+  /* Results only: the layout the shared sheet does not give. */
+  #grid .grid { table-layout: fixed; min-width: 900px; }
+  #grid .grid th:first-child, #grid .grid td:first-child { width: 250px; }
+  #grid .grid th:last-child, #grid .grid td:last-child { width: 90px; }
+  #grid .cell { min-width: 0; }
+  .cards p { margin: 0; color: var(--ink-2); font-size: 14px; }
+  .goal-card { display: flex; flex-direction: column; gap: 10px; }
+  .goal-card p { margin: 0; }
+  .goal-card .split { margin-top: auto; }
+
+  /* Space at the end: a legend mark, a row per personality, one shared scale and its axis */
+  .space-key { display: inline-block; position: relative; width: 18px; height: 6px; margin: 0; vertical-align: middle; }
+  .track .tri-most, .track .tri-least {
+    position: absolute; top: 50%; width: 0; height: 0; transform: translate(-50%, -50%);
+    border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+  }
+  .track .tri-most { border-left: 10px solid var(--told); }
+  .track .tri-least { border-right: 10px solid var(--told); }
+  .space-key .tri-most, .space-key .tri-least { z-index: 2; }
+  .space-row, .space-head, .space-axis {
+    display: grid; grid-template-columns: 150px minmax(0, 1fr) 56px 56px 56px; column-gap: 14px; align-items: center;
+  }
+  .space-row { height: 34px; }
+  .space-row + .space-row { border-top: 1px solid var(--hairline); }
+  .space-name { font-size: 14px; font-weight: 600; }
+  .space-num { text-align: right; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .space-head { margin-bottom: 4px; }
+  .space-plot { position: relative; margin: 0 6px; }
+  .space-plot .even { position: absolute; top: -14px; bottom: -14px; width: 1px; background: var(--axis); z-index: 0; }
+  .space-plot .link { z-index: 1; }
+  .space-plot .from, .space-plot .tri-most, .space-plot .tri-least { z-index: 2; }
+  .space-scale { position: relative; height: 18px; margin: 0 6px; white-space: nowrap; }
+  .space-scale > span { position: absolute; top: 0; }
+  .space-axis { margin-top: 8px; }
+  .space-gap { display: block; }
+  @media (max-width: 759px) {
+    .space-row, .space-head, .space-axis { grid-template-columns: minmax(0, 1fr) 56px 56px 56px; }
+    .space-row { height: auto; min-height: 34px; padding: 8px 0; }
+    .space-row .space-name { grid-column: 1 / -1; }
+    .space-gap.name { display: none; }
+  }
+  .head h1 { margin-bottom: 10px; }
+  .head select { max-width: 100%; }
+  .cmd {
+    margin: 8px 0 14px; padding: 10px 12px; overflow-x: auto; white-space: pre; background: var(--surface);
+    border: 1px solid var(--hairline); border-radius: 8px; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="muted">Loading…</p>
+</main>
+<script type="module" src="/web/index.mjs"></script>
+</body>
+</html>

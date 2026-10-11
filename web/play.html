@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play: LoomBench</title>
+<link rel="stylesheet" href="/web/app.css">
+<style>
+  /* Play only: the five seat cards (one row from 1000px wide, stacked below) and the inside of a seat. */
+  .seats { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); margin: 24px 0; }
+  .seat { display: flex; flex-direction: column; gap: 14px; }
+  .seat-head { display: flex; align-items: center; gap: 8px; }
+  .seat-head h2 { margin: 0; font-size: 16px; }
+  .seat .part { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  @media (min-width: 1000px) {
+    .seats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    /* The three parts of every seat share the bench's row lines, so the selects line up from card to card. */
+    .seat { display: grid; grid-template-rows: subgrid; grid-row: span 3; row-gap: 14px; }
+  }
+  .seat select { width: 100%; }
+  .seat .note { display: flex; flex-direction: column; gap: 4px; }
+  .controls { margin-top: 8px; }
+</style>
+</head>
+<body>
+<main class="page" id="page"><p class="small muted">Loading…</p></main>
+<script type="module" src="/web/play.mjs"></script>
+</body>
+</html>

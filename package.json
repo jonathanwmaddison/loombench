@@ -1,0 +1,13 @@
+{
+  "name": "loombench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LoomBench: a multi-agent benchmark. Five weavers at one loom, each dealt a personality and a goal; the rug shows which one won.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node serve.mjs",
+    "bench": "node tools/run.mjs",
+    "test": "node --test"
+  }
+}
