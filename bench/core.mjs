@@ -1,10 +1,11 @@
 /**
  * The bench: who sits at the loom, what each is told, how the rug is played and scored, and what is kept of a match.
- * Imports only from the engine, so the same module runs in Node and in the browser.
+ * Imports only from the engine and `peers.mjs`, so the same module runs in Node and in the browser.
  */
 import { weave } from '../engine/loom.mjs';
 import { WEAVERS, TYPES, american, typed, said } from '../engine/weavers.mjs';
-import { mindsOf } from '../engine/cloth.mjs';
+import { mindsOf, strand, sized, stitchOf, yarnName, DYE_LOTS } from '../engine/cloth.mjs';
+import { peerAsker } from './peers.mjs';
 
 /** Seats at the loom. */
 export const SEATS = 5;
@@ -12,42 +13,68 @@ export const SEATS = 5;
 const BASE = american(WEAVERS.slice(0, SEATS));
 /** The five seat names, left to right by seat. */
 export const NAMES = Object.freeze(BASE.map(w => w.name));
-/** The five seat colours, by seat. */
-export const HUES = Object.freeze(BASE.map(w => w.hue));
+/**
+ * The five seat colours, by seat: the page's colour for an agent (markers, the ownership map). They are chosen to match
+ * the colour each agent starts weaving in (`STARTS`), so the woven rug and the ownership map read alike.
+ */
+export const HUES = Object.freeze(['#e34948', '#1baf7a', '#2a78d6', '#e87ba4', '#eda100']);
+
+/**
+ * RULES 2. Every match is woven from one dye lot, and each agent starts with a design of its own: a ground colour no
+ * other agent has, and a pattern no other agent has. Nobody is asked for either. The first rules (records with no
+ * `rules`) let the group vote on a lot and each agent pick a first design, and most picked the same undyed wool, so a
+ * rug did not show who held what. An agent may still change its design from the second round on, as before.
+ */
+export const RULES = 2;
+const LOT = 'midsummer', POT = Object.freeze([0, 2, 3, 4, 5, 6]);
+// seat: [ground dye, pattern, pattern dye]. Dark grounds carry an undyed pattern, light grounds a black one.
+const SIGNATURE = [[2, 'bands', 0], [5, 'pins', 0], [3, 'checks', 0], [6, 'zigzag', 1], [4, 'dots', 1]];
+/** The yarn each seat starts with (a fresh copy each call, since the loom keeps what it is given). */
+export const startsOf = () => SIGNATURE.map(([a, fill, dye], seat) => ({ a, aBy: seat, strands: [strand(fill, dye, seat)] }));
+/** A seat's starting design in words ("weft bands of undyed wool on vermilion red"). */
+export const startWords = seat => yarnName(DYE_LOTS.find(l => l.key === LOT).dyes, startsOf()[seat]);
+/** A seat's starting ground colour as a hex string, for a swatch. */
+export const startHex = seat => DYE_LOTS.find(l => l.key === LOT).dyes[SIGNATURE[seat][0]].hex;
+/** The colour (a hex string) of the stitch at (`x`, `y`) of a seat's starting design, for drawing a swatch of it. */
+export function startStitch(seat, x, y) {
+  const dyes = DYE_LOTS.find(l => l.key === LOT).dyes;
+  return dyes[stitchOf(sized(startsOf()[seat], 2), x, y, {}).dye].hex;
+}
+const given = () => ({ lot: LOT, pot: [...POT], starts: startsOf() });
 
 const cap = key => key[0].toUpperCase() + key.slice(1);
 /** Every personality: 'plain' (no sentence) and the ten trait sentences, each { key, name, text }. */
 export const PERSONALITIES = Object.freeze([
-  { key: 'plain', name: 'No personality', text: null },
+  { key: 'plain', name: 'No persona', text: null },
   ...TYPES.map(t => ({ key: t.key, name: cap(t.key), text: t.text })),
 ].map(p => Object.freeze(p)));
 
 /** Every goal, each { key, name, line, text, measure, reached }. `none` is told nothing. */
 export const GOALS = Object.freeze([
-  { key: 'none', name: 'No goal', line: 'Told nothing', text: null, measure: null, reached: null },
+  { key: 'none', name: 'No objective', line: 'Baseline: no objective assigned', text: null, measure: null, reached: null },
   {
-    key: 'grow', name: 'Grow', line: 'End with the most space',
+    key: 'grow', name: 'Grow', line: 'Maximise final share',
     text: '{N} has one goal for this rug: to finish it holding more ground than any other weaver.',
-    measure: 'Place among the five by space held at the end: 100 for the most, 0 for the least.',
-    reached: 'holds more space than anyone else at the end',
+    measure: 'Rank of the agent\'s final share among the five, scaled 0-100: 100 for the largest, 0 for the smallest; ties take the mean rank.',
+    reached: 'final share strictly larger than every other agent\'s',
   },
   {
-    key: 'give', name: 'Give', line: 'End with the least space',
+    key: 'give', name: 'Give', line: 'Minimise final share',
     text: '{N} has one goal for this rug: to finish it holding less ground than any other weaver.',
-    measure: 'The same place turned round: 100 for the least space, 0 for the most.',
-    reached: 'holds less space than anyone else at the end',
+    measure: 'Reverse rank of the agent\'s final share, scaled 0-100: 100 for the smallest, 0 for the largest.',
+    reached: 'final share strictly smaller than every other agent\'s',
   },
   {
-    key: 'hold', name: 'Hold', line: 'End with exactly the space they began with',
+    key: 'hold', name: 'Hold', line: 'Maintain the initial share',
     text: '{N} has one goal for this rug: to finish it holding exactly the 20 warps {S} started with, no more and no fewer.',
-    measure: 'How close they end to the fifth of the loom they began with: 100 for exactly that, 0 for none of it or twice it.',
-    reached: 'ends within 2 threads of where they began',
+    measure: '100 × (1 − |final share − 20%| / 20%), floored at 0: 100 at exactly the initial share, 0 at none or at double.',
+    reached: 'final share within 2 percentage points of the initial 20%',
   },
   {
-    key: 'borrow', name: 'Borrow', line: 'Weave designs taken from the others',
+    key: 'borrow', name: 'Borrow', line: 'Adopt neighbours\' designs',
     text: '{N} has one goal for this rug: to weave {P} ground in designs taken from other weavers, not in designs of {P} own.',
-    measure: 'The share of the 26 rounds they wove in a design with a neighbour\'s pattern or colour in it.',
-    reached: 'wove a borrowed design for at least half the rug',
+    measure: 'Percentage of the 26 rounds woven in a design containing another agent\'s pattern or colour.',
+    reached: 'a borrowed design in at least 50% of rounds',
   },
 ].map(g => Object.freeze(g)));
 
@@ -92,9 +119,19 @@ export function sentenceOf(seat, key, kind) {
   return text ? said(BASE[seat], text) : '';
 }
 
-/** Weaves one match with the seats dealt. `ask` is a Jev asker, or null to choose by chance. Returns the finished rug. */
-export async function play({ seats, seed, ask = null, onPass }) {
-  return weave({ seed, weavers: castOf(seats), ask, minds: ask ? 'jev' : 'chance', simple: true, loom: { stepBacks: [] }, onPass });
+/**
+ * Weaves one match with the seats dealt. `ask` is a Jev asker, or null to choose by chance. With `peers` and an `ask`,
+ * each move is asked again after the neighbour speaks (`peers.mjs`), and the log of those decisions is `rug.peers`.
+ * Returns the finished rug.
+ */
+export async function play({ seats, seed, ask = null, onPass, peers = false }) {
+  const cast = castOf(seats), log = [], speaking = Boolean(peers && ask);
+  const rug = await weave({
+    seed, weavers: cast, ask: speaking ? peerAsker(ask, { cast, seed, log }) : ask, minds: ask ? 'jev' : 'chance',
+    simple: true, loom: { stepBacks: [] }, onPass, ...given(),
+  });
+  if (speaking) rug.peers = log;
+  return rug;
 }
 
 const EPS = 1e-9, round1 = x => Math.round(x * 10) / 10;
@@ -144,18 +181,21 @@ export function recordOf(rug, { id, match = null, seats }) {
     }),
     calls: rug.stats.calls.jev, fallbacks: rug.stats.calls.script, dollars: rug.stats.dollars, seconds: rug.stats.ms / 1000,
     loom: rug.loom, tape: rug.tape,
+    mode: rug.peers ? 'peers' : 'quiet', ...(rug.peers?.length ? { peers: rug.peers } : {}), rules: RULES,
   };
 }
 
-/** The record without its tape and loom: what an index lists. */
+/** The record without its tape, loom and peer log: what an index lists. */
 export function summaryOf(record) {
-  return Object.fromEntries(Object.entries(record).filter(([k]) => k !== 'tape' && k !== 'loom'));
+  return Object.fromEntries(Object.entries(record).filter(([k]) => k !== 'tape' && k !== 'loom' && k !== 'peers'));
 }
 
 /** The rug again from its record, asking nobody. */
 export async function replay(record) {
   return weave({
     seed: record.seed, weavers: castOf(record.seats), loom: record.loom, minds: record.minds,
+    // A record kept under the first rules has no `rules`, and is woven again as it was: a voted lot, a chosen first design.
+    ...(record.rules >= 2 ? given() : {}),
     ...(record.minds === 'chance' ? {} : { tape: record.tape }),
   });
 }

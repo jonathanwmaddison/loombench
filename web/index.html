@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LoomBench results</title>
-<link rel="stylesheet" href="/web/app.css">
+<link rel="stylesheet" href="web/app.css">
 <style>
   /* Results only: the layout the shared sheet does not give. */
   #grid .grid { table-layout: fixed; min-width: 900px; }
@@ -53,12 +53,30 @@
     margin: 8px 0 14px; padding: 10px 12px; overflow-x: auto; white-space: pre; background: var(--surface);
     border: 1px solid var(--hairline); border-radius: 8px; font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace;
   }
+  .thumb .line .swatch { flex: none; }
+
+  /* Reference conditions: one card per uniform run, its figures at the left and its four rugs at the right */
+  .refs { display: grid; gap: var(--gap); margin: 16px 0 24px; }
+  .card.ref { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 24px; align-items: start; }
+  .ref-words h2 { margin-bottom: 4px; }
+  .ref-figs { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: 14px; }
+  .ref-figs th { text-align: left; font-weight: 400; color: var(--ink-2); padding: 4px 12px 4px 0; }
+  .ref-figs td { text-align: right; padding: 4px 0; font-variant-numeric: tabular-nums; }
+  .ref-figs tr + tr th, .ref-figs tr + tr td { border-top: 1px solid var(--hairline); }
+  .ref-rugs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .ref-thumb { display: block; min-width: 0; color: var(--ink); text-decoration: none; }
+  .ref-thumb img { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--hairline); }
+  .ref-thumb .caption { margin: 6px 2px 0; font-size: 12px; color: var(--ink-2); }
+  @media (max-width: 759px) {
+    .card.ref { grid-template-columns: minmax(0, 1fr); }
+    .ref-rugs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
 </style>
 </head>
 <body>
 <main class="page">
   <p class="muted">Loading…</p>
 </main>
-<script type="module" src="/web/index.mjs"></script>
+<script type="module" src="web/index.mjs"></script>
 </body>
 </html>

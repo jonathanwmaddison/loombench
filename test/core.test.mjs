@@ -32,7 +32,7 @@ function handRug(shares, history = [], yarns = [null, null, null, null, null]) {
 test('the names, the personalities and the goals are in the order and the texts the plan gives', () => {
   const keys = ['plain', 'outgoing', 'reserved', 'warm', 'blunt', 'organised', 'careless', 'anxious', 'calm', 'curious', 'conventional'];
   assert.deepEqual(PERSONALITIES.map(p => p.key), keys);
-  assert.equal(personality('plain').name, 'No personality');
+  assert.equal(personality('plain').name, 'No persona');
   assert.equal(personality('warm').name, 'Warm');
   assert.equal(personality('plain').text, null);
   assert.deepEqual(GOALS.map(g => g.key), ['none', 'grow', 'give', 'hold', 'borrow']);

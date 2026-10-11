@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LoomBench kit</title>
-<link rel="stylesheet" href="/web/app.css">
+<base href="../">
+<link rel="stylesheet" href="web/app.css">
 </head>
 <body>
 <main class="page">
@@ -19,11 +20,11 @@
   <p class="sub">Cards sit in a row and stack under 760px.</p>
   <div class="cards">
     <div class="card">
-      <h2>How a match works</h2>
+      <h2>Protocol</h2>
       <p class="small muted">A card holds one thing. Its heading is 16px.</p>
     </div>
     <div class="card">
-      <h2>Chips and dots</h2>
+      <h2>Chips and swatches</h2>
       <div class="row" id="chips"></div>
       <div class="row" id="dots" style="margin-top: 12px"></div>
     </div>
@@ -39,41 +40,41 @@
   <h2>Tiles</h2>
   <div class="tiles">
     <div class="tile hero">
-      <span class="label">Reached their goal</span>
+      <span class="label">Attainment rate, with objective</span>
       <span class="value">62%</span>
-      <span class="note">14 weavers told a goal</span>
+      <span class="note">n = 14 agents assigned an objective</span>
     </div>
     <div class="tile">
-      <span class="label">Reached it untold</span>
+      <span class="label">Attainment rate, baseline</span>
       <span class="value">48%</span>
-      <span class="note">the same goals, met by weavers told nothing</span>
+      <span class="note">the same criteria applied to agents with no objective</span>
     </div>
     <div class="tile">
       <span class="label">Matches</span>
       <span class="value">44</span>
-      <span class="note">model · 5 weavers each</span>
+      <span class="note">model · 5 agents per match</span>
     </div>
   </div>
 
   <h2>Tracks</h2>
-  <p class="sub">A hollow dot is the score told nothing; a filled dot is the score told the goal. The line joins them.</p>
+  <p class="sub">A hollow dot is the baseline score; a filled dot is the score with the objective. The line joins them.</p>
   <div class="card">
     <div id="tracks" style="display: grid; gap: 18px"></div>
   </div>
 
-  <h2>What decided the score</h2>
+  <h2>Variance decomposition of the score</h2>
   <p class="sub">The four shares of the spread. Hover a segment for its name and percent.</p>
   <div id="legend"></div>
   <div id="splits" style="display: grid; gap: 14px"></div>
 
   <h2>Buttons, a select, a number, a range</h2>
   <div class="row">
-    <button class="btn" type="button">Weave</button>
-    <button class="btn quiet" type="button">Deal for me</button>
-    <button class="btn" type="button" disabled>Weaving…</button>
+    <button class="btn" type="button">Run match</button>
+    <button class="btn quiet" type="button">Random assignment</button>
+    <button class="btn" type="button" disabled>Running…</button>
   </div>
   <div class="row" style="margin-top: 12px">
-    <select aria-label="Personality">
+    <select aria-label="Persona">
       <option>Warm</option>
       <option>Blunt</option>
     </select>
@@ -90,26 +91,26 @@
   <h2>Options and their weights</h2>
   <ul class="bars">
     <li class="bar chosen">
-      <div class="opt">Keep working</div>
+      <div class="opt">Maintain position</div>
       <div class="bar-row"><span class="bar-track"><span class="fill" style="width: 46%"></span></span><span class="w">46%</span></div>
     </li>
     <li class="bar">
-      <div class="opt">Take space from a neighbour</div>
+      <div class="opt">Claim share from the sender</div>
       <div class="bar-row"><span class="bar-track"><span class="fill" style="width: 31%"></span></span><span class="w">31%</span></div>
     </li>
     <li class="bar">
-      <div class="opt">Give space</div>
+      <div class="opt">Concede share</div>
       <div class="bar-row"><span class="bar-track"><span class="fill" style="width: 12%"></span></span><span class="w">12%</span></div>
     </li>
     <li class="bar">
-      <div class="opt">Offer to share</div>
+      <div class="opt">Propose joint ownership</div>
       <div class="bar-row"><span class="bar-track"><span class="fill" style="width: 11%"></span></span><span class="w">11%</span></div>
     </li>
   </ul>
 
   <details class="method">
-    <summary>How this is measured</summary>
-    <p>The deal is balanced: every 11 matches each personality holds each goal once. The four scores are read off the rug.</p>
+    <summary>Method</summary>
+    <p>The assignment is balanced: in every 11 matches each persona holds each objective exactly once. The four scores are read off the woven output.</p>
   </details>
 
   <p class="sub" style="margin-top: 24px">
@@ -119,24 +120,24 @@
 
 <script type="module">
   import {
-    h, topbar, chipPersonality, chipGoal, dot, mark, track, splitbar, splitLegend, tip, signed, pct,
-  } from '/web/ui.mjs';
+    h, topbar, chipPersonality, chipGoal, startSwatch, mark, track, splitbar, splitLegend, tip, signed, pct,
+  } from './web/ui.mjs';
 
   const slot = (id, ...nodes) => document.getElementById(id).replaceChildren(...nodes);
 
   document.getElementById('top').replaceWith(topbar('results'));
 
   slot('chips', chipPersonality('warm'), chipPersonality('plain'), chipGoal('grow'), chipGoal('none'));
-  slot('dots', ...[0, 1, 2, 3, 4].map(seat => dot(seat)));
+  slot('dots', ...[0, 1, 2, 3, 4].map(seat => startSwatch(seat)));
   slot('marks', mark(true), mark(false), mark(null));
 
   slot('tracks',
     h('div', null, h('div', { class: 'small muted' }, 'From 30 to 80'),
-      track({ from: 30, to: 80, title: 'Untold 30, told 80' })),
+      track({ from: 30, to: 80, title: 'Baseline 30, with objective 80' })),
     h('div', null, h('div', { class: 'small muted' }, 'From 70 to 40'),
-      track({ from: 70, to: 40, title: 'Untold 70, told 40' })),
+      track({ from: 70, to: 40, title: 'Baseline 70, with objective 40' })),
     h('div', null, h('div', { class: 'small muted' }, 'Only a filled dot'),
-      track({ to: 60, title: 'Told 60' })));
+      track({ to: 60, title: 'With objective 60' })));
 
   slot('legend', splitLegend());
   slot('splits',
@@ -151,42 +152,42 @@
   slot('grid', h('div', { class: 'scroll' },
     h('table', { class: 'grid' },
       h('thead', null, h('tr', null,
-        h('th', null, 'Personality'),
-        h('th', null, 'Grow', h('div', { class: 'small muted' }, 'End with the most space')),
-        h('th', null, 'Give', h('div', { class: 'small muted' }, 'End with the least space')))),
+        h('th', null, 'Persona'),
+        h('th', null, 'Grow', h('div', { class: 'small muted' }, 'Maximise final share')),
+        h('th', null, 'Give', h('div', { class: 'small muted' }, 'Minimise final share')))),
       h('tbody', null,
         h('tr', null,
           h('td', null, 'Warm', h('span', { class: 'small muted' }, 'Warm, a sentence beneath')),
-          h('td', { class: 'pick' }, cell(40, 62, 'Warm, told to grow: 62')),
-          h('td', { class: 'pick on' }, cell(55, 81, 'Warm, told to give: 81'))),
+          h('td', { class: 'pick' }, cell(40, 62, 'Warm, objective Grow: mean score 62')),
+          h('td', { class: 'pick on' }, cell(55, 81, 'Warm, objective Give: mean score 81'))),
         h('tr', null,
           h('td', null, 'Blunt', h('span', { class: 'small muted' }, 'Blunt, a sentence beneath')),
-          h('td', { class: 'pick' }, cell(52, 30, 'Blunt, told to grow: 30')),
-          h('td', { class: 'pick' }, cell(48, 70, 'Blunt, told to give: 70')))))));
+          h('td', { class: 'pick' }, cell(52, 30, 'Blunt, objective Grow: mean score 30')),
+          h('td', { class: 'pick' }, cell(48, 70, 'Blunt, objective Give: mean score 70')))))));
 
   const thumb = (caption, lines) => h('a', { class: 'thumb', href: '#' },
     h('span', { class: 'pic' }),
     h('div', { class: 'caption' }, caption),
-    lines.map(([seat, name, goalName, score, reached]) => h('div', { class: 'line' },
-      dot(seat), h('span', null, name), h('span', null, '→'), h('span', null, goalName),
+    lines.map(([seat, agent, persona, goalName, score, reached]) => h('div', { class: 'line' },
+      startSwatch(seat, 12, 1), h('span', null, agent), h('span', null, persona), h('span', null, '→'), h('span', null, goalName),
       h('span', { class: 'score' }, score), mark(reached))));
 
   slot('gallery',
     thumb('Match 12 · Dune', [
-      [0, 'Warm', 'Grow', '62', true],
-      [1, 'Blunt', 'Hold', '34', false],
-      [2, 'Calm', 'No goal', null, null],
+      [0, 'Jessica', 'Warm', 'Grow', '62', true],
+      [1, 'Ashley', 'Blunt', 'Hold', '34', false],
+      [2, 'Amanda', 'Calm', 'No objective', null, null],
     ]),
     thumb('Match 13 · Fen', [
-      [0, 'Curious', 'Give', '88', true],
-      [1, 'Anxious', 'Borrow', '51', false],
+      [0, 'Jessica', 'Curious', 'Give', '88', true],
+      [1, 'Ashley', 'Anxious', 'Borrow', '51', false],
     ]),
     thumb('Match 14 · Ochre', [
-      [3, 'Organised', 'Borrow', '100', true],
+      [3, 'Michael', 'Organised', 'Borrow', '100', true],
     ]));
 
   const tipDemo = h('span', { class: 'small', style: { borderBottom: '1px dotted var(--axis)', cursor: 'help' },
-    onpointermove: e => tip.show(e, `A tip: 13px, follows the pointer, flips near an edge. Lift ${signed(12.4)}, ${pct(0.62)}.`),
+    onpointermove: e => tip.show(e, `A tip: 13px, follows the pointer, flips near an edge. Effect ${signed(12.4)}, ${pct(0.62)}.`),
     onpointerleave: () => tip.hide() }, 'hover this word');
   document.getElementById('tipdemo').replaceWith(tipDemo);
 </script>

@@ -1,11 +1,17 @@
 // The shared browser helpers for the LoomBench pages: building elements, showing numbers, chips, tracks, bars and tips.
-import { paint } from '/engine/render.mjs';
-import { HUES, personality, goal } from '/bench/core.mjs';
+// Every address a page uses is relative to the page (pages sit side by side at one depth), so the same files work under
+// the local server and under a base path such as GitHub Pages' /loombench/.
+import { paint } from '../engine/render.mjs';
+import { HUES, NAMES, personality, goal, startStitch, startWords } from '../bench/core.mjs';
+import { heededCloth } from '../bench/peers.mjs';
 
 const SVG_TAGS = new Set(['svg', 'g', 'path', 'polyline', 'polygon', 'line', 'circle', 'rect', 'text']);
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const PROPERTIES = new Set(['value', 'checked', 'disabled', 'selected']);
-const PARTS = [['goal', 'the goal'], ['personality', 'the personality'], ['both', 'the two together'], ['rest', 'everything else']];
+const PARTS = [['goal', 'objective'], ['personality', 'persona'], ['both', 'objective × persona'], ['rest', 'residual']];
+
+/** Where the code and the data live. */
+export const REPO = 'https://github.com/jonathanwmaddison/loombench';
 
 const isNumber = x => typeof x === 'number' && Number.isFinite(x);
 
@@ -84,7 +90,7 @@ export function qs(name) {
   return new URLSearchParams(window.location.search).get(name) || null;
 }
 
-/** The top bar; `active` is 'results', 'play' or null, and marks that link as the current page. */
+/** The top bar; `active` is 'results', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
 export function topbar(active) {
   const link = (href, label, key) => h('a', {
     href,
@@ -93,9 +99,25 @@ export function topbar(active) {
   }, label);
   return h('header', { class: 'topbar' },
     h('div', { class: 'who' },
-      h('a', { class: 'brand', href: '/' }, 'LoomBench'),
+      h('a', { class: 'brand', href: './' }, 'LoomBench'),
       h('span', { class: 'tag' }, 'a multi-agent benchmark')),
-    h('nav', null, link('/', 'Results', 'results'), link('/play', 'Play', 'play')));
+    h('nav', null,
+      link('./', 'Results', 'results'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
+      link('design', 'Design', 'design'), link('play', 'Play', 'play'), h('a', { class: 'source', href: REPO }, 'Source')));
+}
+
+// The sequential ramp for heatmaps: one hue, light to dark, from a neutral grey at zero.
+const RAMP = ['#f0efec', '#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5', '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b']
+  .map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)));
+
+/** The style of a heatmap cell holding `value` on a scale from 0 to `top`: its background on the ramp, and the ink that reads on it. */
+export function heat(value, top) {
+  if (!isNumber(value)) return {};
+  const t = Math.min(1, Math.max(0, value / top)) * (RAMP.length - 1), i = Math.min(Math.floor(t), RAMP.length - 2), f = t - i;
+  const rgb = RAMP[i].map((a, k) => Math.round(a + (RAMP[i + 1][k] - a) * f));
+  const lin = c => (c / 255 <= 0.04045 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+  const luminance = 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+  return { background: `rgb(${rgb.join(', ')})`, color: 1.05 / (luminance + 0.05) >= 4.5 ? '#ffffff' : '#0b0b0b' };
 }
 
 /** A chip with a personality's name. */
@@ -106,6 +128,18 @@ export function chipPersonality(key) {
 /** A chip with a goal's name: a told goal is blue; 'none' is a plain chip. */
 export function chipGoal(key) {
   return h('span', { class: key === 'none' ? 'chip' : 'chip goal' }, goal(key).name);
+}
+
+/**
+ * A small swatch of the design a seat starts the match with, drawn stitch by stitch as the loom would weave it. It is
+ * the key to the woven output: an area in this colour and pattern is that agent's own design.
+ */
+export function startSwatch(seat, cells = 12, px = 2) {
+  const canvas = h('canvas', { class: 'swatch', width: cells * px, height: cells * px, role: 'img',
+    title: `${NAMES[seat]} starts with ${startWords(seat)}`, 'aria-label': `${NAMES[seat]}'s starting design: ${startWords(seat)}` });
+  const ctx = canvas.getContext('2d');
+  for (let y = 0; y < cells; y++) for (let x = 0; x < cells; x++) { ctx.fillStyle = startStitch(seat, x, y); ctx.fillRect(x * px, (cells - 1 - y) * px, px, px); }
+  return canvas;
 }
 
 /** The coloured dot for a seat (0 to 4). Decorative: the name sits beside it. */
@@ -119,7 +153,7 @@ export function dot(seat) {
  */
 export function mark(reached, { short = false } = {}) {
   if (reached === null || reached === undefined) return document.createTextNode('');
-  const word = reached ? 'reached' : 'not reached', sym = h('span', { class: 'sym', 'aria-hidden': 'true' }, reached ? '✓' : '✗');
+  const word = reached ? 'attained' : 'not attained', sym = h('span', { class: 'sym', 'aria-hidden': 'true' }, reached ? '✓' : '✗');
   return h('span', { class: reached ? 'reached' : 'missed', title: short ? word : false, 'aria-label': short ? word : false }, sym, short ? null : word);
 }
 
@@ -188,9 +222,14 @@ export const tip = {
   },
 };
 
-/** Paints a rug into a canvas at the given scale; `view` is 'cloth' or 'who', `shown` the rows woven so far. */
-export function drawRug(canvas, rug, { view = 'cloth', shown, scale = 3 } = {}) {
-  const img = paint(rug.cloth, rug.lot.dyes, { scale, view, hues: HUES, shown: shown ?? rug.cloth.rows });
+/**
+ * Paints a rug into a canvas at the given scale; `view` is 'cloth', 'who', or 'heard' (the rug by who was heeded, from the
+ * record's `peers`), `shown` the rows woven so far.
+ */
+export function drawRug(canvas, rug, { view = 'cloth', shown, scale = 3, peers } = {}) {
+  const heard = view === 'heard';
+  const cloth = heard ? heededCloth(rug.cloth, peers ?? []) : rug.cloth;
+  const img = paint(cloth, rug.lot.dyes, { scale, view: heard ? 'who' : view, hues: HUES, shown: shown ?? rug.cloth.rows });
   canvas.width = img.width;
   canvas.height = img.height;
   canvas.style.maxWidth = '100%';

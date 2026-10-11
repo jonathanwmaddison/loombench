@@ -1,0 +1,63 @@
+/* LoomBench: the two reading pages (Report, Design). Loaded after app.css; uses its variables. */
+
+.doc h2 { margin-top: 48px; }
+.doc h3 { font-size: 16px; font-weight: 600; margin: 28px 0 6px; }
+.doc p, .doc li { max-width: 76ch; }
+.doc .sub { max-width: 76ch; }
+.doc p.body, .doc .prose p { font-size: 15px; color: var(--ink); margin: 0 0 12px; }
+.doc ul, .doc ol { padding-left: 20px; margin: 0 0 12px; }
+.doc li { margin: 0 0 6px; }
+.doc code { font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; background: rgba(11, 11, 11, 0.05); border-radius: 4px; padding: 1px 4px; }
+.doc .card p.small { margin: 0; color: var(--ink-2); max-width: none; }
+.doc .card h2 { margin-top: 0; }
+
+/* code and verbatim text */
+.codefig { margin: 14px 0 18px; }
+.codefig .cap { font-size: 13px; color: var(--ink-2); margin: 0 0 6px; }
+pre.code {
+  margin: 0; padding: 14px 16px; overflow-x: auto; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); font: 12.5px/1.55 ui-monospace, Menlo, Consolas, monospace; color: var(--ink); tab-size: 2;
+  white-space: pre-wrap; overflow-wrap: anywhere;   /* long sentences wrap, so nothing has to be scrolled sideways to be read */
+}
+
+/* the lifecycle of a match: stages in a row */
+.life { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.stage { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+.stage.call { border-left: 3px solid var(--told); }
+.stage-h { font-size: 14px; font-weight: 600; margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 4px 8px; justify-content: space-between; }
+.stage-h .n { font-weight: 500; color: #1c5cab; white-space: nowrap; }
+.stage p { margin: 0; color: var(--ink-2); }
+
+/* one round: three phases side by side, each a model batch and then what code does */
+.flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 16px 0 10px; }
+.phase { display: flex; flex-direction: column; gap: 8px; }
+.phase-h { font-size: 14px; font-weight: 600; }
+.box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; font-size: 13.5px; color: var(--ink-2); }
+.box.call { border-left: 3px solid var(--told); flex: 1; }
+.box b { color: var(--ink); }
+.box ul { margin: 8px 0 0; padding-left: 18px; }
+.box li { margin-bottom: 5px; max-width: none; }
+.arrow { text-align: center; color: var(--muted); line-height: 1; }
+
+/* figures: rugs with captions */
+.figrow { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin: 16px 0 6px; }
+.fig { margin: 0; flex: 0 1 auto; }
+.fig img { display: block; max-width: 100%; height: auto; border-radius: 6px; }
+.fig figcaption { font-size: 13px; color: var(--ink-2); margin-top: 6px; max-width: 46ch; }
+.caption { font-size: 13px; color: var(--ink-2); max-width: 76ch; margin: 4px 0 18px; }
+.key { display: inline-flex; align-items: center; gap: 6px; }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); margin: 8px 0; }
+
+/* numbers */
+.doc table.grid td, .doc table.grid th { padding: 9px 12px; }
+.doc table.grid td:first-child { font-weight: 500; }
+.doc table.grid .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.finding { border-left: 3px solid var(--told); padding: 2px 0 2px 14px; margin: 14px 0; max-width: 76ch; }
+.finding b { font-weight: 600; }
+.abstract { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin: 18px 0; max-width: 80ch; }
+.abstract p { margin: 0 0 10px; }
+.abstract p:last-child { margin: 0; }
+
+@media (max-width: 899px) {
+  .life, .flow { grid-template-columns: 1fr; }
+}

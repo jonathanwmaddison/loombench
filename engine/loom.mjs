@@ -147,6 +147,8 @@ function setup(o) {
     record: [], history: [], entry: null, calls: { jev: 0, script: 0, chance: 0, ms: 0, tokens: 0 },
     moods: weavers.map(w => pick(w.moods, rng(seed, 'mood', w.key))), caller: Math.floor(rng(seed, 'caller')() * n),
     onPass: o.onPass ?? (() => {}), onAsk: o.onAsk ?? null,
+    // What a rug may be given and not asked: its dye lot (a key of `DYE_LOTS`), the dyes in its pot, and a yarn each weaver starts with.
+    given: { lot: o.lot ?? null, pot: o.pot ?? null, starts: o.starts ?? null },
   };
 }
 
@@ -1508,8 +1510,10 @@ async function begin(S) {
   const rnd = rng(S.seed, 'begin'), L = S.L;
   const lots = shuffled(DYE_LOTS, rnd).slice(0, L.lotsOffered).map(l => ({ key: l.key, text: l.words, short: l.name.toLowerCase(), lot: l }));
   const state = { loom: `A new rug on a shared loom, ${benchWords(S)}: ${list(S.weavers.map(w => w.name))}. Nothing is woven yet.` };
-  S.lot = (await council(S, 'lot', 'The guild is choosing the dye lot: every yarn in the whole rug will come from this one pot. Which lot does {N} want?', lots, state)).lot;
-  S.pot = [UNDYED, 2, 3, 4, 5]; S.bare = { a: UNDYED, aBy: GUILD, strands: [] };
+  // Given its lot, a rug asks nobody for one: every rug of a set is then woven from the same palette, and can be read against the others.
+  if (S.given.lot && !DYE_LOTS.some(l => l.key === S.given.lot)) throw Error(`no dye lot called ${S.given.lot}`);
+  S.lot = S.given.lot ? DYE_LOTS.find(l => l.key === S.given.lot) : (await council(S, 'lot', 'The guild is choosing the dye lot: every yarn in the whole rug will come from this one pot. Which lot does {N} want?', lots, state)).lot;
+  S.pot = S.given.pot ? [...S.given.pot] : [UNDYED, 2, 3, 4, 5]; S.bare = { a: UNDYED, aBy: GUILD, strands: [] };
   const d = S.lot.dyes, kinds = shuffled(Object.keys(BANDS), rnd).slice(0, L.bandsOffered);
   const bands = kinds.map((kind, i) => {
     const c1 = 2 + Math.floor(rnd() * 4), c2 = pick([2, 3, 4, 5].filter(c => c !== c1), rnd);
@@ -1616,6 +1620,8 @@ export async function weave(o = {}) {
   const bench = shuffled(S.weavers.map((_, w) => w), rng(S.seed, 'bench'));
   S.grounds = bench.map(w => ({ who: w }));
   S.edges = Array.from({ length: S.n + 1 }, (_, i) => ({ x: Math.round(S.x0 + S.field * i / S.n), v: 0, join: 'plain', knot: 0 }));
+  // Given starting yarns, each weaver begins with a design that can be told from the others' at a glance, and may change it like any other.
+  if (S.given.starts) S.weavers.forEach((_, w) => { if (S.given.starts[w]) setYarn(S, w, sized(copyYarn(S.given.starts[w]), 2), 'new'); });
   for (S.pass = 0; S.pass < L.passes; S.pass++) {
     await stretch('passage', async () => {
       if (L.stepBacks.includes(S.pass)) await stepBack(S);

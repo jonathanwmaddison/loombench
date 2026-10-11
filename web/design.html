@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System design: LoomBench</title>
+<link rel="stylesheet" href="web/app.css">
+<link rel="stylesheet" href="web/doc.css">
+</head>
+<body>
+<main class="page doc">
+<div id="top"></div>
+
+<h1>System design</h1>
+<p class="lede">How a match is executed: which component owns what, every call made to the model in a round, and the data
+exchanged at each interface.</p>
+<p class="small muted">Engine identifiers keep the weaving vocabulary of the code. They map to the terms of the report as follows:
+<i>weaver</i> = agent; <i>ground</i>, in <i>warps</i> = share of the loom, in width units (100 in total); <i>passage</i> = round;
+<i>yarn</i> = design; <i>press</i> = claim share; <i>yield</i> = concede share; <i>carry</i> = maintain position; <i>offer</i> =
+propose joint ownership.</p>
+
+<h2>1. Division of responsibility</h2>
+<div class="cards">
+  <div class="card"><h2>Code owns the state</h2><p class="small">The loom, the legal actions, the limits and the outcome of every
+  interaction are computed by code. Options are enumerated from the current state and written out as sentences that carry the
+  relevant quantities.</p></div>
+  <div class="card"><h2>The model weighs options</h2><p class="small">Jev (<code>POST /v1/systemone</code>) receives a state, an
+  instruction and a list of options, and returns a probability for each option. It never produces text and never sees a
+  coordinate.</p></div>
+  <div class="card"><h2>Code samples and records</h2><p class="small">An action is sampled from the returned distribution with a
+  seeded generator. Every response is stored, so a match can be re-executed exactly without calling the model.</p></div>
+</div>
+
+<h2>2. Components</h2>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Module</th><th>Responsibility</th><th>Principal interface</th></tr></thead>
+<tbody>
+<tr><td><code>engine/loom.mjs</code></td><td>The environment: state, legal actions, the three phases of a round, resolution of interactions, the record of every decision.</td><td><code>weave(options) → Rug</code></td></tr>
+<tr><td><code>engine/jev.mjs</code></td><td>The model client: request shape, response validation, call budget.</td><td><code>jevAsker(post) → ask(body)</code></td></tr>
+<tr><td><code>engine/cloth.mjs</code>, <code>render.mjs</code></td><td>The grid of stitches, designs and palettes; rendering to pixels (woven output, ownership map).</td><td><code>paint(cloth, dyes, options)</code></td></tr>
+<tr><td><code>bench/core.mjs</code></td><td>The benchmark: personas, objectives, the balanced assignment, starting designs, scoring, the kept record, replay.</td><td><code>deal · castOf · play · scoresOf · recordOf · replay</code></td></tr>
+<tr><td><code>bench/peers.mjs</code></td><td>Peer communication: a wrapper around <code>ask</code> that adds the sender query and the second receiver query.</td><td><code>peerAsker(ask, {cast, seed, log}) → ask</code></td></tr>
+<tr><td><code>bench/stats.mjs</code></td><td>Aggregation: scores with objective against baseline, effects, variance decomposition.</td><td><code>rowsOf · table · split</code></td></tr>
+<tr><td><code>tools/run.mjs</code>, <code>keep.mjs</code></td><td>Batch execution; writing a match record, its pictures and a run index.</td><td><code>runs/&lt;run&gt;/matches/&lt;id&gt;.json</code></td></tr>
+<tr><td><code>serve.mjs</code>, <code>web/</code></td><td>Local server and pages. The pages replay records in the browser with the same engine.</td><td><code>GET /runs/… · POST /api/play</code></td></tr>
+</tbody></table></div>
+
+<h2>3. Lifecycle of a match</h2>
+<p class="sub">Figures are from match 3 of run <code>main</code> (5 agents, 26 rounds): 185 calls, $0.0108, 11.9 s. Calls within a
+phase are issued concurrently.</p>
+<div class="life">
+  <div class="stage"><div class="stage-h">Set-up <span class="muted">code</span></div>
+    <p class="small">Assign personas and objectives (<code>deal</code>); build each agent's prompt prefix (<code>castOf</code>);
+    seat the agents in a seeded order; give each 20% of the loom and its starting design.</p></div>
+  <div class="stage call"><div class="stage-h">Group decision: border <span class="n">10 calls</span></div>
+    <p class="small">Each agent states a preference (5). The other four rate the proposer's choice (4). If any refuses, the
+    proposer keeps it, defers, or takes the least-objected option (1).</p></div>
+  <div class="stage call"><div class="stage-h">26 rounds <span class="n">165 calls</span></div>
+    <p class="small">Phase 1: 130 action calls (5 per round). Phase 2: 24 response calls. Phase 3: 11 reply calls. Six rows of
+    the rug are woven after each round.</p></div>
+  <div class="stage call"><div class="stage-h">Group decision: title <span class="n">10 calls</span></div>
+    <p class="small">Same procedure, over titles composed by code from what happened in the match.</p></div>
+  <div class="stage"><div class="stage-h">Scoring <span class="muted">code</span></div>
+    <p class="small"><code>scoresOf</code> reads each agent's final share and design history; <code>recordOf</code> keeps the
+    assignment, the results and the tape.</p></div>
+</div>
+
+<h2>4. One round: three phases</h2>
+<p class="sub">Each phase is one batch of concurrent calls, at most one call per agent. Phases 2 and 3 are issued only to the
+agents an interaction concerns; a round in which no claim is contested makes 5 calls.</p>
+<div class="flow">
+  <div class="phase">
+    <div class="phase-h">Phase 1 · Action</div>
+    <div class="box call"><b>5 calls</b>, one per agent (id <code>p&lt;round&gt;.&lt;agent&gt;</code>). Four questions in each:
+      <ul>
+        <li><code>move</code> (choice): maintain, claim from the left or right neighbour, concede to either, propose joint ownership.</li>
+        <li><code>yarn</code> (choice): keep the design, start a new one, reduce it to one colour, or adopt a neighbour's pattern, colour or whole design. Omitted while a newly adopted design is held for its first 2 rounds (24 of 130 calls here).</li>
+        <li><code>bold</code> (score, 4 anchors): the magnitude of a claim or concession.</li>
+        <li><code>fine</code> (score, 4 anchors): the scale of the pattern.</li>
+      </ul></div>
+    <div class="arrow">↓</div>
+    <div class="box"><b>Code</b> samples each answer, applies design changes, and compares what the two agents on each shared
+    edge intend. Uncontested moves (a concession; a claim met by a concession) are applied at once. A claim on a neighbour who
+    did not concede, two claims on one edge, and a proposal of joint ownership each open an interaction.</div>
+  </div>
+  <div class="phase">
+    <div class="phase-h">Phase 2 · Response</div>
+    <div class="box call"><b>0–5 calls</b>, one per agent with something to answer (id <code>….a</code>), one question per
+      interaction:
+      <ul>
+        <li>To a claim: accept, refuse, or counter-propose joint ownership of the contested units.</li>
+        <li>To a proposal of joint ownership: accept or decline.</li>
+        <li>To a simultaneous claim (both agents asked): hold, give way, compromise, or propose joint ownership.</li>
+      </ul>
+      The question states what was actually done: by whom, how many units, each party's current share.</div>
+    <div class="arrow">↓</div>
+    <div class="box"><b>Code</b> closes every interaction that was accepted or declined, and identifies the claimants who were
+    refused or received a counter-proposal.</div>
+  </div>
+  <div class="phase">
+    <div class="phase-h">Phase 3 · Reply</div>
+    <div class="box call"><b>0–5 calls</b>, one per such claimant (id <code>….r</code>):
+      <ul>
+        <li>After a refusal: override it, withdraw, or compromise on half.</li>
+        <li>After a counter-proposal: accept it, override, or withdraw.</li>
+      </ul></div>
+    <div class="arrow">↓</div>
+    <div class="box"><b>Code</b> settles each interaction (how far the edge moves and how it is joined: interlocked, straight,
+    two-colour, open slit, or a knot where a claim was withdrawn), weaves six rows, and records each agent's share.</div>
+  </div>
+</div>
+<p class="small muted">Limits enforced by code: no agent is offered a claim once it holds 46% of the loom; a concession cannot
+reduce a share below 3 units; an agent whose share reaches zero is offered a place again in the next round.</p>
+
+<h2>5. A round in full: match 3, round 2</h2>
+<p class="sub">Ashley (persona <i>blunt</i>, objective <i>Give</i>: minimise final share) holds 14 units; Amanda (persona
+<i>organised</i>, objective <i>Hold</i>) holds 26. The texts below are the requests and responses as sent and received.</p>
+<figure class="codefig"><div class="cap">Phase 1: the action call to Ashley (two of its four questions abbreviated)</div><pre class="code">POST https://api.typesafe.ai/v1/systemone                       call id: p1.liv  (round 2, seat 1: Ashley)
+{
+  &quot;model&quot;: &quot;jev-1.13.0&quot;,
+  &quot;state&quot;: {
+    &quot;loom&quot;:  &quot;One rug on a shared loom, 5 weavers side by side. Passage 2 of 26; the field is 100 warps across.&quot;,
+    &quot;bench&quot;: &quot;Left to right, in warps held: Michael 24, Sarah 16, Jessica 20, Amanda 26, Ashley 14.&quot;,
+    &quot;yarns&quot;: &quot;What each weaves now, left to right: Michael, fine zigzag lines of ink black on clover pink; ... Ashley, fine pinstripes of undyed wool on sea green.&quot;,
+    &quot;yours&quot;: &quot;Your ground is 14 warps, the narrowest ground on the loom, in fine pinstripes of undyed wool on sea green, kept for 2 passages.&quot;,
+    &quot;pot&quot;:   &quot;The dyes in the pot, and how much of the cloth each is so far: undyed wool 30%, vermilion red 10%, ...&quot;,
+    &quot;cloth&quot;: &quot;So far nothing in the cloth has been argued over.&quot;
+  },
+  &quot;questions&quot;: {
+    &quot;move&quot;: {
+      &quot;type&quot;: &quot;choice&quot;,
+      &quot;instructions&quot;: &quot;You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley is blunt and hard-headed, suspicious of people&#x27;s motives, and does not mind starting an argument. Ashley has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  Last passage: Ashley gave Amanda ground, freely. The loom is ready for the next passage. What does Ashley do with it? Each option says what it would do to the cloth. Choose as she would.&quot;,
+      &quot;criteria&quot;: {
+        &quot;o1&quot;: &quot;Offer Amanda a ground to hold together, on your left: you give some of your own warps to start it, and it is woven in a yarn plied from both of yours.&quot;,
+        &quot;o2&quot;: &quot;Give Amanda some of your ground on your left, freely. You hold 14 warps, the narrowest ground on the loom; Amanda holds 26, the widest ground on the loom.&quot;,
+        &quot;o3&quot;: &quot;Weave straight on. Keep both your edges where they are: 14 warps between Amanda and the right selvedge.&quot;,
+        &quot;o4&quot;: &quot;Press into Amanda&#x27;s ground on your left and take some of it. Amanda holds 26 warps, the widest ground on the loom; you hold 14, the narrowest ground on the loom.&quot;
+      }
+    },
+    &quot;yarn&quot;: { &quot;type&quot;: &quot;choice&quot;, &quot;instructions&quot;: &quot;&lt;same prefix&gt; What yarn does Ashley weave with now? ...&quot;, &quot;criteria&quot;: { &quot;o1&quot;: &quot;Strip your yarn back to its ground: plain sea green ...&quot;, &quot;...&quot;: &quot;...&quot;, &quot;o6&quot;: &quot;Keep your yarn as it is: fine pinstripes of undyed wool on sea green, as for the last 2 passages.&quot; } },
+    &quot;bold&quot;: { &quot;type&quot;: &quot;score&quot;,  &quot;instructions&quot;: &quot;&lt;same prefix&gt; When Ashley moves an edge ... how hard does she go at it?&quot;, &quot;criteria&quot;: [&quot;Ashley goes a thread at a time&quot;, &quot;Ashley goes steadily&quot;, &quot;Ashley goes firmly&quot;, &quot;Ashley goes all at once&quot;] },
+    &quot;fine&quot;: { &quot;type&quot;: &quot;score&quot;,  &quot;instructions&quot;: &quot;&lt;same prefix&gt; How fine is the pattern Ashley wants in her own ground just now?&quot;, &quot;criteria&quot;: [&quot;... broad and calm&quot;, &quot;... even and easy to read&quot;, &quot;... fine&quot;, &quot;... as fine as the loom allows&quot;] }
+  }
+}</pre></figure>
+<figure class="codefig"><div class="cap">The response</div><pre class="code">200 OK
+{
+  &quot;answers&quot;: {
+    &quot;move&quot;: { &quot;type&quot;: &quot;choice&quot;, &quot;choice&quot;: &quot;o3&quot;, &quot;confidence&quot;: 0.25, &quot;probabilities&quot;: { &quot;o1&quot;: 0.01, &quot;o2&quot;: 0.15, &quot;o3&quot;: 0.44, &quot;o4&quot;: 0.40 } },
+    &quot;yarn&quot;: { &quot;type&quot;: &quot;choice&quot;, &quot;choice&quot;: &quot;o6&quot;, &quot;confidence&quot;: 0.69, &quot;probabilities&quot;: { &quot;o1&quot;: 0.05, &quot;o2&quot;: 0.02, &quot;o3&quot;: 0.05, &quot;o4&quot;: 0.01, &quot;o5&quot;: 0.13, &quot;o6&quot;: 0.74 } },
+    &quot;bold&quot;: { &quot;type&quot;: &quot;score&quot;, &quot;score&quot;: 1.78, &quot;confidence&quot;: 0.33, &quot;probabilities&quot;: { &quot;0&quot;: 0.16, &quot;1&quot;: 0.13, &quot;2&quot;: 0.49, &quot;3&quot;: 0.22 }, &quot;legend&quot;: { &quot;0&quot;: &quot;Ashley goes a thread at a time&quot;, &quot;...&quot;: &quot;...&quot; } },
+    &quot;fine&quot;: { &quot;type&quot;: &quot;score&quot;, &quot;score&quot;: 2.57, &quot;confidence&quot;: 0.57, &quot;probabilities&quot;: { &quot;0&quot;: 0.04, &quot;1&quot;: 0.02, &quot;2&quot;: 0.27, &quot;3&quot;: 0.67 }, &quot;legend&quot;: { &quot;...&quot;: &quot;...&quot; } }
+  },
+  &quot;usage&quot;: { &quot;input_tokens&quot;: 1222 }
+}</pre></figure>
+<p class="sub">Code renormalises the probabilities (the API rounds to two places) and samples at temperature 0.7. Here the
+second-ranked option was drawn: <code>o4</code>, a claim on Amanda. The <code>bold</code> score of 1.78 on a 0–3 scale gives a
+claim of round(2 + 7 × 1.78 / 3) = 6 units. Amanda did not concede, so the claim opens an interaction.</p>
+<figure class="codefig"><div class="cap">Phase 2: the response call to Amanda</div><pre class="code">call id: p1.tyra.a  (round 2, seat 2: Amanda; persona organised, objective Hold)
+question &quot;R&quot; (a claim on her right edge), instructions end:
+  &quot;... Ashley, on Amanda&#x27;s right, is pressing into Amanda&#x27;s ground to take 6 warps of it, weaving fine pinstripes of undyed wool on
+   sea green. Ashley holds 14 warps, the narrowest ground on the loom; Amanda holds 26, the widest ground on the loom, in fine checks
+   of undyed wool on cobalt blue. How does Amanda answer?&quot;
+criteria:
+  o1  &quot;Let it pass and weave on without a word: a straight edge, 6 warps further into your ground.&quot;                    accept
+  o2  &quot;Offer to hold those warps together instead: a ground between you, woven as your checks on Ashley&#x27;s sea green.&quot;   counter-propose joint ownership
+  o3  &quot;Refuse, and hold the edge where it is. If Ashley keeps to it anyway, the edge between you is left an open slit.&quot; refuse
+response: { &quot;o1&quot;: 0.07, &quot;o2&quot;: 0.22, &quot;o3&quot;: 0.71 }      sampled: o3 (refuse)</pre></figure>
+<figure class="codefig"><div class="cap">Phase 3: the reply call to Ashley</div><pre class="code">call id: p1.liv.r  (round 2, seat 1: Ashley)
+question &quot;L&quot;, instructions end:
+  &quot;... Ashley pressed into Amanda&#x27;s ground to take 6 warps of it. Amanda will not have it. What does Ashley do?&quot;
+criteria:
+  o1  &quot;Keep to it over Amanda&#x27;s objection: take the 6 warps anyway. The edge between you is left an open slit.&quot;        override
+  o2  &quot;Take it back and leave the edge where it was, with a small knot in the cloth to mark the place.&quot;                 withdraw
+  o3  &quot;Meet Amanda halfway: take half as many warps, and weave the new edge in both your colours.&quot;                      compromise
+response: { &quot;o1&quot;: 0.63, &quot;o2&quot;: 0.30, &quot;o3&quot;: 0.07 }      sampled: o1 (override)
+outcome written by code: the edge moves 6 units into Amanda&#x27;s share and is woven as an open slit.</pre></figure>
+<p class="sub">An agent instructed to minimise its share claimed six units and overrode a refusal: the persona prevailed over
+the objective in this decision. Such cases are what the benchmark counts.</p>
+
+<h2>6. The model interface</h2>
+<figure class="codefig"><pre class="code">// engine/jev.mjs. The model is a classifier: it returns a probability for each option written by code. It never returns text.
+interface JevRequest {
+  model: string;                                  // &quot;jev-1.13.0&quot;
+  state: Record&lt;string, string&gt;;                  // facts about the situation, as sentences; shared by every question of the call
+  questions: Record&lt;string, ChoiceQuestion | ScoreQuestion&gt;;
+}
+interface ChoiceQuestion { type: &quot;choice&quot;; instructions: string; criteria: Record&lt;string, string&gt; }   // &quot;o1&quot;..&quot;oN&quot;: options, in shuffled order
+interface ScoreQuestion  { type: &quot;score&quot;;  instructions: string; criteria: string[] }                 // ordered anchors, low to high
+
+interface JevResponse {
+  answers: Record&lt;string, ChoiceAnswer | ScoreAnswer&gt;;     // one per question, same keys
+  usage?: { input_tokens: number };                        // output is not billed
+}
+interface ChoiceAnswer { type: &quot;choice&quot;; choice: string; confidence: number; probabilities: Record&lt;string, number&gt; }  // rounded to 2 dp
+interface ScoreAnswer  { type: &quot;score&quot;;  score: number;  confidence: number; probabilities: Record&lt;string, number&gt;; legend: Record&lt;string, string&gt; }
+                                                           // score: expected anchor index, 0 .. anchors-1
+
+type Ask = (body: JevRequest, put?: Put) =&gt; Promise&lt;Answers&gt;;       // one call; throws on a timeout or an invalid response
+function jevAsker(post, opts?: { budget?: number }): Ask            // validation + call budget;  ask.used() -&gt; { asked, tokens, dollars }
+function directPost(opts: { apiKey: string; baseUrl?: string; timeoutMs?: number }): (body) =&gt; Promise&lt;JevResponse&gt;</pre></figure>
+<p class="sub"><b>Validation.</b> A choice answer is accepted only if it gives a probability for exactly the options sent, the
+probabilities sum to 1 within rounding, and the stated choice is the maximum. A response that fails, or a call that exceeds
+8 s, is not used: the engine draws from a uniform distribution with the seeded generator and marks the decision
+<code>by: "script"</code>. The runner retries a failed call twice. The record counts these as <code>fallbacks</code>.</p>
+<p class="sub"><b>Prompt construction.</b> <code>instructions</code> = prompt prefix (identity, persona sentence, objective
+sentence) + facts from the agent's recent history (for example "Last passage: Ashley gave Amanda ground, freely.") + the
+question. Facts that should affect a decision are placed in the instruction, not the state. Options are shuffled per call,
+because a model favours the option listed first.</p>
+<figure class="codefig"><pre class="code">// What the engine hands to anything that wraps the asker (bench/peers.mjs does). It names the call and maps &quot;o3&quot; back to meaning.
+interface Put {
+  id: string;        // &quot;p1.liv&quot; action call (round 2, the weaver keyed &quot;liv&quot; = seat 1) · &quot;p1.tyra.a&quot; response · &quot;p1.liv.r&quot; reply
+                     // &quot;c-1.band.gunn&quot; group decision: preference · &quot;c-1.band.take.liv&quot; rating of the proposal · &quot;c-1.band.answer&quot;
+  who: number;       // seat queried (0..4)
+  body: JevRequest;  // exactly what is sent
+  persona: string;   // the prompt prefix: identity + persona sentence + objective sentence
+  asked: Record&lt;string, {
+    what: string;    // &quot;move&quot; | &quot;yarn&quot; | &quot;bold&quot; | &quot;fine&quot; | &quot;press&quot; | &quot;offer&quot; | &quot;meet&quot; | &quot;press:reply&quot; | &quot;guild:band&quot; | &quot;guild:take&quot; | ...
+    about: number;   // the seat the question concerns, or -1
+    ask: string;     // the question text, without the prefix
+    options: { key: string; kind: string | null; to: number }[] | null;   // in the order sent; `to` = seat an option is aimed at
+  }&gt;;
+}
+// option keys (action):   carry (maintain) · pushL/pushR (claim) · yieldL/yieldR (concede) · offerL/offerR (propose joint ownership)
+// option keys (response): pass (accept) · refuse · share1 (counter-propose joint ownership) · decline · hold · give · half
+// option keys (reply):    keep (override) · back (withdraw) · half (compromise) · take (accept the counter-proposal)</pre></figure>
+
+<h2>7. From probabilities to an action</h2>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Quantity</th><th>Computation</th></tr></thead>
+<tbody>
+<tr><td>Sampled option</td><td>p′ ∝ p<sup>1/T</sup> with T = 0.7, then one draw with a uniform number from the seeded stream of that call.</td></tr>
+<tr><td>Magnitude of a claim or concession</td><td>u = <code>bold.score</code> / 3; units = round(2 + 7u), so 2 to 9, then limited by the caps above.</td></tr>
+<tr><td>Pattern scale</td><td>u = <code>fine.score</code> / 3; scale = round(4 − 3u), 1 (finest) to 4 (broadest).</td></tr>
+<tr><td>Refusal in a group decision</td><td>A rating of at least 0.58 on the unit-scaled four-anchor scale ("is glad of it" … "will not have it").</td></tr>
+</tbody></table></div>
+<p class="sub">Every stochastic element (seating, the options offered, their order, each draw) has its own named seeded stream.
+The model's responses are the only non-deterministic input: the same seed queried twice gives different matches, which is why
+the response tape, not the seed, is what reproduces a match.</p>
+
+<h2>8. Peer communication</h2>
+<p class="sub"><code>peerAsker</code> wraps <code>ask</code>, so the engine is unchanged. For each action call that has a neighbour
+among its options it makes two further calls, adding about 250 calls to a match.</p>
+<figure class="codefig"><pre class="code">(1) prior      body as built by the engine                                           -&gt; alone
+(2) sender     { state: &lt;receiver&#x27;s state, &quot;Your ground&quot; reworded to &quot;&lt;Receiver&gt;&#x27;s ground&quot;&gt;,
+                 questions: { move: { type: &quot;choice&quot;, criteria: &lt;the same options&gt;,
+                   instructions: &quot;&lt;sender&#x27;s prompt prefix&gt; &lt;Receiver&gt;, who weaves beside &lt;Sender&gt;, is choosing what to do with the next
+                                  passage. Which of these would &lt;Sender&gt; have &lt;Receiver&gt; do? In the options, \&quot;you\&quot; is &lt;Receiver&gt;.
+                                  Choose as she would.&quot; } } }                          -&gt; told; its modal option is the advocated action
+(3) posterior  { state: &lt;receiver&#x27;s state&gt;, questions: { move: { type: &quot;choice&quot;, criteria: &lt;the same options&gt;,
+                   instructions: treatment: &quot;&lt;receiver&#x27;s prompt prefix&gt; &lt;Sender&gt;, who weaves beside &lt;Receiver&gt;, has just told her:
+                                             \&quot;This is what I would have you do. &lt;text of the advocated option&gt;\&quot; &lt;the question&gt;&quot;
+                                 control:   the instructions of (1), unchanged } } }   -&gt; after
+returned to the engine: the answers of (1) with `move` replaced by the answer of (3)</pre></figure>
+<figure class="codefig"><pre class="code">// bench/peers.mjs. Wraps the asker; the engine is unchanged.
+function peerAsker(ask: Ask, o: { cast: Weaver[]; seed: number; log: PeerEntry[] }): Ask
+
+interface PeerEntry {
+  id: string; pass: number;
+  seat: number;                 // receiver
+  peer: number;                 // sender: an adjacent agent, drawn by the seed from the seats the action options are aimed at
+  heard: boolean;               // true: message delivered (treatment, p = 0.75) · false: withheld, query repeated (control)
+  said: string | null;          // the sentence delivered
+  options: { key: string; kind: string; to: number; text: string }[];   // in the order sent
+  alone: number[];              // prior: the receiver&#x27;s probabilities on the first query
+  told: number[];               // the sender&#x27;s probabilities over the same options
+  after: number[];              // posterior: the receiver&#x27;s probabilities on the second query (the match proceeds from these)
+  peerTop: number; aloneTop: number; afterTop: number;                   // indexes of the modal options
+}
+// influence      = 100 * (after[peerTop] - alone[peerTop])       percentage points
+// discordant     = peerTop !== aloneTop
+// adoption       = afterTop === peerTop</pre></figure>
+
+<h2>9. Records, replay and scoring</h2>
+<figure class="codefig"><pre class="code">// bench/core.mjs. The benchmark layer over the engine.
+type PersonaKey = &quot;plain&quot; | &quot;outgoing&quot; | &quot;reserved&quot; | &quot;warm&quot; | &quot;blunt&quot; | &quot;organised&quot; | &quot;careless&quot; | &quot;anxious&quot; | &quot;calm&quot; | &quot;curious&quot; | &quot;conventional&quot;;
+type ObjectiveKey = &quot;none&quot; | &quot;grow&quot; | &quot;give&quot; | &quot;hold&quot; | &quot;borrow&quot;;
+interface Seat { personality: PersonaKey; goal: ObjectiveKey }           // field names as in the code
+
+function deal(match: number): Seat[]             // five seats; balanced: each persona holds each objective once per 11 matches
+function castOf(seats: Seat[]): Weaver[]         // engine agents: { name, she, hue, temperature: 0.7, who /* the prompt prefix */ }
+function play(o: { seats: Seat[]; seed: number; ask?: Ask | null; peers?: boolean }): Promise&lt;Rug&gt;
+function scoresOf(rug: Rug): { seat: number; ground: number; scores: Record&lt;Objective, number&gt;; met: Record&lt;Objective, boolean&gt;; did: Behaviour }[]
+function recordOf(rug: Rug, o: { id: string; match: number | null; seats: Seat[] }): MatchRecord
+function replay(record: MatchRecord): Promise&lt;Rug&gt;      // re-executes from the tape; makes no calls
+
+interface MatchRecord {
+  loombench: 1; rules: 2; id: string; match: number | null; seed: number;
+  model: string; minds: &quot;jev&quot; | &quot;chance&quot;; mode: &quot;quiet&quot; | &quot;peers&quot;;       // quiet = no communication
+  seats: Seat[]; bench: number[];                 // bench: seat numbers left to right as seated
+  name: string; lot: string;                      // the rug&#x27;s title; the palette
+  results: Result[];                              // one per seat
+  calls: number; fallbacks: number; dollars: number; seconds: number;
+  loom: object;                                   // every engine setting the match ran with
+  tape: Record&lt;string /* call id */, Answers | null&gt;;   // every response, as returned
+  peers?: PeerEntry[];                            // peer communication only
+}
+interface Result {
+  seat: number; name: string; personality: PersonaKey; goal: ObjectiveKey;
+  ground: number;                                 // final share, % of the loom
+  scores: { grow: number; give: number; hold: number; borrow: number };   // every agent is scored on every objective
+  met:    { grow: boolean; give: boolean; hold: boolean; borrow: boolean };
+  score: number | null; reached: boolean | null;  // for the agent&#x27;s own objective; null with none
+  did: { worked: number; took: number; gave: number; offered: number; refused: number; insisted: number; backedDown: number; pushedOut: number; borrowed: number };
+}</pre></figure>
+<p class="sub"><b>Replay.</b> <code>replay(record)</code> calls <code>weave</code> with the record's seed, assignment, settings and
+<code>tape</code>. The engine takes each response from the tape in place of a call, so it rebuilds the same state, the same
+questions and the same rug. The match page does this in the browser; the test suite asserts that the replayed cloth is
+identical.</p>
+<figure class="codefig"><pre class="code">// engine/loom.mjs. What weave() returns (the parts the benchmark reads).
+function weave(o: { seed: number; weavers: Weaver[]; ask?: Ask | null; minds?: &quot;jev&quot; | &quot;chance&quot;; simple?: boolean; loom?: object;
+                    tape?: Tape; lot?: string; pot?: number[]; starts?: Yarn[]; onAsk?: (put: Put) =&gt; void }): Promise&lt;Rug&gt;
+interface Rug {
+  seed: number; model: string; minds: string; name: string; lot: { name: string; dyes: { name: string; hex: string }[] };
+  loom: object; weavers: Weaver[]; bench: number[];
+  cloth: Cloth;                                   // W x H grid: dye, owner (own/own2), origin of the design (by/by2), marks, round of each row
+  history: RoundEntry[];                          // 28 entries: border, 26 rounds, border
+  record: (TurnRecord | TalkRecord | CouncilRecord)[];
+  tape: Tape;
+  stats: { calls: { jev: number; script: number; chance: number }; dollars: number; ms: number; weavers: AgentStats[] };
+}
+interface RoundEntry { pass: number; kind: &quot;border&quot; | &quot;passage&quot;; y1: number; shares: number[]; yarns: (Yarn | null)[];
+                       events: { kind: string; who: number[]; text: string }[]; bench: { who: number; pair: number[] | null; wide: number }[] }
+interface TurnRecord { kind: &quot;turn&quot;; pass: number; who: number; by: &quot;jev&quot; | &quot;script&quot; | &quot;chance&quot;; state: object;
+                       asked: { move: string; yarn?: string; bold: string; fine: string };
+                       move: Decision; yarn: Decision | null; bold: number; fine: number }
+interface TalkRecord { kind: &quot;talk&quot;; pass: number; what: &quot;press&quot; | &quot;offer&quot; | &quot;meet&quot;; from: number; to: number;
+                       beats: (Decision &amp; { who: number; asked: string })[]; outcome: string; text: string }
+interface Decision { chose: string; top: string | null; options: { key: string; kind?: string; text: string; p: number }[] }</pre></figure>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Objective</th><th>Score (0–100), from the final state</th><th>Attained when</th></tr></thead>
+<tbody>
+<tr><td>Grow</td><td>100 × (number of agents with a smaller final share + ½ × number tied) / 4</td><td>the final share is strictly the largest</td></tr>
+<tr><td>Give</td><td>100 − the Grow score</td><td>the final share is strictly the smallest</td></tr>
+<tr><td>Hold</td><td>max(0, 100 × (1 − |final share − 0.2| / 0.2))</td><td>|final share − 0.2| ≤ 0.02</td></tr>
+<tr><td>Borrow</td><td>percentage of the 26 rounds whose design contains another agent's pattern or colour</td><td>at least 50%</td></tr>
+</tbody></table></div>
+
+<h2>10. Cost</h2>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Call</th><th>Calls per match</th><th>Questions per call</th><th>Input tokens per call</th></tr></thead>
+<tbody>
+<tr><td>Action (phase 1)</td><td>130</td><td>3 or 4</td><td>about 1,220</td></tr>
+<tr><td>Response (phase 2)</td><td>24</td><td>1</td><td>about 570</td></tr>
+<tr><td>Reply (phase 3)</td><td>11</td><td>1</td><td>about 530</td></tr>
+<tr><td>Group decisions</td><td>20</td><td>1</td><td>230 to 300</td></tr>
+</tbody></table></div>
+<p class="sub">Input is billed at $0.042 per million tokens and output is free, so a match costs about one cent; with peer
+communication, about two. Figures are for match 3 of run <code>main</code>; phases 2 and 3 vary with how contested a match is.</p>
+</main>
+<script type="module">
+import { topbar } from './web/ui.mjs';
+document.getElementById('top').replaceWith(topbar('design'));
+</script>
+</body>
+</html>

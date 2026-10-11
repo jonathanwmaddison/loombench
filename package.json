@@ -2,12 +2,16 @@
   "name": "loombench",
   "version": "0.1.0",
   "private": true,
-  "description": "LoomBench: a multi-agent benchmark. Five weavers at one loom, each dealt a personality and a goal; the rug shows which one won.",
+  "description": "LoomBench: a multi-agent benchmark. Five LLM agents share one loom, each assigned a persona and an objective; the benchmark measures how far each objective is attained, and how far one agent's stated preference changes another's decision.",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node serve.mjs",
     "bench": "node tools/run.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "site": "node tools/site.mjs",
+    "analysis": "node analysis/peers.mjs && node analysis/outcomes.mjs"
   }
 }

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peer influence</title>
+<link rel="stylesheet" href="web/app.css">
+<style>
+  /* Neighbours only: the cards, the scale rows, the wall of matches and its weaver tables. */
+  .cards p { margin: 0; color: var(--ink-2); font-size: 14px; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); margin: 24px 0 0; }
+  .two .card { min-width: 0; }
+  .two .card .small { margin: 0 0 10px; }
+  @media (min-width: 760px) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  code {
+    font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; background: var(--surface);
+    border: 1px solid var(--hairline); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere;
+  }
+
+  /* A row of a scale: name, track, number; a row with too few decisions is muted */
+  .trow {
+    display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr) 96px; column-gap: 14px;
+    align-items: center; min-height: 34px;
+  }
+  .trow + .trow { border-top: 1px solid var(--hairline); }
+  .trow .name { font-size: 14px; font-weight: 600; }
+  .trow .name .muted { font-weight: 400; }
+  .trow .num {
+    text-align: right; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .trow.few, .trow.few .name, .trow.few .num { color: var(--muted); }
+  .trow.few .track { opacity: 0.5; }
+  .trow .track { margin: 0; }
+  @media (max-width: 759px) {
+    .trow { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; padding: 8px 0; }
+    .trow .name { grid-column: 1; grid-row: 1; }
+    .trow .num { grid-column: 2; grid-row: 1; }
+    .trow .track { grid-column: 1 / -1; grid-row: 2; }
+  }
+
+  /* The example that leads the wall: one large rug at the left, its five weavers at the right */
+  .example { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: start; margin: 16px 0 0; }
+  .example-pic { display: block; }
+  .example-pic img { display: block; width: 348px; height: auto; max-width: 100%; border-radius: 8px; background: var(--hairline); }
+  .example h3 { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+  .example .sub { margin: 0 0 12px; }
+  .ex-line {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 9px 0;
+    border-top: 1px solid var(--hairline); font-size: 14px;
+  }
+  .ex-name { font-weight: 600; min-width: 84px; }
+  .ex-line > canvas { flex: none; }
+  .ex-took { margin-left: auto; text-align: right; }
+  @media (max-width: 759px) {
+    .example { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .example-pic img { width: 100%; }
+    .ex-took { margin-left: 0; }
+  }
+
+  /* The wall: a card per match, the three rugs in a row and the weaver table beside them */
+  .wall { display: grid; gap: var(--gap); margin: 16px 0 0; }
+  .wall-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: start; }
+  .wall-row h3 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+  .wall-row .wall-text > .small { margin: 0 0 4px; }
+  .pics { display: flex; gap: 12px; min-width: 0; }
+  .pic { margin: 0; flex: 0 0 150px; min-width: 0; }
+  .pic a { display: block; }
+  .pic img { display: block; width: 150px; height: auto; border-radius: 6px; background: var(--hairline); }
+  .pic figcaption { margin-top: 8px; }
+  .pic .none {
+    width: 150px; aspect-ratio: 232 / 384; display: flex; align-items: center; justify-content: center;
+    background: var(--hairline); border-radius: 6px;
+  }
+  .weavers { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  .weavers th, .weavers td {
+    padding: 6px 10px 6px 0; border-top: 1px solid var(--hairline); text-align: left; vertical-align: middle;
+  }
+  .weavers thead th { border-top: 0; font-size: 12px; font-weight: 500; color: var(--muted); padding-bottom: 2px; }
+  .weavers .dotcell { width: 32px; }
+  .weavers .arrow { width: 18px; color: var(--muted); }
+  .weavers .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; width: 4.2em; }
+  .weavers .soft { color: var(--ink-2); font-weight: 400; }
+  .weavers .strong { color: var(--ink); font-weight: 600; }
+  .controls select { max-width: 100%; }
+  @media (max-width: 759px) {
+    .wall-row { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 16px; }
+    .pics { gap: 8px; }
+    .pic { flex: 1 1 0; }
+    .pic img, .pic .none { width: 100%; }
+    .weavers { font-size: 12px; }
+    .weavers .n { width: auto; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="muted">Loading…</p>
+</main>
+<script type="module" src="web/peers.mjs"></script>
+</body>
+</html>

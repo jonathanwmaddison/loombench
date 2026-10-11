@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peer influence: report · LoomBench</title>
+<link rel="stylesheet" href="web/app.css">
+<link rel="stylesheet" href="web/doc.css">
+<style>
+  .ci { margin: 12px 0 6px; }
+  .ci-row { display: grid; grid-template-columns: 210px minmax(120px, 1fr) 150px 70px; gap: 12px; align-items: center; padding: 5px 0; border-top: 1px solid var(--hairline); font-size: 14px; }
+  .ci-row:first-child, .ci-axis { border-top: 0; }
+  .ci-track { position: relative; height: 16px; }
+  .ci-zero { position: absolute; top: -6px; bottom: -6px; width: 1px; background: var(--axis); }
+  .ci-bar { position: absolute; top: 7px; height: 2px; background: var(--told); }
+  .ci-dot { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--told); box-shadow: 0 0 0 2px var(--surface); transform: translate(-50%, -50%); }
+  .ci-run { position: absolute; top: 50%; width: 5px; height: 5px; border-radius: 50%; background: var(--surface); border: 1px solid var(--ink-2); transform: translate(-50%, -50%); }
+  .ci-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ci-n { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+  .ci-ticks { height: 16px; } .ci-tick { position: absolute; transform: translateX(-50%); font-size: 12px; color: var(--muted); }
+  .stack { margin: 8px 0; } .stack-row { display: grid; grid-template-columns: 210px 1fr 70px; gap: 12px; align-items: center; padding: 6px 0; font-size: 14px; }
+  .stack-bar { display: flex; gap: 2px; height: 20px; border-radius: 4px; overflow: hidden; } .stack-n { font-size: 13px; text-align: right; }
+  .stack .seg { flex: 0 0 0; min-width: 0; font-size: 12px; line-height: 20px; text-align: center; color: #fff; white-space: nowrap; }
+  .s1 { background: #2a78d6; } .s2 { background: #eb6834; } .s3 { background: #1baf7a; } .s4 { background: #eda100; } .s5 { background: #e87ba4; } .s6 { background: #d9d8d2; }
+  .stack .seg.s4, .stack .seg.s5 { color: #0b0b0b; }
+  .dec { margin: 12px 0; } .dec-h { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .msg { background: var(--page); border: 1px solid var(--hairline); border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-bottom: 12px; }
+  .dec .bar-track.pair { position: relative; overflow: visible; } .dec .was { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink-2); }
+  .dec .fill { background: var(--told); } .dec .w2 { flex: none; width: 190px; text-align: right; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .dec .chip { margin-left: 6px; } .dec p { margin: 10px 0 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } @media (max-width: 899px) { .two { grid-template-columns: 1fr; } .ci-row { grid-template-columns: 130px 1fr 130px; } .ci-n { display: none; } .stack-row { grid-template-columns: 1fr; } }
+  .agents { list-style: none; padding: 0; margin: 8px 0; font-size: 14px; } .agents li { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; max-width: none; }
+  table.outcomes th.grp { text-align: center; border-bottom: 1px solid var(--hairline); } table.outcomes td.peer { background: rgba(42, 120, 214, 0.06); }
+  .cond { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 14px 0 6px; } .cond figure { margin: 0; } .cond img { width: 100%; height: auto; border-radius: 6px; display: block; margin-bottom: 6px; }
+  .cond figcaption { font-size: 13px; color: var(--ink-2); } .cond .cond-h { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .heatfig { margin: 0; min-width: 0; max-width: 100%; } .heat-h { font-size: 14px; font-weight: 600; margin-bottom: 4px; } .heatfig .scroll { margin: 6px 0; }
+  table.heat { border-collapse: separate; border-spacing: 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.heat th { font-weight: 400; color: var(--ink-2); text-align: left; padding: 0 10px 0 0; white-space: nowrap; }
+  table.heat th.corner { font-size: 12px; color: var(--muted); vertical-align: bottom; padding-bottom: 6px; }
+  table.heat th.col { text-align: center; padding: 0 0 6px; font-size: 12.5px; vertical-align: bottom; white-space: normal; line-height: 1.2; }
+  table.heat th.vert { height: 92px; } table.heat th.vert span { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+  table.heat td { width: 58px; min-width: 58px; height: 34px; text-align: center; border-radius: 4px; } table.heat.narrow td { width: 46px; min-width: 46px; }
+  table.heat td.marg { font-weight: 600; color: var(--ink); } table.heat tr.marg td { height: 30px; } table.heat th.marg { color: var(--ink); font-weight: 600; }
+  table.heat td.diag { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--hairline) 5px 6px); }
+  table.heat td[style]:hover { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .heat-scale { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 2px 0 0; } .heat-bar { width: 160px; height: 8px; border-radius: 4px; }
+  .heats { display: flex; flex-wrap: wrap; gap: 20px 36px; align-items: flex-start; margin: 14px 0 6px; }
+  .imp { counter-reset: imp; } .imp h3 { counter-increment: imp; } .imp h3::before { content: counter(imp) ". "; }
+  .imp .ev { font-size: 14px; color: var(--ink-2); } .imp .do { font-size: 14px; }
+</style>
+</head>
+<body>
+<main class="page doc">
+<div id="top"></div>
+
+<h1>Peer influence between LLM agents with assigned personas and objectives</h1>
+<p class="lede">A study in the LoomBench environment of how far one agent's stated preference changes another agent's decision, and
+what that implies for multi-agent collaboration.</p>
+<p class="small muted">11 October 2026 · model jev-1.13.0 · protocol adapted from Laustsen et al., “Peer Influence across Heterogeneous AI Models”
+(<a href="https://arxiv.org/abs/2610.03095">arXiv:2610.03095</a>) · interactive data: <a href="peers">Peer influence</a> · system: <a href="design">Design</a></p>
+
+<div class="abstract">
+<p><b>Abstract.</b> Five agents driven by one model act in a shared environment in which they compete for, concede and share a
+fixed resource over 26 rounds. Each agent is assigned a one-sentence persona and, for four of the five, a one-sentence objective.
+Before each action the receiving agent is queried, then queried again; in a randomised 75% of decisions the second query carries
+one sentence stating the action that an adjacent agent would have it take. Influence is the change in the probability the receiver
+assigns to that advocated action.</p>
+<p>Across two runs of the same 22 match designs (5,436 decisions, 3,976 with sender and receiver in
+disagreement), a single unreasoned message raised the probability of the advocated action by 27.9 [25.6, 30.3] percentage
+points relative to the repeated query, and made it the receiver's modal choice in 46% of cases (control:
+2%). The two runs gave 27.9 and 27.9 points. Influence
+varied with the receiver's prompt. Under one persona (<i>blunt</i>) there was no net shift toward the advocated action
+(−0.3 [−5.2, 4.6]); under the other ten the shift ranged from 22 to
+43 points. Receivers with an objective concerning the contested resource shifted
+20 points less than receivers with none. Senders did not reliably advocate actions that
+served their own objective. With peer communication agents conceded more in both runs; no difference in the rate at which
+objectives were attained was detected.</p>
+<p>In this setting a peer's bare recommendation was a strong intervention on a decision, its effect depended on the receiver's
+prompt, including a sentence written for another purpose, and less conflict between agents did not coincide with better
+attainment. The study uses one model and one environment; Section 6 lists what it cannot show.</p>
+</div>
+
+<h2 id="s1">1. Question</h2>
+<p class="body">Multi-agent systems route the output of one model into the context of another. Laustsen et al. show that
+when two LLMs disagree on a classification, exposure to the other's answer shifts the receiver's answer substantially, and that
+the size of the shift depends on the pairing of models. Their agents are different models with no stake in the answer. This
+study asks a related question of agents that are the same model under different prompts, and that have something at stake:</p>
+<ol>
+<li>How much does one message from an adjacent agent change a receiver's action probabilities?</li>
+<li>How does that vary with the receiver's persona and objective, with the sender's, and with what is advocated?</li>
+<li>Do match-level outcomes differ when agents communicate?</li>
+</ol>
+<p class="body">The first question is answered by a randomised comparison within matches. The second is answered by subgroup
+descriptions and the third by comparing whole executions; both are weaker evidence, and are labelled as such below.</p>
+
+<h2 id="s2">2. Method</h2>
+<h3 id="s2-1">2.1 Environment</h3>
+<p class="body">Five agents are seated side by side at a loom. Each holds a contiguous share of its width (100 units in total;
+20 each at the start) and weaves that share in its own design. A match has 26 rounds. In each round every agent chooses one
+action: <i>maintain position</i>, <i>claim</i> share from an adjacent agent, <i>concede</i> share to one, or <i>propose joint
+ownership</i> of a strip. An agent whose share is claimed may accept, refuse or counter-propose joint ownership; a refused
+claimant may override the refusal, withdraw or compromise. Code computes the legal actions, writes them as sentences and
+resolves every interaction; the model returns a probability for each option, and one option is sampled (temperature 0.7).
+The full call sequence is documented in <a href="design">Design</a>.</p>
+<h3 id="s2-2">2.2 Agents</h3>
+<p class="body">A <b>persona</b> is one sentence in the wording of standard personality inventories, describing one pole of one
+of the five major trait dimensions (<i>outgoing</i>/<i>reserved</i>, <i>warm</i>/<i>blunt</i>, <i>organised</i>/<i>careless</i>,
+<i>anxious</i>/<i>calm</i>, <i>curious</i>/<i>conventional</i>), or is absent. It says nothing about the task. The labels name
+the sentence, not a measured trait: no check was made that a sentence produces the disposition it describes, and one wording
+per persona was used. An <b>objective</b> is one sentence: <i>Grow</i> (finish with the largest share), <i>Give</i> (finish
+with the smallest share), <i>Hold</i> (finish with exactly the initial share), <i>Borrow</i> (weave designs adopted from other
+agents), or none. In every match the five agents hold the five objective levels, one each; personas are assigned by a
+balanced schedule in which each persona holds each objective once per 11 matches. A <b>match design</b> is one such
+assignment of personas and objectives to seats, with its random seed.</p>
+<h3 id="s2-3">2.3 Conditions</h3>
+<p class="body"><b>No communication</b>: the environment as described. <b>Peer communication</b>: before each action, the
+procedure of Section 2.4. The same 22 match designs were run under both conditions.</p>
+<h3 id="s2-4">2.4 Protocol for one decision under peer communication</h3>
+<div class="flow">
+  <div class="phase"><div class="phase-h">1 · Prior</div><div class="box call">The receiver is queried for its action. The returned
+  probabilities over the available actions are the <b>prior</b>.</div></div>
+  <div class="phase"><div class="phase-h">2 · Sender</div><div class="box call">One adjacent agent, drawn at random, is queried under
+  its own persona and objective: which of the same actions would it have the receiver take? Its modal choice is the
+  <b>advocated action</b>.</div></div>
+  <div class="phase"><div class="phase-h">3 · Posterior</div><div class="box call">The receiver is queried for its action again.
+  <b>Treatment</b> (probability 0.75): the query carries one sentence stating the advocated action. <b>Control</b> (0.25): it
+  carries no message. The match proceeds from this response.</div></div>
+</div>
+<p class="caption">The two arms of step 3 differ only in the message. The message is composed by code from the text of the
+advocated option; the model returns probabilities, not text, so the message carries no justification and no attribute of the
+sender other than its name. Options are presented in the same order in every query. The query of step 1 also asks the round's
+design questions in the same request; the query of step 3 asks for the action only, in both arms.</p>
+<h3 id="s2-5">2.5 Measures</h3>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Measure</th><th>Definition</th></tr></thead>
+<tbody>
+<tr><td>Discordant decision</td><td>The sender's modal action differs from the receiver's prior modal action. All influence results are for discordant decisions unless stated.</td></tr>
+<tr><td>Influence</td><td>Posterior minus prior probability of the advocated action, in percentage points (pp).</td></tr>
+<tr><td>Treatment effect</td><td>The mean of a measure under treatment minus its mean under control, taken within each match design.</td></tr>
+<tr><td>Adoption rate</td><td>Share of discordant decisions in which the advocated action is the receiver's posterior modal action.</td></tr>
+<tr><td>Reactance rate</td><td>Share of decisions with influence below −5 pp.</td></tr>
+<tr><td>Objective score, attainment</td><td>A 0–100 score computed from the final state for each objective, and a binary criterion (defined in <a href="design">Design</a>, Section 9).</td></tr>
+<tr><td>Divergence</td><td>Mean absolute difference in final share per agent between two executions of the same match design, in pp.</td></tr>
+</tbody></table></div>
+<h3 id="s2-6">2.6 Data</h3>
+<p class="body">Two runs, each with the 22 match designs executed without communication, without communication a second time
+(a replicate) and with peer communication. The runs are not independent samples: they use the same match designs and differ in
+one rule of the environment. <b>Run 2</b> uses the current rules (a fixed palette and a distinct starting design for each
+agent); <b>Run 1</b> used the earlier rules, under which agents chose their first design. Their agreement is a replication
+across a small change of environment. Each run of the peer condition contributes about 2,700 decisions:
+5,436 in total, of which 3,976 (73%) were discordant (2,925 treatment,
+1,051 control). No call in the runs analysed fell back to a default. The no-communication replicate of Run 2
+covers 16 of the 22 match designs (Section 6).</p>
+<h3 id="s2-7">2.7 Analysis</h3>
+<p class="body">Decisions are nested within agents and matches, so intervals are computed over clusters, not decisions: the
+mean of cluster means with a Student-t 95% interval. Because the two runs share their match designs, a cluster in a pooled
+estimate is a match design (k = 22), or an agent of a match design for estimates by persona (k = 10) or by objective
+(k = 22), containing the decisions of both runs. Estimates are given as mean [95% interval], with the two runs shown
+separately beside them.</p>
+<p class="body">The primary result is the treatment effect, which is randomised within matches. Estimates by persona,
+objective, advocated action and prior certainty are subgroup descriptions: the assignment is balanced, but ten agents per
+persona do not separate a persona from its seat and from the other agents present, and no correction is made for multiple
+comparisons. Every number in this report is printed by <code>analysis/peers.mjs</code> or <code>analysis/outcomes.mjs</code>.</p>
+
+<h2 id="s3">3. Results</h2>
+<h3 id="s3-1">3.1 A single message produces a large shift</h3>
+<div class="finding">In discordant decisions the delivered message raised the probability of the advocated action by
+<b>27.9 [25.6, 30.3] pp</b> relative to the repeated query. With the message withheld the change was 0.0 [−0.1, 0.1] pp.</div>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Discordant decisions</th><th class="num">Run 1</th><th class="num">Run 2</th><th class="num">Pooled (k = 22 match designs)</th></tr></thead>
+<tbody>
+<tr><td>Influence, treatment (pp)</td><td class="num">27.8 [25.3, 30.3]</td><td class="num">28.0 [25.3, 30.8]</td><td class="num">27.9 [25.6, 30.3]</td></tr>
+<tr><td>Influence, control (pp)</td><td class="num">−0.1 [−0.3, 0.2]</td><td class="num">0.1 [−0.1, 0.4]</td><td class="num">0.0 [−0.1, 0.1]</td></tr>
+<tr><td><b>Treatment effect on influence (pp)</b></td><td class="num">+27.9 [25.3, 30.5]</td><td class="num">+27.9 [25.2, 30.7]</td><td class="num"><b>+27.9 [25.6, 30.3]</b></td></tr>
+<tr><td>Adoption rate, treatment (%)</td><td class="num">45.9 [40.9, 50.9]</td><td class="num">46.0 [39.2, 52.8]</td><td class="num">45.9 [40.6, 51.3]</td></tr>
+<tr><td>Adoption rate, control (%)</td><td class="num">0.9 [0.0, 1.8]</td><td class="num">3.3 [1.5, 5.1]</td><td class="num">2.0 [1.0, 3.1]</td></tr>
+<tr><td><b>Treatment effect on adoption (points)</b></td><td class="num">+45.0 [40.0, 50.0]</td><td class="num">+42.7 [36.1, 49.3]</td><td class="num"><b>+43.9 [38.5, 49.3]</b></td></tr>
+<tr><td>Reactance rate, treatment (%)</td><td class="num">3.0 [1.0, 4.9]</td><td class="num">3.8 [1.6, 6.1]</td><td class="num">3.4 [1.6, 5.2]</td></tr>
+<tr><td>Reactance rate, control (%)</td><td class="num">4.1 [1.9, 6.4]</td><td class="num">3.0 [1.5, 4.6]</td><td class="num">3.7 [2.3, 5.0]</td></tr>
+<tr><td><b>Treatment effect on reactance (points)</b></td><td class="num">−1.2 [−3.1, 0.7]</td><td class="num">+0.8 [−1.3, 2.9]</td><td class="num"><b>−0.3 [−1.5, 1.0]</b></td></tr>
+</tbody></table></div>
+<p class="body">Because the control arm repeats the query, its near-zero change rules out regression toward the mean and
+resampling as explanations of the shift. Reactance occurred at similar rates in the two arms (treatment effect
+−0.3 [−1.5, 1.0] points); that aggregate conceals one subgroup in which it is frequent (Section 3.2). In concordant
+decisions, where the sender advocated what the receiver already preferred, the message raised the probability of that action
+by 14.7 [11.2, 18.2] pp relative to control.</p>
+<p class="body">Two decisions illustrate the range. Bars show the posterior; ticks show the prior.</p>
+<div class="two"><div class="card dec"><div class="dec-h">A. Receiver: persona <i>warm</i>, no objective. Sender: persona <i>organised</i>, objective <i>Give</i>.</div><div class="msg"><span class="small muted">Message delivered (verbatim)</span><br>Sarah, who weaves beside Amanda, has just told her: &quot;This is what I would have you do. Give Sarah some of your ground on your left, freely. You hold 12 warps; Sarah holds 15.&quot;</div><ul class="bars">
+<li class="bar"><span class="opt">Concede share to Sarah <span class="chip">advocated</span></span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:90%"></span><span class="was" style="left:17%"></span></span><span class="w2">prior 17% → posterior 90%</span></span></li>
+<li class="bar"><span class="opt">Maintain position</span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:4%"></span><span class="was" style="left:34%"></span></span><span class="w2">prior 34% → posterior 4%</span></span></li>
+<li class="bar"><span class="opt">Concede share to Jessica</span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:2%"></span><span class="was" style="left:31%"></span></span><span class="w2">prior 31% → posterior 2%</span></span></li>
+<li class="bar"><span class="opt">Propose joint ownership to Jessica</span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:0%"></span><span class="was" style="left:13%"></span></span><span class="w2">prior 13% → posterior 0%</span></span></li>
+<li class="bar"><span class="opt">Propose joint ownership to Sarah</span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:4%"></span><span class="was" style="left:5%"></span></span><span class="w2">prior 5% → posterior 4%</span></span></li>
+<li class="bar"><span class="opt">Claim share from Jessica</span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:0%"></span><span class="was" style="left:0%"></span></span><span class="w2">prior 0% → posterior 0%</span></span></li>
+<li class="bar"><span class="opt">Claim share from Sarah</span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:0%"></span><span class="was" style="left:0%"></span></span><span class="w2">prior 0% → posterior 0%</span></span></li>
+</ul><p class="small"><b>Influence +73 pp; adopted.</b> The sender's objective is to minimise its own share, yet it advocates receiving share (Section 3.5).</p></div><div class="card dec"><div class="dec-h">B. Receiver: persona <i>blunt</i>, objective <i>Grow</i>. Sender: persona <i>anxious</i>, objective <i>Borrow</i>.</div><div class="msg"><span class="small muted">Message delivered (verbatim)</span><br>Ashley, who weaves beside Michael, has just told him: &quot;This is what I would have you do. Give Ashley some of your ground on your left, freely. You hold 42 warps, the widest ground on the loom; Ashley holds 9, the narrowest ground on the loom.&quot;</div><ul class="bars">
+<li class="bar"><span class="opt">Maintain position</span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:59%"></span><span class="was" style="left:49%"></span></span><span class="w2">prior 49% → posterior 59%</span></span></li>
+<li class="bar"><span class="opt">Claim share from Ashley</span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:40%"></span><span class="was" style="left:50%"></span></span><span class="w2">prior 50% → posterior 40%</span></span></li>
+<li class="bar"><span class="opt">Concede share to Ashley <span class="chip">advocated</span></span><span class="bar-row"><span class="bar-track pair"><span class="fill" style="width:1%"></span><span class="was" style="left:1%"></span></span><span class="w2">prior 1% → posterior 1%</span></span></li>
+</ul><p class="small"><b>Influence 0 pp; not adopted.</b> The distribution changes (10 pp move from claiming to maintaining) but not toward the advocated action.</p></div></div>
+
+<h3 id="s3-2">3.2 Influence varies with the receiver's persona</h3>
+<div class="finding">Under the <i>blunt</i> persona there is no net shift toward the advocated action:
+<b>−0.3 [−5.2, 4.6] pp</b>, adoption 1%. Under the other ten personas the shift
+ranges from 22 to 43 pp.</div>
+<p class="caption"><b>Figure 1.</b> Influence by receiver persona. Filled marker and bar: pooled mean and 95% interval over the
+ten receiving agents of the match designs. Small open markers: the two runs.</p>
+<div class="ci">
+<div class="ci-row"><div class="ci-label">Reserved</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:55.13%;width:41.06%"></span><span class="ci-run" style="left:79.61%" title="run 1: 45.7"></span><span class="ci-run" style="left:73.97%" title="run 2: 41.8"></span><span class="ci-dot" style="left:75.66%"></span></div><div class="ci-num">43.0 <span class="muted">[28.6, 57.3]</span></div><div class="ci-n muted">n = 234</div></div>
+<div class="ci-row"><div class="ci-label">Warm</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:54.52%;width:35.75%"></span><span class="ci-run" style="left:70.45%" title="run 1: 39.3"></span><span class="ci-run" style="left:73.71%" title="run 2: 41.6"></span><span class="ci-dot" style="left:72.39%"></span></div><div class="ci-num">40.7 <span class="muted">[28.2, 53.2]</span></div><div class="ci-n muted">n = 225</div></div>
+<div class="ci-row"><div class="ci-label">Anxious</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:45.16%;width:35.82%"></span><span class="ci-run" style="left:59.86%" title="run 1: 31.9"></span><span class="ci-run" style="left:65.44%" title="run 2: 35.8"></span><span class="ci-dot" style="left:63.07%"></span></div><div class="ci-num">34.1 <span class="muted">[21.6, 46.7]</span></div><div class="ci-n muted">n = 301</div></div>
+<div class="ci-row"><div class="ci-label">Outgoing</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:43.94%;width:32.30%"></span><span class="ci-run" style="left:59.78%" title="run 1: 31.8"></span><span class="ci-run" style="left:60.42%" title="run 2: 32.3"></span><span class="ci-dot" style="left:60.09%"></span></div><div class="ci-num">32.1 <span class="muted">[20.8, 43.4]</span></div><div class="ci-n muted">n = 291</div></div>
+<div class="ci-row"><div class="ci-label">Careless</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:45.73%;width:21.72%"></span><span class="ci-run" style="left:56.80%" title="run 1: 29.8"></span><span class="ci-run" style="left:57.55%" title="run 2: 30.3"></span><span class="ci-dot" style="left:56.58%"></span></div><div class="ci-num">29.6 <span class="muted">[22.0, 37.2]</span></div><div class="ci-n muted">n = 313</div></div>
+<div class="ci-row"><div class="ci-label">No persona</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:35.51%;width:40.14%"></span><span class="ci-run" style="left:58.98%" title="run 1: 31.3"></span><span class="ci-run" style="left:51.52%" title="run 2: 26.1"></span><span class="ci-dot" style="left:55.58%"></span></div><div class="ci-num">28.9 <span class="muted">[14.9, 43.0]</span></div><div class="ci-n muted">n = 250</div></div>
+<div class="ci-row"><div class="ci-label">Curious</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:39.47%;width:26.96%"></span><span class="ci-run" style="left:50.99%" title="run 1: 25.7"></span><span class="ci-run" style="left:54.67%" title="run 2: 28.3"></span><span class="ci-dot" style="left:52.95%"></span></div><div class="ci-num">27.1 <span class="muted">[17.6, 36.5]</span></div><div class="ci-n muted">n = 279</div></div>
+<div class="ci-row"><div class="ci-label">Calm</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:32.29%;width:39.15%"></span><span class="ci-run" style="left:50.45%" title="run 1: 25.3"></span><span class="ci-run" style="left:56.26%" title="run 2: 29.4"></span><span class="ci-dot" style="left:51.87%"></span></div><div class="ci-num">26.3 <span class="muted">[12.6, 40.0]</span></div><div class="ci-n muted">n = 187</div></div>
+<div class="ci-row"><div class="ci-label">Organised</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:31.80%;width:33.24%"></span><span class="ci-run" style="left:46.56%" title="run 1: 22.6"></span><span class="ci-run" style="left:51.24%" title="run 2: 25.9"></span><span class="ci-dot" style="left:48.42%"></span></div><div class="ci-num">23.9 <span class="muted">[12.3, 35.5]</span></div><div class="ci-n muted">n = 261</div></div>
+<div class="ci-row"><div class="ci-label">Conventional</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:27.70%;width:36.09%"></span><span class="ci-run" style="left:49.80%" title="run 1: 24.9"></span><span class="ci-run" style="left:42.37%" title="run 2: 19.7"></span><span class="ci-dot" style="left:45.74%"></span></div><div class="ci-num">22.0 <span class="muted">[9.4, 34.7]</span></div><div class="ci-n muted">n = 299</div></div>
+<div class="ci-row"><div class="ci-label">Blunt</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:6.87%;width:13.97%"></span><span class="ci-run" style="left:14.16%" title="run 1: -0.1"></span><span class="ci-run" style="left:13.41%" title="run 2: -0.6"></span><span class="ci-dot" style="left:13.85%"></span></div><div class="ci-num">−0.3 <span class="muted">[−5.2, 4.6]</span></div><div class="ci-n muted">n = 285</div></div>
+<div class="ci-row ci-axis"><div class="ci-label"></div><div class="ci-track ci-ticks"><span class="ci-tick" style="left:14.29%">0</span><span class="ci-tick" style="left:42.86%">20</span><span class="ci-tick" style="left:71.43%">40</span><span class="ci-tick" style="left:100.00%">60</span></div><div class="ci-num muted">pp</div><div class="ci-n"></div></div></div>
+<p class="body">The persona means of the two runs correlate at r = 0.95 (r = 0.86 excluding
+<i>blunt</i>). The intervals of the ten personas other than <i>blunt</i> overlap widely, and their order should not be
+over-read. The <i>blunt</i> result is consistent across agents: the mean influence of each of the 20
+<i>blunt</i> agents (ten per run) lies between −16 and +13 pp.</p>
+<p class="body">A <i>blunt</i> receiver is not unresponsive. The total variation between its prior and posterior is
+14.0 pp under treatment against 3.2 pp under control, and
+21% of its treatment decisions show reactance (control: 7%; all other
+receivers: 1.5% under treatment, 3.0% under control). The message changes its
+distribution, about as often away from the advocated action as toward it (decision B above).</p>
+
+<h3 id="s3-3">3.3 Receivers with an objective on the contested resource shift less</h3>
+<div class="finding">Within match designs, receivers whose objective concerns their share (<i>Grow</i>, <i>Give</i>, <i>Hold</i>)
+shifted <b>19.9 pp less</b> than the receiver with no objective (difference
+−19.9 [−27.4, −12.3]). Receivers whose objective concerns design (<i>Borrow</i>) did not shift less (difference
++10.5 [−0.5, 21.5]).</div>
+<p class="caption"><b>Figure 2.</b> Influence by receiver objective (22 receiving agents of the match designs each). The
+decision in question is always an action on share.</p>
+<div class="ci">
+<div class="ci-row"><div class="ci-label">No objective</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:57.65%;width:21.15%"></span><span class="ci-run" style="left:69.74%" title="run 1: 38.8"></span><span class="ci-run" style="left:68.23%" title="run 2: 37.8"></span><span class="ci-dot" style="left:68.22%"></span></div><div class="ci-num">37.8 <span class="muted">[30.4, 45.2]</span></div><div class="ci-n muted">n = 546</div></div>
+<div class="ci-row"><div class="ci-label">Grow</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:34.71%;width:13.07%"></span><span class="ci-run" style="left:41.71%" title="run 1: 19.2"></span><span class="ci-run" style="left:40.99%" title="run 2: 18.7"></span><span class="ci-dot" style="left:41.25%"></span></div><div class="ci-num">18.9 <span class="muted">[14.3, 23.5]</span></div><div class="ci-n muted">n = 576</div></div>
+<div class="ci-row"><div class="ci-label">Give</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:34.51%;width:17.56%"></span><span class="ci-run" style="left:42.48%" title="run 1: 19.7"></span><span class="ci-run" style="left:44.23%" title="run 2: 21.0"></span><span class="ci-dot" style="left:43.29%"></span></div><div class="ci-num">20.3 <span class="muted">[14.2, 26.4]</span></div><div class="ci-n muted">n = 484</div></div>
+<div class="ci-row"><div class="ci-label">Hold</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:27.41%;width:15.18%"></span><span class="ci-run" style="left:36.01%" title="run 1: 15.2"></span><span class="ci-run" style="left:34.49%" title="run 2: 14.1"></span><span class="ci-dot" style="left:35.00%"></span></div><div class="ci-num">14.5 <span class="muted">[9.2, 19.8]</span></div><div class="ci-n muted">n = 623</div></div>
+<div class="ci-row"><div class="ci-label">Borrow</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:72.60%;width:21.31%"></span><span class="ci-run" style="left:81.62%" title="run 1: 47.1"></span><span class="ci-run" style="left:85.04%" title="run 2: 49.5"></span><span class="ci-dot" style="left:83.25%"></span></div><div class="ci-num">48.3 <span class="muted">[40.8, 55.7]</span></div><div class="ci-n muted">n = 696</div></div>
+<div class="ci-row ci-axis"><div class="ci-label"></div><div class="ci-track ci-ticks"><span class="ci-tick" style="left:14.29%">0</span><span class="ci-tick" style="left:42.86%">20</span><span class="ci-tick" style="left:71.43%">40</span><span class="ci-tick" style="left:100.00%">60</span></div><div class="ci-num muted">pp</div><div class="ci-n"></div></div></div>
+<p class="body">In these data the lower influence is specific to objectives that bear on the decision, and it is partial:
+asked to concede share to the sender, a receiver with objective <i>Grow</i> made that its modal action in 18% of
+cases (n = 361) and one with <i>Hold</i> in 19% (n = 295), against 64% for a receiver with no
+objective (n = 231) and 75% for one with <i>Borrow</i> (n = 283). Every match has one receiver of each
+objective, so this comparison is made within matches; the personas holding each objective differ between matches.</p>
+<p class="caption"><b>Figure 3.</b> Receiver persona (rows, in the order of Figure 1) by receiver objective (columns), discordant
+treatment decisions. <b>A:</b> influence. <b>B:</b> reactance rate, the share of decisions in which the probability of the
+advocated action fell by more than 5 pp. Each cell pools the four agents with that persona and objective (two match designs,
+each in both runs; 19–83 decisions). The last column and row of A repeat the estimates of Figures 1 and 2; those of
+B are rates over all decisions of the row or column. Hover over a cell for its counts and the value in each run.</p>
+<div class="heats"><figure class="heatfig"><div class="heat-h">A · Influence (pp)</div><div class="scroll"><table class="heat">
+<thead><tr><th class="corner">Receiver persona</th><th scope="col" class="col"><span>No objective</span></th><th scope="col" class="col"><span>Grow</span></th><th scope="col" class="col"><span>Give</span></th><th scope="col" class="col"><span>Hold</span></th><th scope="col" class="col"><span>Borrow</span></th><th scope="col" class="col marg"><span>All</span></th></tr></thead><tbody>
+<tr><th scope="row">Reserved</th><td style="background:#195199;color:#ffffff" title="Receiver Reserved, No objective: influence 58.2 pp (run 1 and run 2: 73 and 50); adoption 79%; reactance 0%; 28 decisions from 4 agents">58</td><td style="background:#438de6;color:#0b0b0b" title="Receiver Reserved, Grow: influence 35.7 pp (run 1 and run 2: 33 and 40); adoption 52%; reactance 0%; 60 decisions from 4 agents">36</td><td style="background:#3280de;color:#0b0b0b" title="Receiver Reserved, Give: influence 40.1 pp (run 1 and run 2: 41 and 39); adoption 77%; reactance 0%; 39 decisions from 4 agents">40</td><td style="background:#a9cbf5;color:#0b0b0b" title="Receiver Reserved, Hold: influence 13.7 pp (run 1 and run 2: 16 and 11); adoption 4%; reactance 0%; 53 decisions from 4 agents">14</td><td style="background:#0f3d77;color:#ffffff" title="Receiver Reserved, Borrow: influence 67.1 pp (run 1 and run 2: 65 and 69); adoption 100%; reactance 0%; 54 decisions from 4 agents">67</td><td class="marg">43</td></tr>
+<tr><th scope="row">Warm</th><td style="background:#1a56a0;color:#ffffff" title="Receiver Warm, No objective: influence 56.5 pp (run 1 and run 2: 54 and 58); adoption 93%; reactance 0%; 44 decisions from 4 agents">56</td><td style="background:#599ae8;color:#0b0b0b" title="Receiver Warm, Grow: influence 31.5 pp (run 1 and run 2: 31 and 32); adoption 77%; reactance 3%; 60 decisions from 4 agents">31</td><td style="background:#3886e4;color:#0b0b0b" title="Receiver Warm, Give: influence 38.0 pp (run 1 and run 2: 38 and 37); adoption 64%; reactance 0%; 25 decisions from 4 agents">38</td><td style="background:#9ac3f3;color:#0b0b0b" title="Receiver Warm, Hold: influence 17.0 pp (run 1 and run 2: 17 and 18); adoption 7%; reactance 4%; 46 decisions from 4 agents">17</td><td style="background:#164c91;color:#ffffff" title="Receiver Warm, Borrow: influence 60.4 pp (run 1 and run 2: 57 and 64); adoption 96%; reactance 0%; 50 decisions from 4 agents">60</td><td class="marg">41</td></tr>
+<tr><th scope="row">Anxious</th><td style="background:#2975d0;color:#ffffff" title="Receiver Anxious, No objective: influence 44.4 pp (run 1 and run 2: 35 and 51); adoption 76%; reactance 0%; 59 decisions from 4 agents">44</td><td style="background:#7fb2ee;color:#0b0b0b" title="Receiver Anxious, Grow: influence 23.1 pp (run 1 and run 2: 22 and 24); adoption 34%; reactance 0%; 56 decisions from 4 agents">23</td><td style="background:#69a4eb;color:#0b0b0b" title="Receiver Anxious, Give: influence 27.9 pp (run 1 and run 2: 28 and 28); adoption 67%; reactance 0%; 49 decisions from 4 agents">28</td><td style="background:#a2c7f4;color:#0b0b0b" title="Receiver Anxious, Hold: influence 15.4 pp (run 1 and run 2: 15 and 15); adoption 10%; reactance 4%; 69 decisions from 4 agents">15</td><td style="background:#174d92;color:#ffffff" title="Receiver Anxious, Borrow: influence 60.1 pp (run 1 and run 2: 59 and 61); adoption 100%; reactance 0%; 68 decisions from 4 agents">60</td><td class="marg">34</td></tr>
+<tr><th scope="row">Outgoing</th><td style="background:#1f60b1;color:#ffffff" title="Receiver Outgoing, No objective: influence 52.3 pp (run 1 and run 2: 51 and 55); adoption 93%; reactance 0%; 43 decisions from 4 agents">52</td><td style="background:#96c0f2;color:#0b0b0b" title="Receiver Outgoing, Grow: influence 18.1 pp (run 1 and run 2: 16 and 20); adoption 23%; reactance 0%; 57 decisions from 4 agents">18</td><td style="background:#84b5ef;color:#0b0b0b" title="Receiver Outgoing, Give: influence 22.1 pp (run 1 and run 2: 22 and 22); adoption 65%; reactance 0%; 52 decisions from 4 agents">22</td><td style="background:#84b5ef;color:#0b0b0b" title="Receiver Outgoing, Hold: influence 22.0 pp (run 1 and run 2: 23 and 21); adoption 36%; reactance 0%; 61 decisions from 4 agents">22</td><td style="background:#2771ca;color:#ffffff" title="Receiver Outgoing, Borrow: influence 45.9 pp (run 1 and run 2: 48 and 44); adoption 81%; reactance 1%; 78 decisions from 4 agents">46</td><td class="marg">32</td></tr>
+<tr><th scope="row">Careless</th><td style="background:#5698e7;color:#0b0b0b" title="Receiver Careless, No objective: influence 32.2 pp (run 1 and run 2: 32 and 33); adoption 49%; reactance 0%; 47 decisions from 4 agents">32</td><td style="background:#98c1f3;color:#0b0b0b" title="Receiver Careless, Grow: influence 17.4 pp (run 1 and run 2: 18 and 18); adoption 28%; reactance 2%; 58 decisions from 4 agents">17</td><td style="background:#79aeed;color:#0b0b0b" title="Receiver Careless, Give: influence 24.3 pp (run 1 and run 2: 24 and 25); adoption 70%; reactance 0%; 71 decisions from 4 agents">24</td><td style="background:#317fdd;color:#0b0b0b" title="Receiver Careless, Hold: influence 40.7 pp (run 1 and run 2: 44 and 40); adoption 87%; reactance 0%; 54 decisions from 4 agents">41</td><td style="background:#4f95e7;color:#0b0b0b" title="Receiver Careless, Borrow: influence 33.4 pp (run 1 and run 2: 31 and 36); adoption 60%; reactance 0%; 83 decisions from 4 agents">33</td><td class="marg">30</td></tr>
+<tr><th scope="row">No persona</th><td style="background:#2e7cda;color:#0b0b0b" title="Receiver No persona, No objective: influence 41.6 pp (run 1 and run 2: 48 and 28); adoption 69%; reactance 0%; 32 decisions from 4 agents">42</td><td style="background:#b1d0f6;color:#0b0b0b" title="Receiver No persona, Grow: influence 12.1 pp (run 1 and run 2: 16 and 9); adoption 16%; reactance 11%; 61 decisions from 4 agents">12</td><td style="background:#88b7ef;color:#0b0b0b" title="Receiver No persona, Give: influence 21.1 pp (run 1 and run 2: 16 and 28); adoption 37%; reactance 0%; 46 decisions from 4 agents">21</td><td style="background:#b3d1f6;color:#0b0b0b" title="Receiver No persona, Hold: influence 11.7 pp (run 1 and run 2: 17 and 8); adoption 10%; reactance 12%; 52 decisions from 4 agents">12</td><td style="background:#19529a;color:#ffffff" title="Receiver No persona, Borrow: influence 58.0 pp (run 1 and run 2: 59 and 57); adoption 95%; reactance 0%; 59 decisions from 4 agents">58</td><td class="marg">29</td></tr>
+<tr><th scope="row">Curious</th><td style="background:#418ce6;color:#0b0b0b" title="Receiver Curious, No objective: influence 36.1 pp (run 1 and run 2: 36 and 37); adoption 81%; reactance 0%; 67 decisions from 4 agents">36</td><td style="background:#8ab8f0;color:#0b0b0b" title="Receiver Curious, Grow: influence 20.7 pp (run 1 and run 2: 21 and 20); adoption 26%; reactance 2%; 47 decisions from 4 agents">21</td><td style="background:#9dc4f4;color:#0b0b0b" title="Receiver Curious, Give: influence 16.4 pp (run 1 and run 2: 16 and 16); adoption 55%; reactance 10%; 31 decisions from 4 agents">16</td><td style="background:#96c0f2;color:#0b0b0b" title="Receiver Curious, Hold: influence 18.0 pp (run 1 and run 2: 12 and 23); adoption 29%; reactance 2%; 66 decisions from 4 agents">18</td><td style="background:#2975d1;color:#ffffff" title="Receiver Curious, Borrow: influence 44.2 pp (run 1 and run 2: 43 and 45); adoption 84%; reactance 0%; 68 decisions from 4 agents">44</td><td class="marg">27</td></tr>
+<tr><th scope="row">Calm</th><td style="background:#3a87e5;color:#0b0b0b" title="Receiver Calm, No objective: influence 37.6 pp (run 1 and run 2: 35 and 49); adoption 28%; reactance 0%; 29 decisions from 4 agents">38</td><td style="background:#96c0f2;color:#0b0b0b" title="Receiver Calm, Grow: influence 17.9 pp (run 1 and run 2: 20 and 16); adoption 4%; reactance 0%; 53 decisions from 4 agents">18</td><td style="background:#bad5f7;color:#0b0b0b" title="Receiver Calm, Give: influence 10.0 pp (run 1 and run 2: 8 and 10); adoption 5%; reactance 5%; 19 decisions from 4 agents">10</td><td style="background:#b3d1f6;color:#0b0b0b" title="Receiver Calm, Hold: influence 11.7 pp (run 1 and run 2: 12 and 11); adoption 0%; reactance 0%; 32 decisions from 4 agents">12</td><td style="background:#1c5ba9;color:#ffffff" title="Receiver Calm, Borrow: influence 54.4 pp (run 1 and run 2: 51 and 60); adoption 94%; reactance 0%; 54 decisions from 4 agents">54</td><td class="marg">26</td></tr>
+<tr><th scope="row">Organised</th><td style="background:#67a3eb;color:#0b0b0b" title="Receiver Organised, No objective: influence 28.2 pp (run 1 and run 2: 29 and 29); adoption 17%; reactance 0%; 60 decisions from 4 agents">28</td><td style="background:#8bb9f0;color:#0b0b0b" title="Receiver Organised, Grow: influence 20.5 pp (run 1 and run 2: 22 and 18); adoption 32%; reactance 0%; 22 decisions from 4 agents">20</td><td style="background:#99c2f3;color:#0b0b0b" title="Receiver Organised, Give: influence 17.2 pp (run 1 and run 2: 12 and 26); adoption 27%; reactance 9%; 56 decisions from 4 agents">17</td><td style="background:#cde2fb;color:#0b0b0b" title="Receiver Organised, Hold: influence 5.3 pp (run 1 and run 2: 5 and 6); adoption 0%; reactance 2%; 60 decisions from 4 agents">5</td><td style="background:#256bc0;color:#ffffff" title="Receiver Organised, Borrow: influence 48.2 pp (run 1 and run 2: 45 and 51); adoption 87%; reactance 0%; 63 decisions from 4 agents">48</td><td class="marg">24</td></tr>
+<tr><th scope="row">Conventional</th><td style="background:#67a3eb;color:#0b0b0b" title="Receiver Conventional, No objective: influence 28.4 pp (run 1 and run 2: 37 and 23); adoption 17%; reactance 0%; 65 decisions from 4 agents">28</td><td style="background:#bbd6f7;color:#0b0b0b" title="Receiver Conventional, Grow: influence 9.7 pp (run 1 and run 2: 11 and 9); adoption 11%; reactance 0%; 62 decisions from 4 agents">10</td><td style="background:#a6caf5;color:#0b0b0b" title="Receiver Conventional, Give: influence 14.3 pp (run 1 and run 2: 17 and 11); adoption 29%; reactance 10%; 49 decisions from 4 agents">14</td><td style="background:#c9dffa;color:#0b0b0b" title="Receiver Conventional, Hold: influence 6.5 pp (run 1 and run 2: 6 and 6); adoption 1%; reactance 1%; 69 decisions from 4 agents">6</td><td style="background:#2063b5;color:#ffffff" title="Receiver Conventional, Borrow: influence 51.2 pp (run 1 and run 2: 53 and 50); adoption 91%; reactance 0%; 54 decisions from 4 agents">51</td><td class="marg">22</td></tr>
+<tr><th scope="row">Blunt</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Blunt, No objective: influence −0.1 pp (run 1 and run 2: −4 and 3); adoption 1%; reactance 22%; 72 decisions from 4 agents">0</td><td style="background:#e9edef;color:#0b0b0b" title="Receiver Blunt, Grow: influence 1.0 pp (run 1 and run 2: 1 and 1); adoption 0%; reactance 18%; 40 decisions from 4 agents">1</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Blunt, Give: influence −8.2 pp (run 1 and run 2: −5 and −11); adoption 0%; reactance 45%; 47 decisions from 4 agents">−8</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Blunt, Hold: influence −2.5 pp (run 1 and run 2: 0 and −4); adoption 0%; reactance 23%; 61 decisions from 4 agents">−2</td><td style="background:#c2daf8;color:#0b0b0b" title="Receiver Blunt, Borrow: influence 8.2 pp (run 1 and run 2: 8 and 9); adoption 3%; reactance 5%; 65 decisions from 4 agents">8</td><td class="marg">0</td></tr>
+<tr class="marg"><th scope="row">All</th><td class="marg">38</td><td class="marg">19</td><td class="marg">20</td><td class="marg">14</td><td class="marg">48</td><td></td></tr>
+</tbody></table></div><div class="heat-scale"><span>0</span><span class="heat-bar" style="background:linear-gradient(to right, #f0efec, #cde2fb, #b7d3f6, #9ec5f4, #86b6ef, #6da7ec, #5598e7, #3987e5, #2a78d6, #256abf, #1c5cab, #184f95, #104281, #0d366b)"></span><span>70 pp</span></div></figure><figure class="heatfig"><div class="heat-h">B · Reactance rate (%)</div><div class="scroll"><table class="heat">
+<thead><tr><th class="corner">Receiver persona</th><th scope="col" class="col"><span>No objective</span></th><th scope="col" class="col"><span>Grow</span></th><th scope="col" class="col"><span>Give</span></th><th scope="col" class="col"><span>Hold</span></th><th scope="col" class="col"><span>Borrow</span></th><th scope="col" class="col marg"><span>All</span></th></tr></thead><tbody>
+<tr><th scope="row">Reserved</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Reserved, No objective: influence 58.2 pp (run 1 and run 2: 73 and 50); adoption 79%; reactance 0%; 28 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Reserved, Grow: influence 35.7 pp (run 1 and run 2: 33 and 40); adoption 52%; reactance 0%; 60 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Reserved, Give: influence 40.1 pp (run 1 and run 2: 41 and 39); adoption 77%; reactance 0%; 39 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Reserved, Hold: influence 13.7 pp (run 1 and run 2: 16 and 11); adoption 4%; reactance 0%; 53 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Reserved, Borrow: influence 67.1 pp (run 1 and run 2: 65 and 69); adoption 100%; reactance 0%; 54 decisions from 4 agents">0</td><td class="marg">0</td></tr>
+<tr><th scope="row">Warm</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Warm, No objective: influence 56.5 pp (run 1 and run 2: 54 and 58); adoption 93%; reactance 0%; 44 decisions from 4 agents">0</td><td style="background:#f8dacf;color:#0b0b0b" title="Receiver Warm, Grow: influence 31.5 pp (run 1 and run 2: 31 and 32); adoption 77%; reactance 3%; 60 decisions from 4 agents">3</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Warm, Give: influence 38.0 pp (run 1 and run 2: 38 and 37); adoption 64%; reactance 0%; 25 decisions from 4 agents">0</td><td style="background:#f8d5c8;color:#0b0b0b" title="Receiver Warm, Hold: influence 17.0 pp (run 1 and run 2: 17 and 18); adoption 7%; reactance 4%; 46 decisions from 4 agents">4</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Warm, Borrow: influence 60.4 pp (run 1 and run 2: 57 and 64); adoption 96%; reactance 0%; 50 decisions from 4 agents">0</td><td class="marg">2</td></tr>
+<tr><th scope="row">Anxious</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Anxious, No objective: influence 44.4 pp (run 1 and run 2: 35 and 51); adoption 76%; reactance 0%; 59 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Anxious, Grow: influence 23.1 pp (run 1 and run 2: 22 and 24); adoption 34%; reactance 0%; 56 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Anxious, Give: influence 27.9 pp (run 1 and run 2: 28 and 28); adoption 67%; reactance 0%; 49 decisions from 4 agents">0</td><td style="background:#f8d5c8;color:#0b0b0b" title="Receiver Anxious, Hold: influence 15.4 pp (run 1 and run 2: 15 and 15); adoption 10%; reactance 4%; 69 decisions from 4 agents">4</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Anxious, Borrow: influence 60.1 pp (run 1 and run 2: 59 and 61); adoption 100%; reactance 0%; 68 decisions from 4 agents">0</td><td class="marg">1</td></tr>
+<tr><th scope="row">Outgoing</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Outgoing, No objective: influence 52.3 pp (run 1 and run 2: 51 and 55); adoption 93%; reactance 0%; 43 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Outgoing, Grow: influence 18.1 pp (run 1 and run 2: 16 and 20); adoption 23%; reactance 0%; 57 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Outgoing, Give: influence 22.1 pp (run 1 and run 2: 22 and 22); adoption 65%; reactance 0%; 52 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Outgoing, Hold: influence 22.0 pp (run 1 and run 2: 23 and 21); adoption 36%; reactance 0%; 61 decisions from 4 agents">0</td><td style="background:#f3e7e1;color:#0b0b0b" title="Receiver Outgoing, Borrow: influence 45.9 pp (run 1 and run 2: 48 and 44); adoption 81%; reactance 1%; 78 decisions from 4 agents">1</td><td class="marg">0</td></tr>
+<tr><th scope="row">Careless</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Careless, No objective: influence 32.2 pp (run 1 and run 2: 32 and 33); adoption 49%; reactance 0%; 47 decisions from 4 agents">0</td><td style="background:#f4e4dd;color:#0b0b0b" title="Receiver Careless, Grow: influence 17.4 pp (run 1 and run 2: 18 and 18); adoption 28%; reactance 2%; 58 decisions from 4 agents">2</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Careless, Give: influence 24.3 pp (run 1 and run 2: 24 and 25); adoption 70%; reactance 0%; 71 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Careless, Hold: influence 40.7 pp (run 1 and run 2: 44 and 40); adoption 87%; reactance 0%; 54 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Careless, Borrow: influence 33.4 pp (run 1 and run 2: 31 and 36); adoption 60%; reactance 0%; 83 decisions from 4 agents">0</td><td class="marg">0</td></tr>
+<tr><th scope="row">No persona</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver No persona, No objective: influence 41.6 pp (run 1 and run 2: 48 and 28); adoption 69%; reactance 0%; 32 decisions from 4 agents">0</td><td style="background:#efb19b;color:#0b0b0b" title="Receiver No persona, Grow: influence 12.1 pp (run 1 and run 2: 16 and 9); adoption 16%; reactance 11%; 61 decisions from 4 agents">11</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver No persona, Give: influence 21.1 pp (run 1 and run 2: 16 and 28); adoption 37%; reactance 0%; 46 decisions from 4 agents">0</td><td style="background:#efb19b;color:#0b0b0b" title="Receiver No persona, Hold: influence 11.7 pp (run 1 and run 2: 17 and 8); adoption 10%; reactance 12%; 52 decisions from 4 agents">12</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver No persona, Borrow: influence 58.0 pp (run 1 and run 2: 59 and 57); adoption 95%; reactance 0%; 59 decisions from 4 agents">0</td><td class="marg">5</td></tr>
+<tr><th scope="row">Curious</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Curious, No objective: influence 36.1 pp (run 1 and run 2: 36 and 37); adoption 81%; reactance 0%; 67 decisions from 4 agents">0</td><td style="background:#f5e2da;color:#0b0b0b" title="Receiver Curious, Grow: influence 20.7 pp (run 1 and run 2: 21 and 20); adoption 26%; reactance 2%; 47 decisions from 4 agents">2</td><td style="background:#f0baa7;color:#0b0b0b" title="Receiver Curious, Give: influence 16.4 pp (run 1 and run 2: 16 and 16); adoption 55%; reactance 10%; 31 decisions from 4 agents">10</td><td style="background:#f4e6df;color:#0b0b0b" title="Receiver Curious, Hold: influence 18.0 pp (run 1 and run 2: 12 and 23); adoption 29%; reactance 2%; 66 decisions from 4 agents">2</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Curious, Borrow: influence 44.2 pp (run 1 and run 2: 43 and 45); adoption 84%; reactance 0%; 68 decisions from 4 agents">0</td><td class="marg">2</td></tr>
+<tr><th scope="row">Calm</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Calm, No objective: influence 37.6 pp (run 1 and run 2: 35 and 49); adoption 28%; reactance 0%; 29 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Calm, Grow: influence 17.9 pp (run 1 and run 2: 20 and 16); adoption 4%; reactance 0%; 53 decisions from 4 agents">0</td><td style="background:#f6d0c3;color:#0b0b0b" title="Receiver Calm, Give: influence 10.0 pp (run 1 and run 2: 8 and 10); adoption 5%; reactance 5%; 19 decisions from 4 agents">5</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Calm, Hold: influence 11.7 pp (run 1 and run 2: 12 and 11); adoption 0%; reactance 0%; 32 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Calm, Borrow: influence 54.4 pp (run 1 and run 2: 51 and 60); adoption 94%; reactance 0%; 54 decisions from 4 agents">0</td><td class="marg">1</td></tr>
+<tr><th scope="row">Organised</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Organised, No objective: influence 28.2 pp (run 1 and run 2: 29 and 29); adoption 17%; reactance 0%; 60 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Organised, Grow: influence 20.5 pp (run 1 and run 2: 22 and 18); adoption 32%; reactance 0%; 22 decisions from 4 agents">0</td><td style="background:#f1beac;color:#0b0b0b" title="Receiver Organised, Give: influence 17.2 pp (run 1 and run 2: 12 and 26); adoption 27%; reactance 9%; 56 decisions from 4 agents">9</td><td style="background:#f4e5de;color:#0b0b0b" title="Receiver Organised, Hold: influence 5.3 pp (run 1 and run 2: 5 and 6); adoption 0%; reactance 2%; 60 decisions from 4 agents">2</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Organised, Borrow: influence 48.2 pp (run 1 and run 2: 45 and 51); adoption 87%; reactance 0%; 63 decisions from 4 agents">0</td><td class="marg">2</td></tr>
+<tr><th scope="row">Conventional</th><td style="background:#f0efec;color:#0b0b0b" title="Receiver Conventional, No objective: influence 28.4 pp (run 1 and run 2: 37 and 23); adoption 17%; reactance 0%; 65 decisions from 4 agents">0</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Conventional, Grow: influence 9.7 pp (run 1 and run 2: 11 and 9); adoption 11%; reactance 0%; 62 decisions from 4 agents">0</td><td style="background:#f0b8a4;color:#0b0b0b" title="Receiver Conventional, Give: influence 14.3 pp (run 1 and run 2: 17 and 11); adoption 29%; reactance 10%; 49 decisions from 4 agents">10</td><td style="background:#f3e6e0;color:#0b0b0b" title="Receiver Conventional, Hold: influence 6.5 pp (run 1 and run 2: 6 and 6); adoption 1%; reactance 1%; 69 decisions from 4 agents">1</td><td style="background:#f0efec;color:#0b0b0b" title="Receiver Conventional, Borrow: influence 51.2 pp (run 1 and run 2: 53 and 50); adoption 91%; reactance 0%; 54 decisions from 4 agents">0</td><td class="marg">2</td></tr>
+<tr><th scope="row">Blunt</th><td style="background:#dc7956;color:#0b0b0b" title="Receiver Blunt, No objective: influence −0.1 pp (run 1 and run 2: −4 and 3); adoption 1%; reactance 22%; 72 decisions from 4 agents">22</td><td style="background:#e59275;color:#0b0b0b" title="Receiver Blunt, Grow: influence 1.0 pp (run 1 and run 2: 1 and 1); adoption 0%; reactance 18%; 40 decisions from 4 agents">18</td><td style="background:#7c2a04;color:#ffffff" title="Receiver Blunt, Give: influence −8.2 pp (run 1 and run 2: −5 and −11); adoption 0%; reactance 45%; 47 decisions from 4 agents">45</td><td style="background:#da7651;color:#0b0b0b" title="Receiver Blunt, Hold: influence −2.5 pp (run 1 and run 2: 0 and −4); adoption 0%; reactance 23%; 61 decisions from 4 agents">23</td><td style="background:#f8d3c6;color:#0b0b0b" title="Receiver Blunt, Borrow: influence 8.2 pp (run 1 and run 2: 8 and 9); adoption 3%; reactance 5%; 65 decisions from 4 agents">5</td><td class="marg">21</td></tr>
+<tr class="marg"><th scope="row">All</th><td class="marg">3</td><td class="marg">3</td><td class="marg">7</td><td class="marg">4</td><td class="marg">1</td><td></td></tr>
+</tbody></table></div><div class="heat-scale"><span>0</span><span class="heat-bar" style="background:linear-gradient(to right, #f0efec, #f9d7cb, #f2c4b4, #efb19b, #e89d83, #e28969, #da7550, #d45e2f, #c54e1c, #af4517, #9c390c, #883008, #752601, #611f02)"></span><span>50 %</span></div></figure></div>
+<p class="body">Figure 3 is exploratory: a cell rests on four agents. Its pattern is nonetheless regular. For 9 of the
+ten personas other than <i>blunt</i>, influence under each of the three share objectives is below influence with no objective
+(the exception: <i>careless</i> with <i>Hold</i>). The <i>blunt</i> row lies
+between −8 and +8 pp under every objective. With the message withheld, the same cells lie between
+−3.1 and +1.2 pp. The cell means of the two runs correlate at r = 0.93.</p>
+<p class="body">Reactance is concentrated in one row. It occurred in 21% of the treatment decisions of
+<i>blunt</i> receivers and in 1.5% of all others. Its highest cell is a <i>blunt</i> receiver with the
+objective <i>Give</i> (45% of 47 decisions, mean influence −8 pp), a
+single cell that should be confirmed before it is relied on.</p>
+
+<h3 id="s3-4">3.4 Influence varies with the advocated action; differences between senders are smaller</h3>
+<p class="caption"><b>Figure 4.</b> Influence by advocated action (clusters: match designs).</p>
+<div class="ci">
+<div class="ci-row"><div class="ci-label">Maintain position</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:61.27%;width:15.53%"></span><span class="ci-run" style="left:66.91%" title="run 1: 36.8"></span><span class="ci-run" style="left:71.35%" title="run 2: 39.9"></span><span class="ci-dot" style="left:69.03%"></span></div><div class="ci-num">38.3 <span class="muted">[32.9, 43.8]</span></div><div class="ci-n muted">n = 720</div></div>
+<div class="ci-row"><div class="ci-label">Concede share to the sender</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:50.84%;width:8.10%"></span><span class="ci-run" style="left:54.43%" title="run 1: 28.1"></span><span class="ci-run" style="left:54.81%" title="run 2: 28.4"></span><span class="ci-dot" style="left:54.89%"></span></div><div class="ci-num">28.4 <span class="muted">[25.6, 31.3]</span></div><div class="ci-n muted">n = 1313</div></div>
+<div class="ci-row"><div class="ci-label">Claim share from the sender</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:36.24%;width:14.70%"></span><span class="ci-run" style="left:46.46%" title="run 1: 22.5"></span><span class="ci-run" style="left:41.53%" title="run 2: 19.1"></span><span class="ci-dot" style="left:43.59%"></span></div><div class="ci-num">20.5 <span class="muted">[15.4, 25.7]</span></div><div class="ci-n muted">n = 576</div></div>
+<div class="ci-row"><div class="ci-label">Claim share from a third agent</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:42.90%;width:15.10%"></span><span class="ci-run" style="left:52.03%" title="run 1: 26.4"></span><span class="ci-run" style="left:50.98%" title="run 2: 25.7"></span><span class="ci-dot" style="left:50.45%"></span></div><div class="ci-num">25.3 <span class="muted">[20.0, 30.6]</span></div><div class="ci-n muted">n = 183</div></div>
+<div class="ci-row"><div class="ci-label">Joint ownership with the sender</div><div class="ci-track"><span class="ci-zero" style="left:14.29%"></span><span class="ci-bar" style="left:40.57%;width:20.38%"></span><span class="ci-run" style="left:51.35%" title="run 1: 25.9"></span><span class="ci-run" style="left:51.93%" title="run 2: 26.4"></span><span class="ci-dot" style="left:50.76%"></span></div><div class="ci-num">25.5 <span class="muted">[18.4, 32.7]</span></div><div class="ci-n muted">n = 99</div></div>
+<div class="ci-row ci-axis"><div class="ci-label"></div><div class="ci-track ci-ticks"><span class="ci-tick" style="left:14.29%">0</span><span class="ci-tick" style="left:42.86%">20</span><span class="ci-tick" style="left:71.43%">40</span><span class="ci-tick" style="left:100.00%">60</span></div><div class="ci-num muted">pp</div><div class="ci-n"></div></div></div>
+<p class="body">Senders advocated maintaining position in 39% of messages, conceding share to themselves in
+36% and claiming share from themselves in 17%. Advice to do nothing was followed most
+(adoption 75%); advice to concede to the sender less (42%).</p>
+<p class="body">Mean influence also differs by the sender's persona, from 23 pp (<i>outgoing</i>) to
+40 pp (<i>organised</i>), and these means are similar in the two runs (r = 0.88). The message,
+however, contains nothing of the sender but a name and the advocated action, so a sender's persona can act only through
+what it advocates and to whom. Senders differ in exactly that: <i>conventional</i>, <i>calm</i> and <i>organised</i> senders advocate maintaining position in
+59–64% of messages, <i>curious</i> and <i>careless</i> senders in
+13–21%. The standard deviation of the persona means is 5.6 pp for
+senders and 11.4 pp for receivers (6.8 pp without the <i>blunt</i> receiver); after the mean
+for the advocated action is removed from each decision, the sender figure falls to 4.3 pp. These are
+descriptions of margins, not controlled comparisons of senders.</p>
+<p class="caption"><b>Figure 5.</b> Influence (pp) by sender and receiver, discordant treatment decisions. <b>A:</b> the
+sender's objective (rows) by the receiver's (columns); the diagonal is empty because a match has one agent with each
+objective. Cells rest on 7–16 sender-receiver pairs of the match designs; the last column is the mean over
+sending agents and the last row the mean over receiving agents. <b>B:</b> each persona as receiver and as sender (ten agents
+each; the values of Figure 1 and their counterparts for senders).</p>
+<div class="heats"><figure class="heatfig"><div class="heat-h">A · By objective</div><div class="scroll"><table class="heat">
+<thead><tr><th class="corner">Sender ↓ &nbsp; receiver →</th><th scope="col" class="col"><span>No objective</span></th><th scope="col" class="col"><span>Grow</span></th><th scope="col" class="col"><span>Give</span></th><th scope="col" class="col"><span>Hold</span></th><th scope="col" class="col"><span>Borrow</span></th><th scope="col" class="col marg"><span>All</span></th></tr></thead><tbody>
+<tr><th scope="row">No objective</th><td class="na diag" title="Not observed: a match has one agent with each objective"></td><td style="background:#86b6ef;color:#0b0b0b" title="Sender No objective, receiver Grow: influence 21.6 pp (run 1 and run 2: 22 and 20); 91 decisions from 12 sender−receiver pairs">22</td><td style="background:#6da7ec;color:#0b0b0b" title="Sender No objective, receiver Give: influence 27.0 pp (run 1 and run 2: 20 and 29); 162 decisions from 12 sender−receiver pairs">27</td><td style="background:#71a9ec;color:#0b0b0b" title="Sender No objective, receiver Hold: influence 26.1 pp (run 1 and run 2: 26 and 24); 81 decisions from 7 sender−receiver pairs">26</td><td style="background:#256bc1;color:#ffffff" title="Sender No objective, receiver Borrow: influence 48.0 pp (run 1 and run 2: 43 and 50); 169 decisions from 16 sender−receiver pairs">48</td><td class="marg">31</td></tr>
+<tr><th scope="row">Grow</th><td style="background:#3482e0;color:#0b0b0b" title="Sender Grow, receiver No objective: influence 39.6 pp (run 1 and run 2: 39 and 40); 138 decisions from 12 sender−receiver pairs">40</td><td class="na diag" title="Not observed: a match has one agent with each objective"></td><td style="background:#8ab8f0;color:#0b0b0b" title="Sender Grow, receiver Give: influence 20.7 pp (run 1 and run 2: 22 and 21); 103 decisions from 12 sender−receiver pairs">21</td><td style="background:#95bff2;color:#0b0b0b" title="Sender Grow, receiver Hold: influence 18.3 pp (run 1 and run 2: 20 and 19); 130 decisions from 11 sender−receiver pairs">18</td><td style="background:#2871cb;color:#ffffff" title="Sender Grow, receiver Borrow: influence 45.7 pp (run 1 and run 2: 43 and 48); 198 decisions from 14 sender−receiver pairs">46</td><td class="marg">31</td></tr>
+<tr><th scope="row">Give</th><td style="background:#2367bb;color:#ffffff" title="Sender Give, receiver No objective: influence 49.6 pp (run 1 and run 2: 53 and 48); 143 decisions from 12 sender−receiver pairs">50</td><td style="background:#89b8f0;color:#0b0b0b" title="Sender Give, receiver Grow: influence 20.8 pp (run 1 and run 2: 22 and 20); 198 decisions from 13 sender−receiver pairs">21</td><td class="na diag" title="Not observed: a match has one agent with each objective"></td><td style="background:#afcef5;color:#0b0b0b" title="Sender Give, receiver Hold: influence 12.5 pp (run 1 and run 2: 12 and 13); 111 decisions from 10 sender−receiver pairs">12</td><td style="background:#2063b5;color:#ffffff" title="Sender Give, receiver Borrow: influence 51.2 pp (run 1 and run 2: 52 and 53); 150 decisions from 14 sender−receiver pairs">51</td><td class="marg">36</td></tr>
+<tr><th scope="row">Hold</th><td style="background:#2873ce;color:#ffffff" title="Sender Hold, receiver No objective: influence 44.9 pp (run 1 and run 2: 35 and 46); 74 decisions from 8 sender−receiver pairs">45</td><td style="background:#89b8f0;color:#0b0b0b" title="Sender Hold, receiver Grow: influence 20.8 pp (run 1 and run 2: 20 and 27); 105 decisions from 11 sender−receiver pairs">21</td><td style="background:#98c1f3;color:#0b0b0b" title="Sender Hold, receiver Give: influence 17.5 pp (run 1 and run 2: 22 and 18); 68 decisions from 8 sender−receiver pairs">18</td><td class="na diag" title="Not observed: a match has one agent with each objective"></td><td style="background:#256bc0;color:#ffffff" title="Sender Hold, receiver Borrow: influence 48.2 pp (run 1 and run 2: 51 and 48); 179 decisions from 14 sender−receiver pairs">48</td><td class="marg">36</td></tr>
+<tr><th scope="row">Borrow</th><td style="background:#62a0ea;color:#0b0b0b" title="Sender Borrow, receiver No objective: influence 29.4 pp (run 1 and run 2: 35 and 29); 191 decisions from 16 sender−receiver pairs">29</td><td style="background:#7fb2ee;color:#0b0b0b" title="Sender Borrow, receiver Grow: influence 22.9 pp (run 1 and run 2: 23 and 24); 182 decisions from 14 sender−receiver pairs">23</td><td style="background:#9cc4f4;color:#0b0b0b" title="Sender Borrow, receiver Give: influence 16.6 pp (run 1 and run 2: 17 and 16); 151 decisions from 14 sender−receiver pairs">17</td><td style="background:#abccf5;color:#0b0b0b" title="Sender Borrow, receiver Hold: influence 13.3 pp (run 1 and run 2: 16 and 12); 301 decisions from 15 sender−receiver pairs">13</td><td class="na diag" title="Not observed: a match has one agent with each objective"></td><td class="marg">19</td></tr>
+<tr class="marg"><th scope="row">All</th><td class="marg">38</td><td class="marg">19</td><td class="marg">20</td><td class="marg">14</td><td class="marg">48</td><td></td></tr>
+</tbody></table></div><div class="heat-scale"><span>0</span><span class="heat-bar" style="background:linear-gradient(to right, #f0efec, #cde2fb, #b7d3f6, #9ec5f4, #86b6ef, #6da7ec, #5598e7, #3987e5, #2a78d6, #256abf, #1c5cab, #184f95, #104281, #0d366b)"></span><span>70 pp</span></div></figure><figure class="heatfig"><div class="heat-h">B · By persona</div><div class="scroll"><table class="heat narrow">
+<thead><tr><th class="corner"></th><th scope="col" class="col vert"><span>Reserved</span></th><th scope="col" class="col vert"><span>Warm</span></th><th scope="col" class="col vert"><span>Anxious</span></th><th scope="col" class="col vert"><span>Outgoing</span></th><th scope="col" class="col vert"><span>Careless</span></th><th scope="col" class="col vert"><span>No persona</span></th><th scope="col" class="col vert"><span>Curious</span></th><th scope="col" class="col vert"><span>Calm</span></th><th scope="col" class="col vert"><span>Organised</span></th><th scope="col" class="col vert"><span>Conventional</span></th><th scope="col" class="col vert"><span>Blunt</span></th></tr></thead><tbody>
+<tr><th scope="row">As receiver</th><td style="background:#2a78d6;color:#0b0b0b" title="Reserved, as receiver: influence 43.0 pp [28.6, 57.3] (run 1 and run 2: 46 and 42); 234 decisions, 10 agents">43</td><td style="background:#317fdd;color:#0b0b0b" title="Warm, as receiver: influence 40.7 pp [28.2, 53.2] (run 1 and run 2: 39 and 42); 225 decisions, 10 agents">41</td><td style="background:#4b92e6;color:#0b0b0b" title="Anxious, as receiver: influence 34.1 pp [21.6, 46.7] (run 1 and run 2: 32 and 36); 301 decisions, 10 agents">34</td><td style="background:#5699e7;color:#0b0b0b" title="Outgoing, as receiver: influence 32.1 pp [20.8, 43.4] (run 1 and run 2: 32 and 32); 291 decisions, 10 agents">32</td><td style="background:#61a0ea;color:#0b0b0b" title="Careless, as receiver: influence 29.6 pp [22.0, 37.2] (run 1 and run 2: 30 and 30); 313 decisions, 10 agents">30</td><td style="background:#64a1ea;color:#0b0b0b" title="No persona, as receiver: influence 28.9 pp [14.9, 43.0] (run 1 and run 2: 31 and 26); 250 decisions, 10 agents">29</td><td style="background:#6ca7ec;color:#0b0b0b" title="Curious, as receiver: influence 27.1 pp [17.6, 36.5] (run 1 and run 2: 26 and 28); 279 decisions, 10 agents">27</td><td style="background:#70a9ec;color:#0b0b0b" title="Calm, as receiver: influence 26.3 pp [12.6, 40.0] (run 1 and run 2: 25 and 29); 187 decisions, 10 agents">26</td><td style="background:#7bafee;color:#0b0b0b" title="Organised, as receiver: influence 23.9 pp [12.3, 35.5] (run 1 and run 2: 23 and 26); 261 decisions, 10 agents">24</td><td style="background:#84b5ef;color:#0b0b0b" title="Conventional, as receiver: influence 22.0 pp [9.4, 34.7] (run 1 and run 2: 25 and 20); 299 decisions, 10 agents">22</td><td style="background:#f0efec;color:#0b0b0b" title="Blunt, as receiver: influence −0.3 pp [−5.2, 4.6] (run 1 and run 2: 0 and −1); 285 decisions, 10 agents">0</td></tr>
+<tr><th scope="row">As sender</th><td style="background:#5c9ce8;color:#0b0b0b" title="Reserved, as sender: influence 30.8 pp [23.5, 38.0] (run 1 and run 2: 31 and 30); 226 decisions, 10 agents">31</td><td style="background:#74abed;color:#0b0b0b" title="Warm, as sender: influence 25.3 pp [20.9, 29.8] (run 1 and run 2: 28 and 22); 277 decisions, 10 agents">25</td><td style="background:#62a0ea;color:#0b0b0b" title="Anxious, as sender: influence 29.3 pp [17.8, 40.9] (run 1 and run 2: 28 and 31); 321 decisions, 10 agents">29</td><td style="background:#7fb2ee;color:#0b0b0b" title="Outgoing, as sender: influence 23.0 pp [11.8, 34.3] (run 1 and run 2: 23 and 23); 383 decisions, 10 agents">23</td><td style="background:#6fa8ec;color:#0b0b0b" title="Careless, as sender: influence 26.5 pp [14.0, 39.0] (run 1 and run 2: 26 and 28); 325 decisions, 10 agents">27</td><td style="background:#478fe6;color:#0b0b0b" title="No persona, as sender: influence 35.1 pp [21.3, 48.8] (run 1 and run 2: 34 and 37); 320 decisions, 10 agents">35</td><td style="background:#7bafee;color:#0b0b0b" title="Curious, as sender: influence 23.9 pp [15.5, 32.3] (run 1 and run 2: 23 and 26); 280 decisions, 10 agents">24</td><td style="background:#458fe6;color:#0b0b0b" title="Calm, as sender: influence 35.3 pp [22.4, 48.2] (run 1 and run 2: 33 and 37); 200 decisions, 10 agents">35</td><td style="background:#317fdd;color:#0b0b0b" title="Organised, as sender: influence 40.5 pp [23.2, 57.8] (run 1 and run 2: 38 and 43); 173 decisions, 10 agents">40</td><td style="background:#5497e7;color:#0b0b0b" title="Conventional, as sender: influence 32.5 pp [21.8, 43.2] (run 1 and run 2: 31 and 33); 200 decisions, 10 agents">32</td><td style="background:#4790e6;color:#0b0b0b" title="Blunt, as sender: influence 34.9 pp [24.5, 45.3] (run 1 and run 2: 36 and 35); 220 decisions, 10 agents">35</td></tr>
+</tbody></table></div><div class="heat-scale"><span>0</span><span class="heat-bar" style="background:linear-gradient(to right, #f0efec, #cde2fb, #b7d3f6, #9ec5f4, #86b6ef, #6da7ec, #5598e7, #3987e5, #2a78d6, #256abf, #1c5cab, #184f95, #104281, #0d366b)"></span><span>70 pp</span></div></figure></div>
+<p class="body">In panel A the columns differ more than the rows: the receiver means span 34 pp
+(14 to 48) and the sender means 17 pp (19 to
+36), and in every row the cells for receivers with <i>Borrow</i> or no objective are higher than the
+cells for receivers with a share objective. The cell means of the two runs correlate at r = 0.94. Panel B shows the
+asymmetry of the <i>blunt</i> persona: as a receiver it does not shift (0 pp), as a sender it shifts others by
+35 pp (mean of the eleven sender personas: 31 pp).</p>
+<p class="body">A matrix of sender persona by receiver persona, the direct counterpart of the model-by-model matrices of
+Laustsen et al., is not shown. The 22 match designs contain one to five distinct sender-receiver pairings for each pair of
+personas, which is too few to estimate 110 cells; the cell values are in <code>analysis/pooled.json</code> for reference.</p>
+
+<h3 id="s3-5">3.5 Senders do not reliably advocate what serves their own objective</h3>
+<p class="caption"><b>Figure 6.</b> Advocated action by the sender's objective, pooled over both runs (all messages composed,
+delivered or withheld).</p>
+<div class="keys"><span class="key"><span class="sw s1"></span>maintain position</span><span class="key"><span class="sw s2"></span>concede to sender</span><span class="key"><span class="sw s3"></span>claim from sender</span><span class="key"><span class="sw s4"></span>claim from a third agent</span><span class="key"><span class="sw s5"></span>joint ownership with sender</span><span class="key"><span class="sw s6"></span>other</span></div>
+<div class="stack">
+<div class="stack-row"><div class="stack-label">Sender objective: No objective</div><div class="stack-bar"><span class="seg s1" style="flex-grow:70.39" title="maintain position: 70%">70%</span><span class="seg s2" style="flex-grow:14.50" title="concede to sender: 14%">14%</span><span class="seg s3" style="flex-grow:4.02" title="claim from sender: 4%"></span><span class="seg s5" style="flex-grow:9.08" title="joint ownership with sender: 9%">9%</span><span class="seg s6" style="flex-grow:1.75" title="other: 2%"></span></div><div class="stack-n muted">n = 1145</div></div>
+<div class="stack-row"><div class="stack-label">Sender objective: Grow</div><div class="stack-bar"><span class="seg s1" style="flex-grow:25.67" title="maintain position: 26%">26%</span><span class="seg s2" style="flex-grow:48.47" title="concede to sender: 48%">48%</span><span class="seg s3" style="flex-grow:24.04" title="claim from sender: 24%">24%</span><span class="seg s4" style="flex-grow:1.15" title="claim from a third agent: 1%"></span><span class="seg s5" style="flex-grow:0.67" title="joint ownership with sender: 1%"></span></div><div class="stack-n muted">n = 1044</div></div>
+<div class="stack-row"><div class="stack-label">Sender objective: Give</div><div class="stack-bar"><span class="seg s1" style="flex-grow:16.29" title="maintain position: 16%">16%</span><span class="seg s2" style="flex-grow:67.83" title="concede to sender: 68%">68%</span><span class="seg s3" style="flex-grow:13.42" title="claim from sender: 13%">13%</span><span class="seg s4" style="flex-grow:0.51" title="claim from a third agent: 1%"></span><span class="seg s6" style="flex-grow:1.95" title="other: 2%"></span></div><div class="stack-n muted">n = 976</div></div>
+<div class="stack-row"><div class="stack-label">Sender objective: Hold</div><div class="stack-bar"><span class="seg s1" style="flex-grow:79.35" title="maintain position: 79%">79%</span><span class="seg s2" style="flex-grow:17.00" title="concede to sender: 17%">17%</span><span class="seg s3" style="flex-grow:3.44" title="claim from sender: 3%"></span></div><div class="stack-n muted">n = 959</div></div>
+<div class="stack-row"><div class="stack-label">Sender objective: Borrow</div><div class="stack-bar"><span class="seg s1" style="flex-grow:7.93" title="maintain position: 8%">8%</span><span class="seg s2" style="flex-grow:35.21" title="concede to sender: 35%">35%</span><span class="seg s3" style="flex-grow:36.13" title="claim from sender: 36%">36%</span><span class="seg s4" style="flex-grow:18.22" title="claim from a third agent: 18%">18%</span><span class="seg s5" style="flex-grow:1.75" title="joint ownership with sender: 2%"></span><span class="seg s6" style="flex-grow:0.76" title="other: 1%"></span></div><div class="stack-n muted">n = 1312</div></div></div>
+<div class="finding">A sender whose objective is to <i>minimise</i> its share advocated that the receiver <b>concede share to
+it</b> in 68% of its 976 messages, and the action that would serve its objective (the receiver
+claiming share from it) in 13%.</div>
+<p class="body">Senders with <i>Grow</i> advocated the objective-serving action (concede to the sender) in
+48% of messages and its opposite in 24%. One explanation is that the sender
+projects the verb of its own objective onto the receiver's action ("give", "take") instead of evaluating which action by the
+receiver would advance that objective. The design cannot distinguish this from other explanations, and it is offered as a
+hypothesis. Decision A above is an instance.</p>
+
+<h3 id="s3-6">3.6 Receivers with a less certain prior shift further</h3>
+<p class="body">When the receiver's prior assigned less than 0.6 to its modal action, the treatment effect on influence was
+34.0 [30.5, 37.5] pp and adoption under treatment 67%; at 0.6 or more,
+22.4 [19.6, 25.3] pp and 26%. The difference between the two effects is
+11.6 [7.1, 16.1] pp. A receiver with a confident prior is thus moved less, but still by more than 20 points.
+Part of the difference in adoption is arithmetic: in a discordant decision the advocated action starts below the prior modal
+action by construction, and starts closer to it when the prior is flat.</p>
+
+<h3 id="s3-7">3.7 Match-level outcomes (descriptive)</h3>
+<p class="caption"><b>Table 1.</b> Match-level outcomes in each execution. Columns are executions of the same match designs; the
+four no-communication columns show the variation that arises with nothing changed.</p>
+<div class="scroll"><table class="grid outcomes"><thead><tr><th rowspan="2">Outcome (mean per match)</th><th colspan="4" class="grp">No communication</th><th colspan="2" class="grp">Peer communication</th></tr><tr><th class="num">Run 1<br><span class="muted">k = 22</span></th><th class="num">Run 1<br>replicate<br><span class="muted">k = 22</span></th><th class="num">Run 2<br><span class="muted">k = 22</span></th><th class="num">Run 2<br>replicate<br><span class="muted">k = 16</span></th><th class="num">Run 1<br><span class="muted">k = 22</span></th><th class="num">Run 2<br><span class="muted">k = 22</span></th></tr></thead><tbody><tr><td>Concessions per agent</td><td class="num">3.06</td><td class="num">2.95</td><td class="num">3.06</td><td class="num">2.55</td><td class="num peer">4.50</td><td class="num peer">4.18</td></tr><tr><td>Claims per agent</td><td class="num">7.00</td><td class="num">6.85</td><td class="num">6.64</td><td class="num">7.34</td><td class="num peer">5.67</td><td class="num peer">5.87</td></tr><tr><td>Refusals per agent</td><td class="num">3.16</td><td class="num">3.15</td><td class="num">3.15</td><td class="num">3.25</td><td class="num peer">2.36</td><td class="num peer">2.77</td></tr><tr><td>Eliminations per agent</td><td class="num">0.48</td><td class="num">0.34</td><td class="num">0.42</td><td class="num">0.35</td><td class="num peer">0.21</td><td class="num peer">0.26</td></tr><tr><td>Objective score, Give</td><td class="num">75</td><td class="num">74</td><td class="num">72</td><td class="num">80</td><td class="num peer">55</td><td class="num peer">54</td></tr><tr><td>Final share of the Give agent (%)</td><td class="num">8.0</td><td class="num">8.7</td><td class="num">9.1</td><td class="num">10.2</td><td class="num peer">16.5</td><td class="num peer">14.8</td></tr><tr><td>Final share of the baseline agent (%)</td><td class="num">14.1</td><td class="num">16.0</td><td class="num">17.0</td><td class="num">14.4</td><td class="num peer">11.0</td><td class="num peer">10.7</td></tr><tr><td>Attainment rate (%)</td><td class="num">49</td><td class="num">52</td><td class="num">52</td><td class="num">58</td><td class="num peer">49</td><td class="num peer">48</td></tr></tbody></table></div>
+<p class="caption"><b>Table 2.</b> Differences paired by match design, mean [95% interval over matches], in each run: the
+execution with peer communication minus the first execution without, and, as a placebo, the replicate without communication
+minus the first. Intervals excluding zero are in bold.</p>
+<div class="scroll"><table class="grid outcomes"><thead><tr><th rowspan="2">Paired difference by match design</th><th colspan="2" class="grp">Run 1</th><th colspan="2" class="grp">Run 2</th></tr><tr><th class="num">Peer communication<br>minus no communication<br><span class="muted">k = 22</span></th><th class="num">Replicate<br>minus no communication<br><span class="muted">k = 22</span></th><th class="num">Peer communication<br>minus no communication<br><span class="muted">k = 22</span></th><th class="num">Replicate<br>minus no communication<br><span class="muted">k = 16</span></th></tr></thead><tbody><tr><td>Concessions per agent</td><td class="num peer"><b>+1.4 [0.8, 2.0]</b></td><td class="num">−0.1 [−0.4, 0.2]</td><td class="num peer"><b>+1.1 [0.4, 1.8]</b></td><td class="num"><b>−0.6 [−1.1, −0.1]</b></td></tr><tr><td>Claims per agent</td><td class="num peer"><b>−1.3 [−1.9, −0.7]</b></td><td class="num">−0.2 [−0.7, 0.3]</td><td class="num peer">−0.8 [−1.7, 0.2]</td><td class="num">+0.8 [−0.2, 1.7]</td></tr><tr><td>Refusals per agent</td><td class="num peer"><b>−0.8 [−1.3, −0.3]</b></td><td class="num">+0.0 [−0.4, 0.4]</td><td class="num peer">−0.4 [−0.8, 0.1]</td><td class="num">+0.3 [−0.2, 0.8]</td></tr><tr><td>Eliminations per agent</td><td class="num peer"><b>−0.3 [−0.5, −0.1]</b></td><td class="num">−0.1 [−0.3, 0.0]</td><td class="num peer"><b>−0.2 [−0.3, 0.0]</b></td><td class="num">−0.1 [−0.2, 0.0]</td></tr><tr><td>Objective score, Give</td><td class="num peer"><b>−19.9 [−33.4, −6.3]</b></td><td class="num">−1.1 [−12.9, 10.6]</td><td class="num peer"><b>−18.2 [−31.7, −4.6]</b></td><td class="num"><b>+15.6 [1.3, 29.9]</b></td></tr><tr><td>Final share of the Give agent (pp)</td><td class="num peer"><b>+8.5 [2.8, 14.1]</b></td><td class="num">+0.7 [−3.9, 5.3]</td><td class="num peer"><b>+5.7 [1.6, 9.8]</b></td><td class="num">−0.9 [−5.1, 3.4]</td></tr><tr><td>Final share of the baseline agent (pp)</td><td class="num peer">−3.2 [−7.1, 0.7]</td><td class="num">+1.8 [−1.4, 5.0]</td><td class="num peer"><b>−6.2 [−11.4, −1.0]</b></td><td class="num">−0.6 [−5.8, 4.6]</td></tr><tr><td>Attainment rate (points)</td><td class="num peer">+0.0 [−9.7, 9.7]</td><td class="num">+3.4 [−9.1, 15.9]</td><td class="num peer">−4.5 [−16.2, 7.1]</td><td class="num"><b>+12.5 [1.6, 23.4]</b></td></tr></tbody></table></div>
+<p class="body">In both runs the execution with peer communication had more concessions (+1.4 [0.8, 2.0] and
++1.1 [0.4, 1.8] per agent) and a lower score on the <i>Give</i> objective (−19.9 [−33.4, −6.3] and
+−18.2 [−31.7, −4.6] points), the agents holding it finishing with a larger share (+8.5 [2.8, 14.1] and
++5.7 [1.6, 9.8] pp). Claims, refusals and eliminations were lower in both runs, with intervals excluding zero
+mainly in Run 1. No difference in the attainment rate was detected (+0.0 [−9.7, 9.7] and −4.5 [−16.2, 7.1]
+points); the intervals are wide enough to include a change of ten points in either direction, so this is not evidence that
+attainment is unchanged.</p>
+<p class="body">These comparisons are weaker evidence than the treatment effect of Section 3.1. Each run has one execution
+with peer communication, and executions differ with no treatment at all: of the 34 placebo intervals computed (17
+outcomes in two runs), 5 exclude zero where about two would be expected, against 12 of the 34
+comparisons with peer communication. In Run 2 the placebo difference in the <i>Give</i> score (+15.6 [1.3, 29.9])
+is nearly as large as the difference with communication, in the opposite direction. The statements above therefore describe a
+direction that recurs in both runs and agrees with the advocacy pattern of Section 3.5; the design does not establish that
+communication caused them.</p>
+<p class="body">Divergence between an execution with communication and one without was 10.4 [8.3, 12.6] pp
+per agent in Run 1 and 9.3 [7.5, 11.1] in Run 2; between two executions without communication it was
+7.6 [6.0, 9.3] and 7.0 [5.2, 8.7]. The paired difference is
++2.8 [0.6, 5.0] in Run 1 and +1.1 [−0.7, 3.0] in Run 2
+(k = 16).</p>
+
+<p class="caption"><b>Figure 7.</b> Match 4 of Run 2 under peer communication. Left: the woven output. Centre: the ownership map
+(each colour is the agent holding that area). Right: the adoption map, in which an agent's area is striped with a
+neighbour's colour in each round in which it adopted the action that neighbour advocated. The <i>blunt</i> agent (pink) adopted
+none in 16 discordant treatment decisions and finished with half the loom.</p>
+<div class="cond">
+  <figure><img src="web/figures/m004-woven.png" alt="Woven output of match 4" width="348" height="576"><figcaption>Woven output</figcaption></figure>
+  <figure><img src="web/figures/m004-ownership.png" alt="Ownership map of match 4" width="348" height="576"><figcaption>Ownership map</figcaption></figure>
+  <figure><img src="web/figures/m004-adoption.png" alt="Adoption map of match 4" width="348" height="576"><figcaption>Adoption map</figcaption></figure>
+</div>
+<ul class="agents" id="agents-m004"></ul>
+<p class="small"><a href="match?run=peers&amp;id=m004&amp;view=heard">Open this match</a> to step through its rounds and queries.</p>
+
+<p class="caption"><b>Figure 8.</b> Match 15 of Run 2 under the three executions (ownership maps above, woven output below). The
+agent with objective <i>Give</i> (blue, persona <i>anxious</i>) finished with 20% and 9% of the loom without communication and
+40% with it. Of the 28 messages it composed, 21 advocated that the receiver concede share to it; 15 of those were delivered and
+14 adopted. One match is an illustration, not evidence of the difference.</p>
+<div class="cond">
+  <figure><div class="cond-h">No communication</div><img src="web/figures/m015-nocomm-ownership.png" alt="" width="348" height="576"><img src="web/figures/m015-nocomm-woven.png" alt="" width="348" height="576"><figcaption>Give agent: 20% · score 63</figcaption></figure>
+  <figure><div class="cond-h">No communication (replicate)</div><img src="web/figures/m015-replicate-ownership.png" alt="" width="348" height="576"><img src="web/figures/m015-replicate-woven.png" alt="" width="348" height="576"><figcaption>Give agent: 9% · score 88</figcaption></figure>
+  <figure><div class="cond-h">Peer communication</div><img src="web/figures/m015-peer-ownership.png" alt="" width="348" height="576"><img src="web/figures/m015-peer-woven.png" alt="" width="348" height="576"><figcaption>Give agent: 40% · score 0</figcaption></figure>
+</div>
+
+<h2 id="s4">4. Implications for multi-agent collaboration</h2>
+<p class="sub">Each implication is stated with the evidence it rests on and a test that would check it in another system. All
+hold for one model, one environment and one wording of each prompt (Section 6); they are reasons to measure, not general laws.</p>
+<div class="imp">
+<h3>A peer's stated preference is an intervention, not context</h3>
+<p class="ev"><b>Evidence.</b> One sentence with no justification shifted the receiver by 28 pp more than a
+repeated query and made the advocated action its modal choice in 46% of disagreements (control
+2%); where the two already agreed it added 15 pp.</p>
+<p class="do"><b>Implication.</b> In this setting, placing one agent's recommendation in another's context changed the second
+agent's decision substantially. Where independent judgments are wanted (review, verification, voting), this argues for
+eliciting them before exposure; a judgment obtained after exposure should not be assumed independent. <b>Test.</b> Record each
+agent's answer before and after it sees a peer's, with a repeated-query control.</p>
+
+<h3>Susceptibility can be set by the receiver's prompt, unintentionally</h3>
+<p class="ev"><b>Evidence.</b> A single sentence about general disposition, saying nothing of the task or of other agents, was
+associated with influence from 0 pp (<i>blunt</i>) to 43 pp (<i>reserved</i>).</p>
+<p class="do"><b>Implication.</b> A sentence written to set tone can change how far an agent conforms to its peers. One wording
+per persona was tested, so the result shows that such effects can be large, not which instructions produce them:
+susceptibility should be measured for the prompts actually deployed, per role. <b>Test.</b> Vary only the disposition sentence
+of the receiving agent and measure the shift.</p>
+
+<h3>An objective that bears on the decision reduces susceptibility, partly</h3>
+<p class="ev"><b>Evidence.</b> Within match designs, receivers with an objective on the contested resource shifted
+20 pp less than the receiver with no objective; receivers with an objective on another
+dimension shifted at least as much as those with none (48 against
+38 pp).</p>
+<p class="do"><b>Implication.</b> A criterion that bears on the decision at hand was associated with less conformity; an
+objective about something else was not. The reduction was partial: receivers instructed to maximise or to keep their share
+still adopted advice to concede it in 18% and 19% of cases. <b>Test.</b> Compare shifts for agents with no
+criterion, a relevant criterion and an irrelevant one.</p>
+
+<h3>Do not assume an agent's requests serve its own objective</h3>
+<p class="ev"><b>Evidence.</b> Agents instructed to minimise their share asked for share in 68% of messages and
+for the objective-serving action in 13%. In both runs their final share was higher and their objective
+score lower with communication (Section 3.7; descriptive).</p>
+<p class="do"><b>Implication.</b> Designs in which agents negotiate, on the assumption that each will press its own interest,
+depend on the agent translating its objective into the right request of others. That translation failed here for one
+objective. <b>Test.</b> Classify each inter-agent request as serving, opposing or neutral to the sender's objective.</p>
+
+<h3>An agent that does not shift can still shift others</h3>
+<p class="ev"><b>Evidence.</b> <i>Blunt</i> agents showed no net shift toward advocated actions (0 pp), while
+messages from <i>blunt</i> senders shifted receivers by 35 pp (mean across sender personas 31 pp).</p>
+<p class="do"><b>Implication.</b> Susceptibility and influence on others are separate properties, so influence between two
+differently prompted components need not be symmetric. Whether the asymmetry changes outcomes was not tested: <i>blunt</i>
+agents held the largest mean final share of any persona in all six executions
+(34–40%), with and without communication. <b>Test.</b> Measure
+influence in both directions for every pair of roles.</p>
+
+<h3>Less conflict is not evidence of better performance</h3>
+<p class="ev"><b>Evidence.</b> With communication, concessions rose in both runs and claims fell; no difference in attainment
+was detected, and one objective was served worse in both runs.</p>
+<p class="do"><b>Implication.</b> Process indicators (agreement, fewer objections, smoother transcripts) should not be assumed to
+track outcome. This study does not establish what communication caused at the level of outcomes; it shows that the two can
+come apart. <b>Test.</b> Evaluate every communication mechanism on task outcome against a no-communication baseline, with a
+replicate to size run-to-run variation.</p>
+
+<h3>Peer input has most effect where the receiver's prior is flat</h3>
+<p class="ev"><b>Evidence.</b> The treatment effect was 34 pp when the prior
+modal probability was below 0.6 and 22 pp otherwise (difference
+11.6 [7.1, 16.1]).</p>
+<p class="do"><b>Implication.</b> A recommendation moved undecided receivers more than decided ones, and decided receivers
+still moved. The environment has no correct action, so nothing here bears on whether peer input corrects or introduces
+errors. <b>Test.</b> Condition the shift on prior confidence and, where ground truth exists, on correctness.</p>
+</div>
+
+<h2 id="s5">5. Relation to Laustsen et al.</h2>
+<p class="body">Laustsen et al. test seven open-weight models on three classification tasks and report that susceptibility
+varies more than persuasiveness across model-dataset combinations (standard deviations 0.19 and 0.10). The pattern here is
+similar in kind: the persona means differ more for receivers than for senders (11.4 against 5.6 pp),
+although the difference rests largely on one persona (Section 3.4).</p>
+<p class="body">The comparison goes no further than that. Heterogeneity here is induced by prompts within one model, not by
+different models. Their agents exchange a label with an explanation, and they report an ablation without explanations;
+here the message is a bare recommendation and the model cannot produce an explanation. Their tasks have correct answers and
+disinterested agents; here there is no correct action and the sender has a stake. Their influence score and the probability
+shift used here are different measures, so magnitudes are not compared. For reference, the mean shift here is
+0.32 of the probability mass available to the advocated action.</p>
+
+<h2 id="s6">6. Limitations</h2>
+<ul>
+<li><b>One model.</b> Jev is a classifier that returns probabilities over options written by code. Results may not transfer to text-generating models or to other model families; the central comparison of the source paper, between different models, was not made.</li>
+<li><b>One environment.</b> A contested, fixed resource with partly opposed objectives. Influence may differ where interests are aligned or where a correct answer exists.</li>
+<li><b>One sentence, one exchange.</b> No justification, no reply, no multi-turn discussion. The message reveals nothing of the sender but a name.</li>
+<li><b>Personas are prompt sentences.</b> Each is a single sentence describing one pole of one trait, in one wording. The labels are not validated measures of a disposition, and combinations were not tested.</li>
+<li><b>22 match designs.</b> The two runs share them, so pooled intervals rest on 22 clusters (10 agents per persona). Persona-level intervals are wide, subgroup estimates are descriptive, and multiple comparisons are uncorrected.</li>
+<li><b>The two runs differ in one rule</b> (how an agent's first design is set). Their agreement is a replication across a small change in the environment, not an exact replication and not an independent sample.</li>
+<li><b>Match-level inference.</b> Each run has one execution with peer communication, and differences between two executions of a match design arise without any treatment (Section 3.7). Outcome-level statements are descriptive.</li>
+<li><b>The first and second queries differ in form.</b> The first asks the round's design questions in the same request; the second asks for the action only. The control arm, which has the same form as the treatment arm, shows no shift.</li>
+<li><b>Incomplete data.</b> The Run 2 no-communication replicate has 16 of 22 match designs, and planned reference runs with uniform objectives were not executed, because the API credit was exhausted. Matches affected by failed calls were discarded.</li>
+</ul>
+
+<h2 id="s7">7. Reproduction</h2>
+<pre class="code">node analysis/peers.mjs       # every decision-level estimate, from the records in runs/ and runs-v1/ (no key needed)
+node analysis/outcomes.mjs    # the match-level comparisons of Section 3.7
+python3 analysis/report.py    # this page, from the two files those write
+
+node --env-file=&lt;file with TYPESAFE_API_KEY&gt; tools/run.mjs --matches 1-22 --run main          # no communication
+node --env-file=&lt;file&gt; tools/run.mjs --matches 1-22 --run replicate                        # its replicate
+node --env-file=&lt;file&gt; tools/run.mjs --peers --matches 1-22 --run peers                    # peer communication (about $0.02 a match)</pre>
+<p class="sub">Run 2 is in <code>runs/main</code>, <code>runs/replicate</code> and <code>runs/peers</code>; Run 1 in
+<code>runs-v1/</code>. Every decision of the peer condition, with prior, sender and posterior probabilities, is in
+<code>runs/peers/peers.json</code>; every response of every match is in its record's <code>tape</code>, from which the match
+re-executes without the model. An outside review of a draft of this report by a second model led to the clustering by match
+design, the treatment-effect rows and the narrower wording of Sections 3 and 4.</p>
+</main>
+<script type="module">
+import { topbar, startSwatch, h } from './web/ui.mjs';
+document.getElementById('top').replaceWith(topbar('report'));
+// Figure 7's agents, left to right as seated in match 4: seat, name, persona, objective, final share, adoption.
+const AGENTS = [[4, 'Sarah', 'organised', 'Give', 13, '5 of 9'], [2, 'Amanda', 'warm', 'no objective', 10, '11 of 11'], [0, 'Jessica', 'careless', 'Hold', 14, '17 of 18'],
+  [1, 'Ashley', 'anxious', 'Borrow', 8, '19 of 19'], [3, 'Michael', 'blunt', 'Grow', 50, '0 of 16']];
+document.getElementById('agents-m004').replaceChildren(...AGENTS.map(([seat, name, persona, objective, share, adopted]) =>
+  h('li', null, startSwatch(seat), h('b', null, name), `persona ${persona} · ${objective === 'no objective' ? objective : 'objective ' + objective} · final share ${share}% · adopted the advocated action in ${adopted} discordant treatment decisions`)));
+</script>
+</body>
+</html>

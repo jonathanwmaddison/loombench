@@ -3,20 +3,26 @@
  * LoomBench's pages and its one write, on this machine only: `node --env-file=<file with TYPESAFE_API_KEY> serve.mjs`,
  * then http://127.0.0.1:4330/ (`PORT` overrides). Without a key a play is woven by chance.
  *
- * It serves the three pages, then files under web/, engine/, bench/ and runs/ and nothing else. `POST /api/play` weaves
+ * It serves the six pages, then files under web/, engine/, bench/ and runs/ and nothing else. `POST /api/play` weaves
  * the bench the page sent (JSON, at most 20,000 characters) and keeps it in runs/play. It answers only this server's own
  * page: a request from another host or another origin is refused.
+ *
+ * The pages ask for `api/runs.json` and `api/status.json`, which this server answers live; `tools/site.mjs` writes the
+ * same two as files, so the same pages work as a static copy with no server (GitHub Pages).
  */
 import { createServer } from 'node:http';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JEV } from './engine/jev.mjs';
 import { personality, goal, play, recordOf } from './bench/core.mjs';
-import { environmentAsk, keepMatch, writeIndex } from './tools/keep.mjs';
+import { environmentAsk, keepMatch, runList, writeIndex } from './tools/keep.mjs';
 
 const PORT = Number(process.env.PORT ?? 4330), HOST = '127.0.0.1', ROOT = fileURLToPath(new URL('./', import.meta.url));
-const PAGES = { '/': 'web/index.html', '/match': 'web/match.html', '/play': 'web/play.html' };
+const PAGES = {
+  '/': 'web/index.html', '/match': 'web/match.html', '/peers': 'web/peers.html', '/play': 'web/play.html',
+  '/report': 'web/report.html', '/design': 'web/design.html',
+};
 const TREES = ['web', 'engine', 'bench', 'runs'];
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -33,18 +39,6 @@ async function serveFile(res, rel) {
   const path = resolve(ROOT, rel), type = TYPES[extname(path)];
   if (!type || !TREES.some(t => path.startsWith(resolve(ROOT, t) + sep))) return notHere(res);
   try { send(res, 200, type, await readFile(path)); } catch { notHere(res); }
-}
-
-/** The kept runs: every folder of runs/ with a readable index. The play run comes last, the rest newest first. */
-async function runList() {
-  const runs = [];
-  for (const run of await readdir(RUNS).catch(() => [])) {
-    try {
-      const index = JSON.parse(await readFile(join(RUNS, run, 'index.json'), 'utf8'));
-      runs.push({ run, model: index.model, minds: index.minds, matches: index.totals.matches, updated: index.updated });
-    } catch { /* a folder without a readable index is not a run */ }
-  }
-  return runs.sort((a, b) => (a.run === 'play') - (b.run === 'play') || String(b.updated).localeCompare(String(a.updated)));
 }
 
 const known = (lookup, key, what) => {
@@ -83,6 +77,8 @@ async function playPost(req, res) {
   try { rug = await play({ seats: checked.seats, seed: checked.seed, ask }); } catch (e) {
     return json(res, 500, { error: `could not weave this bench: ${e.message}` });
   }
+  if (ask?.fatal) return json(res, 402, { error: `The match was not run: ${ask.fatal}.` });
+  if (rug.stats.calls.script) return json(res, 502, { error: `${rug.stats.calls.script} calls had no valid response from the model, so the match was not kept. Try again.` });
   const id = `p${checked.seed}-${Date.now()}`, dir = join(RUNS, 'play');
   await keepMatch(dir, recordOf(rug, { id, seats: checked.seats }), rug);
   await writeIndex(dir, 'play');
@@ -95,8 +91,8 @@ createServer(async (req, res) => {
     try { path = decodeURIComponent(new URL(req.url ?? '/', `http://${HOST}`).pathname); } catch { return notHere(res); }
     if (path === '/api/play' && req.method === 'POST') return await playPost(req, res);
     if (req.method !== 'GET') return send(res, 405, 'text/plain; charset=utf-8', 'only GET and POST');
-    if (path === '/api/status') return json(res, 200, { key: ask !== null, model: JEV.model });
-    if (path === '/api/runs') return json(res, 200, await runList());
+    if (path === '/api/status' || path === '/api/status.json') return json(res, 200, { key: ask !== null, model: JEV.model });
+    if (path === '/api/runs' || path === '/api/runs.json') return json(res, 200, await runList(RUNS));
     return await serveFile(res, Object.hasOwn(PAGES, path) ? PAGES[path] : path.slice(1));
   } catch (e) {
     if (!res.headersSent) json(res, 500, { error: String(e.message ?? e) });
