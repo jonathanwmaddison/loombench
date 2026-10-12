@@ -82,6 +82,8 @@ function kindOf(run, base) {
   const c = switchesOf(run);
   if (d[0] === 'persona' && c.persona !== 'off') return null;
   if (d[0] === 'objective' && c.objective !== 'off') return null;
+  // A run with another claim threshold has areas that can change, as the default has: it is not the areas-fixed condition.
+  if (d[0] === 'area' && c.area !== 'fixed') return null;
   return d[0];
 }
 
@@ -126,6 +128,11 @@ function plot(d, top) {
 function titleOf(base, other, differs) {
   if (!differs.length) return { title: 'Nothing changed: a second execution', read: 'The two runs were made alike. Their differences show how far two executions of the same match designs come apart with no switch changed: the scale against which every other comparison on this page should be read.' };
   const key = differs[0], a = switchesOf(base), b = switchesOf(other), info = SWITCHES.find(s => s.key === key);
+  // Another claim threshold is carried in the areas setting, and is not the areas-fixed comparison.
+  if (key === 'area' && [a.area, b.area].every(v => v !== 'fixed')) {
+    const of = v => (/claim threshold (\d+)%/.exec(v)?.[1] ?? '46');
+    return { title: `Claim threshold: ${of(a.area)}% → ${of(b.area)}%`, read: 'The share of the loom at which an agent is offered no further claims. It is a threshold on the moves offered, not a limit on the final share.' };
+  }
   return { title: `${info.name}: ${setting(key, a[key])} → ${setting(key, b[key])}`, read: info.isolates };
 }
 

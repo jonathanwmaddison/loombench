@@ -36,6 +36,8 @@
  * --size N             a group of N agents, 2 to 5 (default 5), for a group of one type or two: needs --persona and
  *                      --objective. Each agent then starts with an equal part of the same loom, and is offered no
  *                      further claims once it holds the larger of 46% and that part plus 20 points
+ * --threshold P        the claim threshold: the share of the loom, in percent, at which an agent is offered no
+ *                      further claims (default: the loom's own, 46 for five agents)
  * --area fixed         no boundary can move: every agent keeps its 20 warps, and only designs are decided
  * --designs chosen     the group votes on a palette and each agent chooses its first design (the first rules); by
  *                      default every match has one palette and each agent a starting design of its own
@@ -54,9 +56,9 @@ import { askerFor, keepMatch, writeIndex } from './keep.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const USAGE = 'usage: node tools/run.mjs [--model jev|chance|<provider>:<model>] [--read tokens|stated] [--effort LEVEL] [--price IN,OUT] [--cap DOLLARS] '
-  + '[--persona KEY|off] [--objective KEY|off] [--odd TYPE] [--odd-count K] [--size N] [--solo] [--neighbours accept|refuse|chance] [--area fixed] [--designs chosen] [--peers] [--matches N | A-B] [--run NAME] [--at-once N]';
+  + '[--persona KEY|off] [--objective KEY|off] [--odd TYPE] [--odd-count K] [--size N] [--threshold P] [--solo] [--neighbours accept|refuse|chance] [--area fixed] [--designs chosen] [--peers] [--matches N | A-B] [--run NAME] [--at-once N]';
 const FLAGS = new Set(['--chance', '--peers', '--solo']);
-const VALUED = new Set(['--model', '--read', '--effort', '--price', '--cap', '--objective', '--persona', '--odd', '--odd-count', '--size', '--area', '--designs', '--neighbours', '--matches', '--run', '--at-once']);
+const VALUED = new Set(['--model', '--read', '--effort', '--price', '--cap', '--objective', '--persona', '--odd', '--odd-count', '--size', '--threshold', '--area', '--designs', '--neighbours', '--matches', '--run', '--at-once']);
 const fail = message => { console.error(message); process.exit(1); };
 
 const args = process.argv.slice(2);
@@ -98,6 +100,9 @@ const size = option('size') === null ? SEATS : Number(option('size'));
 if (!(Number.isInteger(size) && size >= 2 && size <= SEATS)) fail(`--size takes a whole number from 2 to ${SEATS}`);
 if (size !== SEATS && !(persona && objective)) fail('--size is for a group of one type or two: give both --persona and --objective (the balanced deal is for five agents).');
 if (size !== SEATS && (solo || peers || designs === 'chosen')) fail('--size cannot be combined with --solo, --peers or --designs chosen.');
+const threshold = option('threshold') === null ? null : Number(option('threshold'));
+if (threshold !== null && !(Number.isFinite(threshold) && threshold >= 30 && threshold <= 100)) fail('--threshold takes a share from 30 to 100 percent');
+if (threshold !== null && area === 'fixed') fail('--threshold is about claims, and with --area fixed nobody claims. Give one of the two.');
 if (!(Number.isInteger(oddCount) && oddCount >= 0 && oddCount <= size)) fail(`--odd-count takes a whole number from 0 to ${size}`);
 // The rest must be one type, or the seats would hold more than two and be no mix: both its persona and its objective are given.
 if (oddSpec && !(persona && objective)) fail('--odd swaps seats of a group made of one type: give both --persona and --objective for the rest (for example --persona calm --objective off).');
@@ -113,7 +118,7 @@ if (prices && !(prices.length === 2 && prices.every(x => Number.isFinite(x) && x
 if (!(cap > 0)) fail('--cap takes a number of dollars above 0');
 
 const slug = text => text.replace(/^openai-decisions:(.*)$/, '$1-decisions').replace(/^[a-z]+:/, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
-const tags = [size !== SEATS && `size-${size}`, odd && `${oddCount}-${slug(oddSpec)}`, peers && 'peers', solo && (neighbours === 'accept' ? 'solo' : `solo-${neighbours}`), area === 'fixed' && 'fixed', designs === 'chosen' && 'designs-chosen', persona && `persona-${option('persona')}`, objective && `objective-${option('objective')}`].filter(Boolean);
+const tags = [size !== SEATS && `size-${size}`, threshold !== null && `t${threshold}`, odd && `${oddCount}-${slug(oddSpec)}`, peers && 'peers', solo && (neighbours === 'accept' ? 'solo' : `solo-${neighbours}`), area === 'fixed' && 'fixed', designs === 'chosen' && 'designs-chosen', persona && `persona-${option('persona')}`, objective && `objective-${option('objective')}`].filter(Boolean);
 const structural = peers || solo || area === 'fixed' || designs === 'chosen';
 const named = model === 'jev' && objective && !structural ? `ref-${objective}`
   : model === 'jev' && !tags.length ? `jev-${new Date().toISOString().slice(0, 10)}`
@@ -146,9 +151,10 @@ const now = { model: chance ? 'chance' : ask.model ?? JEV.model, persona: person
 // A group of one type, or of two: what its seats say, as the records will (`conditionsOf`).
 if (odd) { const c = conditionsOf({ seats: seatsOf(from), rules: 2 }); now.persona = c.persona; now.objective = c.objective; if (c.mix) now.mix = c.mix; }
 if (size !== SEATS) now.size = size;
+if (threshold !== null) now.threshold = threshold;
 if (was) {
   // A reasoning effort the run was made under counts too, when this call names none.
-  const differs = [...new Set([...Object.keys(now), ...(was.effort ? ['effort'] : []), ...(was.mix ? ['mix'] : []), ...(was.size ? ['size'] : [])])].filter(k => (was[k] ?? { designs: 'assigned', neighbours: 'accept' }[k]) !== now[k]);
+  const differs = [...new Set([...Object.keys(now), ...(was.effort ? ['effort'] : []), ...(was.mix ? ['mix'] : []), ...(was.size ? ['size'] : []), ...(was.threshold ? ['threshold'] : [])])].filter(k => (was[k] ?? { designs: 'assigned', neighbours: 'accept' }[k]) !== now[k]);
   if (differs.length) fail(`runs/${run} was made under other switches (${differs.map(k => `${k}: ${was[k]}, not ${now[k]}`).join('; ')}). Give another --run.`);
 }
 
@@ -172,7 +178,7 @@ async function worker() {
   while (next < pending.length && !ask?.fatal) {
     const { n, seat, id } = pending[next++], seats = seatsOf(n);
     try {
-      const rug = await play({ seats, seed: n, ask, peers, solo: seat, neighbours, area, designs });
+      const rug = await play({ seats, seed: n, ask, peers, solo: seat, neighbours, area, designs, threshold });
       // A benchmark match is the model's decisions or nothing: one decided in part by the fallback is not kept.
       if (ask?.fatal) throw Error(ask.fatal);
       if (rug.stats.calls.script) throw Error(`${rug.stats.calls.script} calls had no valid response from the model, so the match is not kept`);
@@ -202,7 +208,7 @@ const row = cells => cells.map((c, i) => String(c).padStart(i ? 9 : 8)).join('')
 const t = table(rowsOf(index.matches)), c = conditionsOf(index.matches[0]);
 
 const scripted = { accept: 'that never act and accept every request', refuse: 'that never act and refuse every request', chance: 'that act by chance' };
-const switches = [c.size ? `${c.size} agents` : null, c.mix ? `a group of ${c.mix}` : null, `persona ${c.persona}`, `objective ${c.objective}`, c.agents === 'solo' ? `solo (one agent decides, among four scripted neighbours ${scripted[c.neighbours]})` : 'group',
+const switches = [c.size ? `${c.size} agents` : null, c.threshold ? `claim threshold ${c.threshold}%` : null, c.mix ? `a group of ${c.mix}` : null, `persona ${c.persona}`, `objective ${c.objective}`, c.agents === 'solo' ? `solo (one agent decides, among four scripted neighbours ${scripted[c.neighbours]})` : 'group',
   c.area === 'fixed' ? 'areas fixed' : 'areas free', c.designs === 'chosen' ? 'designs chosen by the agents' : null, c.peers ? 'peer communication' : null].filter(Boolean).join(' · ');
 console.log(`\n${index.totals.matches} ${solo ? 'looms' : 'matches'} in runs/${run} · ${t.weavers} agents · ${index.model ?? 'no model'}${c.read ? ` (read by ${c.read}${c.effort ? `, reasoning effort ${c.effort}` : ''})` : ''}`);
 console.log(switches);

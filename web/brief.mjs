@@ -108,7 +108,7 @@ function strip(d, cfg) {
 
 /** Every seed at k = 0 and at k = 1: a line a seed, for the focal agent and for the mean of the four other agents. */
 function slopes(d, top) {
-  const W = 172, H = 128, L = 28, R = 4, T = 8, B = 20, xa = L + 30, xb = W - R - 34, y = v => T + (H - T - B) * (1 - Math.min(top, Math.max(0, v)) / top);
+  const W = 172, H = 120, L = 28, R = 4, T = 8, B = 20, xa = L + 30, xb = W - R - 34, y = v => T + (H - T - B) * (1 - Math.min(top, Math.max(0, v)) / top);
   const c = d.focal, k = d.others;
   // The two numbers at each side are set apart so that neither sits on the other.
   const apart = (p, q) => (Math.abs(p - q) < 13 ? (p <= q ? [q - 13, q] : [p, p - 13]) : [p, q]);
@@ -172,19 +172,50 @@ function betweenTable(ds) {
         columns.map(c => { const r = row(b.rows, c.key); return h('td', { class: clear(r.difference) ? 'strong' : null }, ci(r.difference)); })); }))));
 }
 
+/** The claim threshold of a group of `n` agents under the rules as they stand, in percent (engine/loom.mjs, `setup`). */
+const ruleThreshold = n => 100 * Math.min(0.9, Math.max(CAP / 100, 1 / n + 0.2));
+
+/**
+ * The claim threshold raised: for each contrast and group size run both ways under one system, the focal agent's final
+ * share at k = 1 under the rules' own threshold and under the raised one, and the paired changes under the raised one.
+ * `rows` are [{ base, raised }], each a set as `read` gives it, with its `size` and (for `raised`) its `threshold`.
+ */
+function thresholdTable(rows) {
+  const share = d => d.one.level.types[d.added].share, T = rows[0].raised.threshold;
+  return h('div', { class: 'scroll bm-wrap' }, h('table', { class: 'bm' },
+    h('thead', null, h('tr', null, ['Contrast and group size', 'Starting share', 'Focal agent\'s final share at the rules\' threshold (k = 1)', `Final share at ${T}% (k = 1)`, `Focal agent: change from k = 0, at ${T}% (pp)`,
+      `Each other agent: change from k = 0, at ${T}% (pp)`, `Seeds with the focal agent at ${T - 1}% or more`].map(t => h('th', null, t)))),
+    h('tbody', null, rows.map(({ base, raised }) => h('tr', null,
+      h('td', { class: 'bm-name' }, `${raised.contrast}, ${raised.size} agents`),
+      h('td', null, pct(100 / raised.size, 0)),
+      h('td', null, base ? [estimate(share(base), [0, 100], base.system), h('span', { class: 'bm-num' }, pct(share(base).mean)), h('span', { class: 'bm-n inline' }, ` at ${fmt(ruleThreshold(base.size))}%`)] : '–'),
+      h('td', null, estimate(share(raised), [0, 100], raised.system), h('span', { class: 'bm-num' }, pct(share(raised).mean))),
+      h('td', { class: clear(raised.focal.difference) ? 'strong' : null }, ci(raised.focal.difference)),
+      h('td', { class: clear(raised.others.difference) ? 'strong' : null }, ci(raised.others.difference)),
+      h('td', null, `${raised.pairs.filter(p => p.focal[1] >= T - 1).length} of ${raised.pairs.length}`))))));
+}
+
 /** The comparisons of a page grouped by contrast, in the order they are drawn. */
 const byContrast = all => [...new Set(all.map(d => d.contrast))].map(contrast => all.filter(d => d.contrast === contrast));
 
 /** What was found, each sentence written from the numbers. */
-function findings(all, cfg, mainSets, sized) {
+function findings(all, cfg, mainSets, sized, lifted) {
   const out = [], groups = byContrast(all), n = Math.min(...all.map(d => d.step.matches));
   const span = ds => (ds.length === 1 ? ci(ds[0]) : `${signed(Math.min(...ds.map(d => d.mean)), 1)} to ${signed(Math.max(...ds.map(d => d.mean)), 1)}`);
   const every = ds => (ds.length === 1 ? '' : ds.every(clear) ? ', every interval excluding zero' : `, ${ds.filter(clear).length} of ${ds.length} intervals excluding zero`);
   out.push(['Change in the focal agent\'s final share from k = 0 to k = 1 (Figure 2).', `Mean paired change in percentage points over ${n} seeds: ${groups.map(g => `${g[0].contrast}, ${span(g.map(d => d.focal.difference))}${g.length > 1 ? ` across ${g.length} systems` : ` (${g[0].system.name})`}${every(g.map(d => d.focal.difference))}`).join('; ')}. `
-    + `Per other agent: ${groups.map(g => `${span(g.map(d => d.others.difference))} (${g[0].contrast})`).join('; ')}.`]);
+    + `Per other agent, ${signed(Math.min(...all.map(d => d.others.difference.mean)), 1)} to ${signed(Math.max(...all.map(d => d.others.difference.mean)), 1)}.`]);
   // The share at which no further claims are offered: how often the focal agent ended there.
   const rising = all.filter(d => d.focal.difference.mean > 0);
-  if (rising.some(d => d.capped)) {
+  if (lifted.length) {
+    const T = lifted[0].raised.threshold, pairs = lifted.filter(r => r.base), by = lifted.filter(r => r.raised.contrast === lifted[0].raised.contrast).sort((p, q) => p.raised.size - q.raised.size);
+    const share = d => d.one.level.types[d.added].share.mean;
+    const five = pairs.filter(r => r.raised.size === 5), counts = rising.map(d => d.capped);
+    out.push([`The claim threshold (${mainSets.length > 1 ? 'Figure 4' : 'Figure 3'}).`, `Under the rules' threshold of ${CAP}% the focal agent finished at ${CAP - 1}% or more in ${Math.min(...counts) === Math.max(...counts) ? counts[0] : `${Math.min(...counts)} to ${Math.max(...counts)}`} of ${rising[0].pairs.length} seeds. `
+      + `With the threshold at ${T}% (${lifted[0].raised.system.name}, five agents) its mean final share was ${five.map(r => `${pct(share(r.raised))} against ${pct(share(r.base))} (${r.raised.contrast})`).join(' and ')}.`
+      + (by.length > 2 ? ` At ${T}%, in these runs, it was ${by.map(r => pct(share(r.raised), 0)).join(', ')} with ${by.map(r => r.raised.size).join(', ').replace(/, (\d)$/, ' and $1')} agents; `
+        + `${by.map(r => r.raised.pairs.filter(p => p.focal[1] >= T - 1).length).join(', ')} of ${by[0].raised.pairs.length} seeds were within a point of that threshold, which limits the comparison across sizes.` : '')]);
+  } else if (rising.some(d => d.capped)) {
     const counts = rising.map(d => d.capped), where = rising.length > 3 ? `${Math.min(...counts)} to ${Math.max(...counts)} of ${rising[0].pairs.length} seeds across the ${rising.length} comparisons in which its share rose`
       : rising.map(d => `${d.capped} of ${d.pairs.length} seeds (${d.contrast}, ${d.system.name})`).join(', ');
     out.push(['The claim threshold.', `The rules stop offering an agent claims once it holds ${CAP}% of the resource. The focal agent finished at ${CAP - 1}% or more in ${where}. `
@@ -207,7 +238,7 @@ function findings(all, cfg, mainSets, sized) {
   const others = groups.filter(g => g.length > 1 && g[0] !== mainSets[0]).map(g => { const b = versus(g[0], g[1]); return `${g[0].contrast}, ${g[1].system.name} minus ${g[0].system.name}: ${ci(row(b.rows, 'focal.change').difference)} pp in the focal agent's change (${b.matches} seeds)`; });
   const joint = all.filter(d => d.step.joint.from >= 10 && clear(d.step.joint.difference)).map(d => `${d.contrast}, ${d.system.name}: ${pct(d.step.joint.from)} of the resource under joint ownership at k = 0 and ${pct(d.step.joint.to)} at k = 1 (${ci(d.step.joint.difference)})`);
   if (others.length || joint.length) out.push(['Other comparisons.', `${[...others, ...joint].map(t => t[0].toUpperCase() + t.slice(1)).join('. ')}.`]);
-  if (sized.length) {
+  if (sized.length && !lifted.length) {
     const rows = [...sized, mainSets[0]].filter(Boolean).sort((p, q) => p.size - q.size), cap = n => 100 * Math.min(0.9, Math.max(CAP / 100, 1 / n + 0.2));
     out.push([`Group size (${rows[0].system.name}, ${rows[0].contrast}, ${rows[0].step.matches} seeds each).`, `With ${rows.map(d => d.size).join(', ').replace(/, (\d)$/, ' and $1')} agents, each starting with ${rows.map(d => fmt(100 / d.size)).join(', ')}%, `
       + `the focal agent ended with ${rows.map(d => fmt(d.focal.to, 1)).join(', ')}% (claim thresholds ${rows.map(d => fmt(cap(d.size))).join(', ')}%): a change of ${signed(Math.min(...rows.map(d => d.focal.difference.mean)), 1)} to ${signed(Math.max(...rows.map(d => d.focal.difference.mean)), 1)} points. `
@@ -216,22 +247,27 @@ function findings(all, cfg, mainSets, sized) {
   const swept = mainSets.filter(d => d.levels.length > 3);
   if (swept.length) {
     const last = d => d.levels.at(-1).count, lone = d => d.levels.find(l => l.count === last(d) - 1)?.level.types[d.group]?.share.mean;
-    out.push([`Mean share of an agent with ${cfg.second}, by k.`, `${swept.map(d => `${d.system.name}: ${d.levels.map(l => l.level.types[d.added]?.share).filter(Boolean).map(s => fmt(s.mean)).join(', ')}%`).join('; ')} for k = 1 to ${last(swept[0])} (5 seeds from k = 2). `
-      + `At k = ${last(swept[0]) - 1} the one remaining agent of the group's kind held ${swept.map(d => `${pct(lone(d) ?? NaN)} (${d.system.name})`).join(' and ')}.`]);
+    out.push([`Mean share of an agent with ${cfg.second}, by k.`, `${swept.map(d => `${d.system.name}: ${d.levels.map(l => l.level.types[d.added]?.share).filter(Boolean).map(s => fmt(s.mean)).join(', ')}%`).join('; ')} for k = 1 to ${last(swept[0])} (5 seeds from k = 2; rules' threshold).`]);
   }
   return out;
 }
 
 function page(sets, cfg) {
-  const all = sets.filter(s => (s.size ?? 5) === 5 && cfg.belongs(s.types)).map(read).filter(Boolean)
+  const all = sets.filter(s => (s.size ?? 5) === 5 && !s.threshold && cfg.belongs(s.types)).map(read).filter(Boolean)
     .sort((a, b) => (a.group === cfg.main[0] && a.added === cfg.main[1] ? 0 : 1) - (b.group === cfg.main[0] && b.added === cfg.main[1] ? 0 : 1) || [a.group, a.added].join().localeCompare([b.group, b.added].join())
       || SYSTEMS.findIndex(s => s.kind === a.system.kind) - SYSTEMS.findIndex(s => s.kind === b.system.kind));
   const link = h('p', { class: 'kicker' }, 'LoomBench brief · group composition · ', h('a', { href: cfg.other[0] }, `see also ${cfg.other[1]}`));
   if (!all.length) return [topbar(null), link, h('h1', null, cfg.title), h('p', { class: 'lede' }, 'No run of this kind has been made yet.')];
   const find = ([kind, group, added]) => all.find(d => d.system.kind === kind && d.group === group && d.added === added) ?? null;
   const mainSets = all.filter(d => d.group === cfg.main[0] && d.added === cfg.main[1]), strips = cfg.strips.map(find).filter(Boolean);
-  const sized = mainSets.length ? sets.filter(s => (s.size ?? 5) !== 5 && s.model === mainSets[0].model && s.types[0] === cfg.main[0] && s.types[1] === cfg.main[1]).map(s => { const d = read(s); return d ? { ...d, size: s.size } : null; }).filter(Boolean) : [];
-  if (mainSets.length) mainSets[0].size = 5;
+  const sized = mainSets.length ? sets.filter(s => (s.size ?? 5) !== 5 && !s.threshold && s.model === mainSets[0].model && s.types[0] === cfg.main[0] && s.types[1] === cfg.main[1]).map(s => { const d = read(s); return d ? { ...d, size: s.size } : null; }).filter(Boolean) : [];
+  for (const d of all) d.size = 5;
+  // The claim threshold raised, under the first system: each such set beside the set that differs from it in the threshold alone.
+  const raisedSets = mainSets.length ? sets.filter(s => s.threshold && s.model === mainSets[0].model && cfg.belongs(s.types)) : [], T = Math.max(0, ...raisedSets.map(s => s.threshold));
+  const lifted = raisedSets.filter(s => s.threshold === T).map(s => { const d = read(s); return d ? { ...d, size: s.size ?? 5, threshold: s.threshold } : null; }).filter(Boolean)
+    // The set that differs from it in the threshold alone: the same system, types, group size and every other switch.
+    .map(raised => ({ raised, base: [...all, ...sized].find(d => d.model === raised.model && d.group === raised.group && d.added === raised.added && d.size === raised.size && d.set.other === raised.set.other) ?? null }))
+    .sort((p, q) => (p.raised.added === cfg.main[1] ? 0 : 1) - (q.raised.added === cfg.main[1] ? 0 : 1) || p.raised.size - q.raised.size);
   const top = 60, systems = [...new Set(all.map(d => d.system.name))], seeds = Math.min(...all.map(d => d.step.matches)), groups = byContrast(all);
   // The sentence each prompt is, as the first agent hears it.
   const said = new Map();
@@ -256,19 +292,23 @@ function page(sets, cfg) {
           + `An agent holding ${CAP}% is offered no further claims (the claim threshold). ${cfg.prompts} `
           + `Runs are paired by seed, a match number that gives the same starting set-up; the substituted position rotates over seeds. ${seeds} seeds for k = 0 and 1, 5 for k = 2 to 5; each run executed once. Decision systems: ${systems.map(s => `${s} (${ABOUT[s] ?? ''})`).join('; ')}.`),
         h('p', null, h('b', null, 'Result. '), `Mean final share of the focal agent. ${result[0].toUpperCase()}${result.slice(1)}.`
-          + (differed.length ? ` ${mainSets[0].system.name} and ${mainSets[1].system.name} did not clearly differ in the main contrast's change, and did differ in ${differed.join(', ').replace(/, ([^,]*)$/, ' and $1')}.` : ''))),
-      h('div', { class: 'terms' },
-        h('span', null, h('b', null, 'Focal agent'), `: the agent whose ${cfg.word} is changed.`), h('span', null, h('b', null, 'Other agents'), `: the four whose ${cfg.word} is not, reported as their mean.`),
-        h('span', null, h('b', null, 'Share'), ': the percentage of the resource an agent holds alone at the end; a part under joint ownership counts for neither holder.'),
-        h('span', null, h('b', null, 'Seed'), ': a match number, used to pair runs.'), h('span', null, h('b', null, 'k'), `: the number of agents with ${cfg.second}.`),
-        h('span', null, h('b', null, 'Intervals'), ': Student-t 95% over seeds.')),
-      h('div', { class: 'said' }, [...said].map(([type, text]) => h('span', { class: 'said-item' }, h('b', null, labelOf(type)), ` ${text}`)))),
+          + (differed.length ? ` ${mainSets[0].system.name} and ${mainSets[1].system.name} did not clearly differ in the main contrast's change, and did differ in ${differed.join(', ').replace(/, ([^,]*)$/, ' and $1')}.` : '')
+          + (lifted.some(r => r.raised.size === 5) ? ` With the claim threshold at ${lifted[0].raised.threshold}% (${lifted[0].raised.system.name}): ${lifted.filter(r => r.raised.size === 5).map(r => `${r.raised.b}, ${pct(r.raised.focal.to)}`).join('; ')}.` : '')))),
 
     strips.length ? h('section', null,
       h('h2', null, h('span', { class: 'fig' }, 'Figure 1'), `Final allocation in one seed as k agents are given ${cfg.second}`),
-      h('p', { class: 'cap' }, 'Each picture shows who held which part of the resource in each round (time runs bottom to top), one colour for each agent; hatching marks a design adopted from another agent, two-colour bands a part under joint ownership. '
-        + `Squares give the seating, outlined for agents with ${cfg.second}, whose final shares are beneath (k = 1 to 4). The seed shown is the one closest to the mean result at k = 1.`),
-      h('div', { class: 'strips' }, strips.map(d => strip(d, cfg)))) : null,
+      h('div', { class: 'fig1' },
+        h('div', null,
+          strip(strips[0], cfg),
+          h('p', { class: 'cap' }, 'Each picture shows who held which part of the resource in each round (time runs bottom to top), one colour for each agent; hatching marks a design adopted from another agent, two-colour bands a part under joint ownership. '
+            + `Squares give the seating, outlined for agents with ${cfg.second}, whose final shares are beneath (k = 1 to 4). The seed shown is the one closest to the mean result at k = 1.`)),
+        h('div', { class: 'aside' },
+          h('div', { class: 'said' }, h('b', { class: 'aside-head' }, `The ${cfg.word}s, as told to the first agent`), [...said].map(([type, text]) => h('span', { class: 'said-item' }, h('b', null, labelOf(type)), ` ${text}`))),
+          h('div', { class: 'terms' },
+            h('span', null, h('b', null, 'Focal agent'), `: the agent whose ${cfg.word} is changed.`), h('span', null, h('b', null, 'Other agents'), `: the four whose ${cfg.word} is not, reported as their mean.`),
+            h('span', null, h('b', null, 'Share'), ': the percentage of the resource an agent holds alone at the end; a part under joint ownership counts for neither holder.'),
+            h('span', null, h('b', null, 'Seed'), ': a match number, used to pair runs.'), h('span', null, h('b', null, 'k'), `: the number of agents with ${cfg.second}.`),
+            h('span', null, h('b', null, 'Intervals'), ': Student-t 95% over seeds.'))))) : null,
 
     h('section', null,
       h('h2', null, h('span', { class: 'fig' }, 'Figure 2'), 'Final share at k = 0 and k = 1, by seed'),
@@ -283,13 +323,19 @@ function page(sets, cfg) {
       h('p', { class: 'cap' }, 'Means with 95% intervals over seeds. Points and intervals share a scale within each column, and the vertical line marks zero. The last rows give paired differences between systems with their intervals; bold where the interval excludes zero.'),
       betweenTable(mainSets)) : null,
 
+    lifted.length ? h('section', null,
+      h('h2', null, h('span', { class: 'fig' }, mainSets.length > 1 ? 'Figure 4' : 'Figure 3'), `The claim threshold raised to ${lifted[0].raised.threshold}%${lifted.some(r => r.raised.size !== 5) ? ', by group size' : ''} (${lifted[0].raised.system.name})`),
+      h('p', { class: 'cap' }, `Under the rules an agent is offered no further claims at ${CAP}% of the resource with four or five agents, 53.3% with three and 70% with two. The same seeds were run with that threshold at ${lifted[0].raised.threshold}% for every group size. `
+        + `Means with 95% intervals over ${lifted[0].raised.pairs.length} seeds, on a scale of 0 to 100%; changes are paired by seed.`),
+      thresholdTable(lifted)) : null,
+
     h('section', null,
       h('h2', null, 'Findings and limitations'),
       h('div', { class: 'flow' },
-        h('ol', { class: 'findings' }, findings(all, cfg, mainSets, sized).map(([head, text]) => h('li', null, h('b', null, `${head} `), text[0].toUpperCase() + text.slice(1)))),
+        h('ol', { class: 'findings' }, findings(all, cfg, mainSets, sized, lifted).map(([head, text]) => h('li', null, h('b', null, `${head} `), text[0].toUpperCase() + text.slice(1)))),
         h('p', { class: 'cap limits' }, h('b', null, 'Limitations. '), `Each run was executed once, so run-to-run variation is unmeasured; intervals describe variation over seeds. Each ${cfg.word} is a single wording. `
           + 'A difference for the other agents is between the two resulting matches: it includes everything that followed from the substitution and does not isolate their direct response to the focal agent. '
-          + 'A comparison between systems compares a model together with its interface and the way its probabilities are read, not models alone. The results concern this task, with its claim threshold, and these systems.'),
+          + 'A comparison between systems compares a model together with its interface and the way its probabilities are read, not models alone. The results concern this task and its rules, including the claim threshold, and these systems.'),
         h('p', { class: 'cap' }, h('a', { href: 'mix' }, 'Every match and table'), ' · ', h('code', null, 'node analysis/mix.mjs'), ' prints the numbers.'))),
   ];
 }

@@ -74,6 +74,7 @@ function conditionNotes(c) {
     c.designs === 'chosen' ? 'Starting designs were chosen by the agents: the group voted on a palette and each agent chose its first design (the benchmark\'s first rules). Agents are marked by colour, since they have no starting design, and the ownership map shows who holds what.' : null,
     c.persona === 'off' ? 'Personas are off: no agent was given a trait sentence, so the persona rows below collapse to one.' : null,
     c.size ? `A group of ${c.size} agents, not five: each starts with an equal part of the same loom (${Math.round(100 / c.size)}%), and an agent is offered no further claims once it holds the larger of 46% and that part plus 20 points.` : null,
+    c.threshold ? `The claim threshold is ${c.threshold}%: an agent is offered claims until it holds that much of the loom, where the benchmark's own rule stops at 46%.` : null,
     c.mix ? `A mixed group: ${c.mix}. The seats of the second type rotate with the match number, so each seat holds it equally often. The Composition page sets this run beside the groups with more and fewer of that type.` : null,
     c.persona !== 'off' && c.persona !== 'dealt' && c.persona !== 'mixed' && c.persona ? `Every agent was given the same persona (${personality(c.persona).name}).` : null,
     c.objective === 'off' ? 'Objectives are off: no agent was given an objective, so every agent is a baseline agent and there is no attainment to report.' : null,

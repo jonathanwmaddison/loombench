@@ -190,7 +190,11 @@ export function sentenceOf(seat, key, kind) {
  * lets the agents choose the palette and their first designs (`SWITCHES`). Returns the finished rug, with
  * `rug.conditions` and `rug.cost`.
  */
-export async function play({ seats, seed, ask = null, onPass, peers = false, solo = null, neighbours = 'accept', area = 'free', designs = 'assigned' }) {
+export async function play({ seats, seed, ask = null, onPass, peers = false, solo = null, neighbours = 'accept', area = 'free', designs = 'assigned', threshold = null }) {
+  // The claim threshold: the share of the loom, in percent, at which an agent is offered no further claims. The loom's
+  // own is 46 for five agents (for fewer, the larger of 46 and an equal part plus 20); another can be given.
+  if (threshold !== null && !(Number.isFinite(threshold) && threshold >= 30 && threshold <= 100)) throw Error('threshold: a share from 30 to 100 percent');
+  if (threshold !== null && area === 'fixed') throw Error('with areas fixed nobody claims, so there is no claim threshold to set');
   if (solo !== null && !(Number.isInteger(solo) && solo >= 0 && solo < SEATS)) throw Error(`solo: a seat from 0 to ${SEATS - 1}`);
   // A smaller group: every agent then starts with an equal part of the same loom (a third each for three), and the
   // share at which an agent is offered no further claims is the larger of 46% and that part plus 20 points
@@ -221,10 +225,10 @@ export async function play({ seats, seed, ask = null, onPass, peers = false, sol
   if (solo !== null) asker = soloAsker(asker ?? chanceAsker(seed, count), solo, count, { neighbours, seed });
   const rug = await weave({
     seed, weavers: cast, ask: asker, minds: asker ? 'jev' : 'chance', model: ask ? ask.model ?? JEV.model : 'chance',
-    simple: true, loom: { stepBacks: [], ...(area === 'fixed' ? { fixed: true } : {}) }, onPass, ...(designs === 'assigned' ? given() : {}),
+    simple: true, loom: { stepBacks: [], ...(area === 'fixed' ? { fixed: true } : {}), ...(threshold === null ? {} : { maxShare: threshold / 100 }) }, onPass, ...(designs === 'assigned' ? given() : {}),
   });
   if (speaking) rug.peers = log;
-  rug.conditions = { agents: solo === null ? 'group' : 'solo', ...(solo === null ? {} : { solo, neighbours }), area, ...(designs === 'chosen' ? { designs } : {}), ...(ask?.read ? { read: ask.read } : {}), ...(ask?.effort ? { effort: ask.effort } : {}) };
+  rug.conditions = { agents: solo === null ? 'group' : 'solo', ...(solo === null ? {} : { solo, neighbours }), area, ...(threshold === null ? {} : { threshold }), ...(designs === 'chosen' ? { designs } : {}), ...(ask?.read ? { read: ask.read } : {}), ...(ask?.effort ? { effort: ask.effort } : {}) };
   rug.scripted = count.scripted;
   rug.cost = ask ? cost.dollars ?? rug.stats.dollars : 0;
   rug.requests = cost.requests;
@@ -333,6 +337,8 @@ export function conditionsOf(record) {
     designs: record.rules >= 2 ? record.conditions?.designs ?? 'assigned' : 'chosen', peers: record.mode === 'peers',
     ...(record.conditions?.read ? { read: record.conditions.read } : {}),
     ...(record.conditions?.effort ? { effort: record.conditions.effort } : {}),
+    // The claim threshold in percent, when the match was not run at the loom's own.
+    ...(record.conditions?.threshold ? { threshold: record.conditions.threshold } : {}),
   };
 }
 

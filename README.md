@@ -39,6 +39,7 @@ node tools/run.mjs --model ollama:gemma3:4b --matches 1-11 --persona off   # ...
 node --env-file=<file> tools/run.mjs --persona calm --objective off --odd blunt --matches 1-10   # four calm agents and one blunt
 node --env-file=<file> tools/run.mjs --persona off --objective off --odd ">grow" --matches 1-10   # no personas; one agent told to grow
 node --env-file=<file> tools/run.mjs --persona calm --objective off --odd blunt --size 3 --matches 1-10   # the same contrast with three agents
+node --env-file=<file> tools/run.mjs --persona calm --objective off --odd blunt --threshold 90 --matches 1-10   # ... with claims offered up to 90% of the loom
 node tools/rethumb.mjs --run main                                          # redraw a run's pictures from its records
 node analysis/peers.mjs && node analysis/outcomes.mjs                      # every estimate in the report, from the records
 node analysis/controls.mjs --answers                                       # every run against the run one switch away
@@ -342,8 +343,9 @@ once. Differences are paired by match number, with a 95% interval over match num
 `engine/loom.mjs`). It is a threshold on the moves offered, not a limit on the final share: an agent can pass it by
 what others concede (52% in one of Jev's matches with a blunt agent). In the disposition comparisons below the agent that was changed
 finished at 45% or more in 5 to 10 of the 10 match numbers (7 for Jev's blunt agent, 10 for its rude agent); with an
-objective in place of a disposition, in 1 to 3 of 10. These comparisons cannot show how much the threshold affected
-the results, so a final share near 46% should be read with it in mind.
+objective in place of a disposition, in 1 to 3 of 10. A final share near 46% should therefore be read with the
+threshold in mind; "The claim threshold raised" below runs the same match numbers with it at 90%, where the blunt
+agent averaged 64% and the rude agent 89%.
 
 ### A calm group, and blunt agents added (Jev)
 
@@ -466,7 +468,34 @@ In this comparison the changed agent gained about 20 points at each group size, 
 agents as the group grew: about 22 points from the one other agent of a group of two, about 6 points from each of
 four. The changed agent finished at or above the claim threshold in most match numbers, sometimes well above it (78%
 in one match of two agents). Because the threshold changes with group size, these runs cannot separate the effect of
-group size from that of the threshold, or show what would happen without it.
+group size from that of the threshold; the next subsection holds the threshold at 90% for every size.
+
+### The claim threshold raised to 90% (Jev)
+
+The same match numbers with `--threshold 90`: an agent is offered claims until it holds 90% of the loom, whatever
+the size of the group. Ten match numbers each; "rules" is the threshold the rules give that group (46%, or 53% and
+70% for three and two agents).
+
+| The change to one agent | Agents | Its final share: rules | Threshold 90% | 90% minus rules, paired [95% interval] | Change from the group of one type, at 90% | Each other agent's change, at 90% | Finished at 89% or more |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Calm → blunt | 2 | 71.6% | 87.8% | +16.2 [11.8, 20.6] | +37.8 [33.6, 42.0] | −37.8 [−42.0, −33.6] | 7 of 10 |
+| Calm → blunt | 3 | 53.8% | 84.5% | +30.7 [22.9, 38.5] | +51.8 [44.2, 59.4] | −25.9 [−29.7, −22.1] | 7 of 10 |
+| Calm → blunt | 4 | 44.6% | 73.1% | +28.5 [17.7, 39.3] | +48.1 [34.4, 61.8] | −16.0 [−20.6, −11.5] | 3 of 10 |
+| Calm → blunt | 5 | 42.6% | 64.1% | +21.5 [7.2, 35.8] | +44.1 [26.7, 61.5] | −11.0 [−15.4, −6.7] | 2 of 10 |
+| Calm → rude | 5 | 46.6% | 89.2% | | +69.2 [67.4, 71.0] | −17.5 [−17.7, −17.2] | 8 of 10 |
+| No objective → Grow (no personas) | 5 | 38.7% | 41.5% | +2.8 [−3.0, 8.6] | +23.7 [16.3, 31.1] | −6.2 [−8.6, −3.7] | 0 of 10 |
+
+- **Five agents.** At the rules' threshold the blunt agent finished at 45% or more in 7 of 10 matches and the rude
+  agent in 10 of 10. With the threshold at 90% the blunt agent's mean final share was 64.1% against 42.6% (paired
+  change +21.5 points [7.2, 35.8]) and the rude agent's 89.2% against 46.6%. The difference between the two
+  dispositions was 4.0 points [−2.3, 10.3] at the rules' threshold and 25.1 points [7.1, 43.1] at 90%.
+- **By group size, at 90%,** the blunt agent's mean final share was 87.8, 84.5, 73.1 and 64.1% with two, three, four
+  and five agents. These are descriptive results from ten match numbers a size, not an estimate of an effect of group
+  size: with two and with three agents, 7 of 10 results were within a point of the threshold.
+- **Refusals.** Calm agents facing a blunt agent recorded 0.1 to 0.2 refusals each per match at five agents. That is
+  consistent with concessions contributing to the larger shares; it does not establish why they rose.
+- **An agent told to grow** among agents with no persona and no objective: 41.5% at 90% against 38.7% (paired change
+  +2.8 [−3.0, 8.6]), which is inconclusive. Those other agents recorded 1.7 refusals each per match.
 
 Limits. Each composition was executed once: 10 match numbers for the step from none to one, 5 for the rest. Jev's
 default differed across two executions, and each composition here was run once, so any run-to-run variation in these
@@ -572,6 +601,7 @@ the subgroup and outcome results are labelled descriptive.
 | `runs/none-grow-1` to `none-grow-4`, `none-give-1`, `hold-grow-1` | Jev, no personas: a group with no objective and one to four agents told to grow, or one told to give; a group told to hold and one told to grow | 10, 5, 5, 5, 10, 10 | The groups of one objective are `ref-none`, `ref-hold` and `ref-grow`, extended to 10, 10 and 5 matches |
 | `runs/luna-decisions-none`, `luna-decisions-none-grow-1` to `-5`, `luna-decisions-none-give-1` | The decision model on the same objective groups | 10, 10, 5, 5, 5, 5, 10 | |
 | `runs/calm-size-2` to `calm-size-4`, `calm-blunt-1-size-2` to `-4` | Jev: the calm group, and one blunt agent, with two, three and four agents | 10 each | Group size |
+| `runs/calm-t90`, `calm-blunt-1-t90`, `calm-rude-1-t90`, `calm-size-N-t90`, `calm-blunt-1-size-N-t90` (N = 2, 3, 4), `none-t90`, `none-grow-1-t90` | Jev with the claim threshold at 90%: the calm group with one blunt agent at two to five agents, one rude agent, and one agent told to grow | 10 each | The claim threshold raised |
 | `runs/peers` | Peer communication | 22 | Matches 1-22; `peers.json` lists every decision |
 | `runs/chance` | Control, no model | 44 | Actions sampled uniformly |
 | `runs/chosen-main`, `chosen-replicate`, `chosen-peers`, `chosen-chance` | Starting designs chosen (the first rules) | 44, 22, 22, 44 | Run 1 of the report |

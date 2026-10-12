@@ -201,3 +201,27 @@ test('a group can have two to five agents: equal parts of the same loom, the odd
   const sets = compositions([...five, few('d-0', 0), few('d-1', 1)]);
   assert.deepEqual(sets.map(s => [s.size, s.types.join('+'), s.levels.map(l => l.count).join()]).sort(), [[2, 'calm+blunt', '0,1'], [5, 'calm+blunt', '0,1']]);
 });
+
+test('the claim threshold can be set: the match is run and replayed under it, its record says so, and it is a setting of its own', async () => {
+  // A mind that claims whenever a claim is offered, deciding alone among neighbours that accept: it grows to the threshold.
+  const claiming = async (body, put) => {
+    const answers = {};
+    for (const [k, q] of Object.entries(body.questions)) {
+      if (q.type === 'score') { answers[k] = { type: 'score', score: q.criteria.length - 1 }; continue; }
+      const keys = Object.keys(q.criteria), options = put.asked[k].options, push = options.findIndex(o => o.kind === 'push');
+      const want = k === 'move' ? o => o.kind === (push < 0 ? 'carry' : 'push') : k === 'yarn' ? o => o.kind === 'keep' : () => true, at = Math.max(0, options.findIndex(want));
+      answers[k] = { type: 'choice', choice: keys[at], probabilities: Object.fromEntries(keys.map((key, i) => [key, i === at ? 1 : 0])) };
+    }
+    return answers;
+  };
+  const seats = deal(1), [own, raised] = await Promise.all([play({ seats, seed: 1, ask: claiming, solo: 0 }), play({ seats, seed: 1, ask: claiming, solo: 0, threshold: 90 })]);
+  const held = rug => recordOf(rug, { id: 'x', seats }).results[0].ground;
+  assert.deepEqual([held(own), held(raised)], [46, 89]);          // claims come two warps at a time, so the last stops a warp short
+  const record = recordOf(raised, { id: 'x', match: 1, seats }), c = conditionsOf(record);
+  assert.equal(c.threshold, 90);
+  assert.equal(conditionsOf(recordOf(own, { id: 'x', match: 1, seats })).threshold, undefined);
+  assert.equal(switchesOf({ conditions: c }).area, 'free, claim threshold 90%');
+  assert.ok(sameCloth(await replay(JSON.parse(JSON.stringify(record))), raised));
+  await assert.rejects(play({ seats, seed: 1, threshold: 10 }), /from 30 to 100 percent/);
+  await assert.rejects(play({ seats, seed: 1, threshold: 90, area: 'fixed' }), /no claim threshold to set/);
+});

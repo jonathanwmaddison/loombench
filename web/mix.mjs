@@ -204,7 +204,7 @@ function page(sets, set) {
   } }, `${p.count} → ${q.count} ${nameB}`));
   if (step) stepBox.replaceChildren(shiftCard(step[0], step[1], second));
   const select = sets.length > 1 ? h('select', { 'aria-label': 'Set of runs', onchange: e => { window.location.search = `?set=${encodeURIComponent(e.target.value)}`; } },
-    sets.map(s => h('option', { value: s.key, selected: s === set }, `${modelName(s.model)} · ${s.types.map(labelOf).join(', with ')}${(s.size ?? 5) === 5 ? '' : ` · ${s.size} agents`}`))) : null;
+    sets.map(s => h('option', { value: s.key, selected: s === set }, `${modelName(s.model)} · ${s.types.map(labelOf).join(', with ')}${(s.size ?? 5) === 5 ? '' : ` · ${s.size} agents`}${s.threshold ? ` · claim threshold ${s.threshold}%` : ''}`))) : null;
   return [
     topbar('mix'),
     h('div', { class: 'spread head' }, h('h1', null, 'Composition'), select),

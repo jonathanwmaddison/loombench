@@ -17,7 +17,7 @@ export function switchesOf(run) {
     // A mixed group (two types among the five seats) is a setting of its own, named by the group.
     model: c.model ?? run.model ?? null, persona: mixed(c.persona) ?? 'dealt', objective: mixed(c.objective) ?? (run.design === 'uniform' ? 'uniform' : 'dealt'),
     // A solo run is named with how its four other seats were scripted, so each way is its own setting.
-    agents: c.agents === 'solo' ? `solo-${c.neighbours ?? 'accept'}` : c.size ? `group of ${c.size}` : 'group', area: c.area ?? 'free', designs: c.designs ?? (run.rules === 1 ? 'chosen' : 'assigned'), peers: c.peers ?? run.mode === 'peers',
+    agents: c.agents === 'solo' ? `solo-${c.neighbours ?? 'accept'}` : c.size ? `group of ${c.size}` : 'group', area: c.threshold ? `free, claim threshold ${c.threshold}%` : c.area ?? 'free', designs: c.designs ?? (run.rules === 1 ? 'chosen' : 'assigned'), peers: c.peers ?? run.mode === 'peers',
   };
 }
 

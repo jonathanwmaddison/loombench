@@ -1,0 +1,1050 @@
+{
+  "loombench": 1,
+  "run": "calm-blunt-1-size-2-t90",
+  "model": "jev-1.13.0",
+  "minds": "jev",
+  "mode": "quiet",
+  "design": "uniform",
+  "rules": 2,
+  "conditions": {
+    "model": "jev-1.13.0",
+    "persona": "mixed",
+    "objective": "off",
+    "mix": "1 blunt + 1 calm",
+    "size": 2,
+    "agents": "group",
+    "area": "free",
+    "designs": "assigned",
+    "peers": false,
+    "threshold": 90
+  },
+  "updated": "2026-10-12T16:07:36.451Z",
+  "matches": [
+    {
+      "loombench": 1,
+      "id": "m001",
+      "match": 1,
+      "seed": 1,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "calm",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        1,
+        0
+      ],
+      "name": "What Ashley Kept",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 76,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 48,
+            "borrow": 0
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 22,
+            "took": 4,
+            "gave": 0,
+            "offered": 0,
+            "refused": 2,
+            "insisted": 0,
+            "backedDown": 1,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 24,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 48,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 24,
+            "took": 0,
+            "gave": 2,
+            "offered": 0,
+            "refused": 0,
+            "insisted": 0,
+            "backedDown": 2,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 65,
+      "fallbacks": 0,
+      "dollars": 0.003537366,
+      "seconds": 7.751,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m002",
+      "match": 2,
+      "seed": 2,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "calm",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        0,
+        1
+      ],
+      "name": "26 Passages, 5 Quarrels",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 10,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 20,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 26,
+            "took": 0,
+            "gave": 0,
+            "offered": 0,
+            "refused": 4,
+            "insisted": 0,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 90,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 20,
+            "borrow": 96.2
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 19,
+            "took": 7,
+            "gave": 0,
+            "offered": 0,
+            "refused": 0,
+            "insisted": 5,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 4
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 70,
+      "fallbacks": 0,
+      "dollars": 0.003857196,
+      "seconds": 8.402,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m003",
+      "match": 3,
+      "seed": 3,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "calm",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        1,
+        0
+      ],
+      "name": "26 Passages, 0 Quarrels",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 90,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 20,
+            "borrow": 0
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 20,
+            "took": 6,
+            "gave": 0,
+            "offered": 0,
+            "refused": 2,
+            "insisted": 0,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 10,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 20,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 26,
+            "took": 0,
+            "gave": 0,
+            "offered": 0,
+            "refused": 0,
+            "insisted": 0,
+            "backedDown": 2,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 66,
+      "fallbacks": 0,
+      "dollars": 0.003470166,
+      "seconds": 7.717,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m004",
+      "match": 4,
+      "seed": 4,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "calm",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        0,
+        1
+      ],
+      "name": "26 Passages, 4 Quarrels",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 10,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 20,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 24,
+            "took": 0,
+            "gave": 1,
+            "offered": 1,
+            "refused": 3,
+            "insisted": 0,
+            "backedDown": 2,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 90,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 20,
+            "borrow": 7.7
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 18,
+            "took": 7,
+            "gave": 1,
+            "offered": 0,
+            "refused": 2,
+            "insisted": 4,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 1
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 71,
+      "fallbacks": 0,
+      "dollars": 0.003666852,
+      "seconds": 8.455,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m005",
+      "match": 5,
+      "seed": 5,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "calm",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        1,
+        0
+      ],
+      "name": "26 Passages, 3 Quarrels",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 81,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 38,
+            "borrow": 0
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 21,
+            "took": 5,
+            "gave": 0,
+            "offered": 0,
+            "refused": 2,
+            "insisted": 3,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 19,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 38,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 26,
+            "took": 0,
+            "gave": 0,
+            "offered": 0,
+            "refused": 1,
+            "insisted": 0,
+            "backedDown": 2,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 68,
+      "fallbacks": 0,
+      "dollars": 0.003621324,
+      "seconds": 8.492,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m006",
+      "match": 6,
+      "seed": 6,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "calm",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        0,
+        1
+      ],
+      "name": "Ashley Takes the Bench",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 10,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 20,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 26,
+            "took": 0,
+            "gave": 0,
+            "offered": 0,
+            "refused": 0,
+            "insisted": 0,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 90,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 20,
+            "borrow": 84.6
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 19,
+            "took": 7,
+            "gave": 0,
+            "offered": 0,
+            "refused": 0,
+            "insisted": 0,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 1
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 65,
+      "fallbacks": 0,
+      "dollars": 0.00364812,
+      "seconds": 7.311,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m007",
+      "match": 7,
+      "seed": 7,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "calm",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        1,
+        0
+      ],
+      "name": "Jessica Takes the Bench",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 97,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 6,
+            "borrow": 84.6
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 19,
+            "took": 7,
+            "gave": 0,
+            "offered": 0,
+            "refused": 0,
+            "insisted": 0,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 2
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 3,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 6,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 23,
+            "took": 1,
+            "gave": 2,
+            "offered": 0,
+            "refused": 0,
+            "insisted": 0,
+            "backedDown": 1,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 66,
+      "fallbacks": 0,
+      "dollars": 0.003548748,
+      "seconds": 7.243,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m008",
+      "match": 8,
+      "seed": 8,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "calm",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        0,
+        1
+      ],
+      "name": "One Open Slit",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 16,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 32,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 25,
+            "took": 0,
+            "gave": 1,
+            "offered": 0,
+            "refused": 1,
+            "insisted": 0,
+            "backedDown": 2,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 84,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 32,
+            "borrow": 80.8
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 19,
+            "took": 6,
+            "gave": 1,
+            "offered": 0,
+            "refused": 2,
+            "insisted": 1,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 1
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 67,
+      "fallbacks": 0,
+      "dollars": 0.003606624,
+      "seconds": 7.696,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m009",
+      "match": 9,
+      "seed": 9,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "calm",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        0,
+        1
+      ],
+      "name": "26 Passages, 1 Quarrels",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 90,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 20,
+            "borrow": 65.4
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 18,
+            "took": 8,
+            "gave": 0,
+            "offered": 0,
+            "refused": 2,
+            "insisted": 0,
+            "backedDown": 1,
+            "pushedOut": 0,
+            "borrowed": 2
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 10,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 20,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 26,
+            "took": 0,
+            "gave": 0,
+            "offered": 0,
+            "refused": 1,
+            "insisted": 1,
+            "backedDown": 1,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 69,
+      "fallbacks": 0,
+      "dollars": 0.003626826,
+      "seconds": 7.441,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m010",
+      "match": 10,
+      "seed": 10,
+      "model": "jev-1.13.0",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "calm",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        0,
+        1
+      ],
+      "name": "26 Passages, 2 Quarrels",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "calm",
+          "goal": "none",
+          "ground": 10,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 20,
+            "borrow": 0
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 25,
+            "took": 0,
+            "gave": 1,
+            "offered": 0,
+            "refused": 0,
+            "insisted": 0,
+            "backedDown": 2,
+            "pushedOut": 0,
+            "borrowed": 0
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 90,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 20,
+            "borrow": 73.1
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 20,
+            "took": 6,
+            "gave": 0,
+            "offered": 0,
+            "refused": 2,
+            "insisted": 2,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 1
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 68,
+      "fallbacks": 0,
+      "dollars": 0.00374283,
+      "seconds": 7.175,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free",
+        "threshold": 90
+      }
+    }
+  ],
+  "totals": {
+    "matches": 10,
+    "calls": 675,
+    "dollars": 0.036326052000000005,
+    "seconds": 77.68299999999999
+  }
+}

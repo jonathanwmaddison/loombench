@@ -51,7 +51,8 @@ export function division(m, types) {
 /**
  * The sets of runs to read together. `runs` are run indexes. A set is a model, the other switches, and two types: every
  * run of that model whose seats hold only those two types, by how many seats hold the second (`count`, 0 to 5). The
- * A set is also of one group size (`size`, five unless its runs were made with fewer agents). The
+ * A set is also of one group size (`size`, five unless its runs were made with fewer agents) and one claim threshold
+ * (`threshold`, null at the loom's own). The
  * second type is the one that is added: the type with fewer seats in the set's largest run of both types (where that
  * run is split evenly, the type that is not the one with the larger run to itself; failing that, the later in
  * alphabetical order). Only runs with every other switch alike are put together, and a set
@@ -59,7 +60,7 @@ export function division(m, types) {
  * Returns [{ key, model, types: [first, second], levels: [{ count, run }] }], levels by count.
  */
 export function compositions(runs) {
-  const rest = r => { const c = r.conditions ?? {}; return JSON.stringify([c.agents ?? 'group', c.neighbours ?? null, c.area ?? 'free', c.designs ?? 'assigned', Boolean(c.peers), c.read ?? null, c.effort ?? null, c.size ?? 5]); };
+  const rest = r => { const c = r.conditions ?? {}; return JSON.stringify([c.agents ?? 'group', c.neighbours ?? null, c.area ?? 'free', c.designs ?? 'assigned', Boolean(c.peers), c.read ?? null, c.effort ?? null, c.size ?? 5, c.threshold ?? null]); };
   // What types a run is made of: the same in every match, or it is no run of a composition.
   const made = new Map();
   for (const r of runs) {
@@ -71,7 +72,7 @@ export function compositions(runs) {
   for (const [r, kinds] of made) {
     if (kinds.length !== 2) continue;
     const key = `${r.model} ${rest(r)} ${kinds.join(' | ')}`;
-    if (!sets.has(key)) sets.set(key, { key, model: r.model, rest: rest(r), size: r.conditions?.size ?? 5, types: kinds, levels: [] });
+    if (!sets.has(key)) sets.set(key, { key, model: r.model, rest: rest(r), size: r.conditions?.size ?? 5, threshold: r.conditions?.threshold ?? null, types: kinds, levels: [] });
   }
   for (const set of sets.values()) {
     // Which type is the one added: the minority of the largest run that has both (then of the most unequal one).
@@ -92,7 +93,8 @@ export function compositions(runs) {
     set.levels.sort((a, b) => a.count - b.count || b.run.matches.length - a.run.matches.length || a.run.run.localeCompare(b.run.run));
     set.levels = set.levels.filter((l, i, all) => !i || all[i - 1].count !== l.count);
   }
-  return [...sets.values()].map(({ rest: _, ...set }) => set).sort((a, b) => b.levels.length - a.levels.length || a.key.localeCompare(b.key));
+  // `other`: every other switch of the set's runs but the claim threshold, so that two sets can be told to differ in that alone.
+  return [...sets.values()].map(({ rest: all, ...set }) => ({ ...set, other: JSON.stringify(JSON.parse(all).slice(0, -1)) })).sort((a, b) => b.levels.length - a.levels.length || a.key.localeCompare(b.key));
 }
 
 /**

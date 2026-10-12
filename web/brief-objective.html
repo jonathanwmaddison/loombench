@@ -16,9 +16,14 @@
   .summary { display: grid; grid-template-columns: 0.8fr 1.9fr 1.1fr; gap: 20px; margin: 0 0 8px; }
   .summary p { margin: 0; font-size: 13px; line-height: 1.45; }
   .summary b { font-weight: 600; }
-  .terms { display: flex; flex-wrap: wrap; gap: 1px 14px; margin: 0 0 6px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+  /* Figure 1: the pictures, and beside them the prompts and the definitions. */
+  .fig1 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 32px; margin: 6px 0 0; }
+  .fig1 .cap { margin: 8px 0 0; }
+  .aside-head { display: block; margin: 0 0 3px; font-size: 12px; font-weight: 600; color: var(--ink); }
+  .terms { margin: 8px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
+  .terms span { margin-right: 10px; }
   .terms b { color: var(--ink); font-weight: 600; }
-  .said { columns: 3; column-gap: 24px; font-size: 11px; line-height: 1.36; color: var(--ink-2); }
+  .said { font-size: 11.5px; line-height: 1.38; color: var(--ink-2); }
   .said-item { display: block; break-inside: avoid; margin: 0 0 2px; }
   .said-item b { color: var(--ink); font-weight: 600; }
   section { margin: 9px 0 0; padding-top: 8px; border-top: 1px solid var(--hairline); }
@@ -58,6 +63,7 @@
   .bm th:first-child, .bm td:first-child { width: 150px; }
   .bm-name { font-weight: 600; white-space: normal; }
   .bm-n { display: block; font-weight: 400; font-size: 11px; color: var(--ink-2); }
+  .bm-n.inline { display: inline; }
   .bm .est { display: inline-block; vertical-align: middle; width: 96px; height: auto; margin-right: 6px; }
   .bm-num { display: inline-block; min-width: 34px; }
   .bm-diff td { color: var(--ink-2); }
@@ -91,14 +97,14 @@
   code { font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
 
   @media screen and (max-width: 860px) {
-    .strips, .summary { grid-template-columns: 1fr; }
-    .flow, .said { columns: 1; }
+    .strips, .summary, .fig1 { grid-template-columns: 1fr; }
+    .flow { columns: 1; }
     .panels.n6, .panels.n5, .panels.n4, .panels.n3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   /* One A4 sheet: the page is laid out at its full width and scaled to the paper. */
   @page { size: A4 portrait; margin: 7mm; }
   @media print {
-    body { background: #fff; zoom: 0.6; }
+    body { background: #fff; zoom: 0.58; }
     .page { width: 1080px; max-width: none; padding: 0; margin: 0 auto; }
     .topbar { padding-bottom: 6px; }
     .topbar nav { display: none; }

@@ -150,6 +150,7 @@ export function switchWords(c) {
   if (!c) return [];
   return [
     c.size ? `${c.size} agents` : null,
+    c.threshold ? `claim threshold ${c.threshold}%` : null,
     c.mix ? `a group of ${c.mix}` : null,
     c.persona === 'off' ? 'personas off' : c.persona && c.persona !== 'dealt' && c.persona !== 'mixed' ? `every persona ${personality(c.persona).name.toLowerCase()}` : null,
     c.objective === 'off' ? 'objectives off' : c.objective === 'uniform' ? 'one objective for all' : c.objective && c.objective !== 'dealt' && c.objective !== 'mixed' ? `every objective ${goal(c.objective).name}` : null,

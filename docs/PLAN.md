@@ -868,6 +868,9 @@ palette, for 26 rounds, under the same cap on share.
   `maxShare` (46% for five agents; the larger of 46% and an equal part plus 20 points for fewer) is a threshold on the
   claims offered, not a limit on the final share: pages call it the claim threshold and say how often the changed agent
   finished at it.
+  Asked "ok just use jev etc" about testing it: `--threshold P` (`play({ threshold })`, `conditions.threshold`; a set of
+  runs is of one threshold) gives the engine another `maxShare`, and Jev was run with it at 90% for groups of two to
+  five. The briefs' last figure and the README's "The claim threshold raised" set those runs beside the rules' own.
   The two sentences for cooperative and greedy, and the one for rude, are mine; the user has not seen alternatives.
 - **Flat colours** (asked for as "simplify rug designs ... flat color ... primary colors"). A third picture of a
   match, `view: 'flat'` in `engine/render.mjs` and `<id>-flat.png` in a run's thumbs: every stitch the flat colour of
