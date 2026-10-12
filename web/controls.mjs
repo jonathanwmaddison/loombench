@@ -50,7 +50,7 @@ const LABEL = {
 };
 const SCORE_LIKE = new Set(['attainment', 'score.grow', 'score.give', 'score.hold', 'score.borrow', 'baseline.grow', 'baseline.give', 'baseline.hold', 'baseline.borrow']);
 
-const runHref = run => `./?run=${encodeURIComponent(run)}`;
+const runHref = run => `results?run=${encodeURIComponent(run)}`;
 const count = r => `${r.matches} ${switchesOf(r).agents === 'group' ? 'matches' : 'looms'}`;
 
 /** A setting of a switch in words. */

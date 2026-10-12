@@ -13,8 +13,8 @@
  * in `LOOMBENCH_MODELS` (comma-separated `<provider>:<model>`, see bench/llm.mjs); and chance. A play names one of
  * these and nothing else.
  *
- * The pages ask for `api/runs.json` and `api/status.json`, which this server answers live; `tools/site.mjs` writes the
- * same two as files, so the same pages work as a static copy with no server (GitHub Pages).
+ * The pages ask for `api/runs.json`, `api/status.json` and `api/overview.json` (what the landing page draws), which this
+ * server answers live; `tools/site.mjs` writes the same three as files, so the same pages work as a static copy with no server (GitHub Pages).
  */
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -25,11 +25,11 @@ import { SEATS, SWITCHES, personality, goal, play, recordOf } from './bench/core
 import { PROVIDERS, modelsAt, parseModel } from './bench/llm.mjs';
 import { NEIGHBOURS } from './bench/solo.mjs';
 import { DECISIONS } from './bench/decisions.mjs';
-import { askerFor, keepMatch, runList, writeIndex } from './tools/keep.mjs';
+import { askerFor, keepMatch, overviewFrom, runList, writeIndex } from './tools/keep.mjs';
 
 const PORT = Number(process.env.PORT ?? 4330), HOST = '127.0.0.1', ROOT = fileURLToPath(new URL('./', import.meta.url));
 const PAGES = {
-  '/': 'web/index.html', '/match': 'web/match.html', '/peers': 'web/peers.html', '/play': 'web/play.html',
+  '/': 'web/index.html', '/results': 'web/results.html', '/match': 'web/match.html', '/peers': 'web/peers.html', '/play': 'web/play.html',
   '/report': 'web/report.html', '/design': 'web/design.html', '/controls': 'web/controls.html', '/mix': 'web/mix.html', '/brief': 'web/brief.html', '/brief-objective': 'web/brief-objective.html',
 };
 const TREES = ['web', 'engine', 'bench', 'runs'];
@@ -70,6 +70,13 @@ async function modelsOffered() {
   add('chance', 'Uniform random (no model)', 'every action sampled uniformly at random: instant');
   offered = { at: Date.now(), list };
   return list;
+}
+
+/** What the landing page draws, from the kept runs: read again at most every 30 seconds, since a run can be added while the server is up. */
+let overview = { at: 0, made: null };
+function overviewNow() {
+  if (!overview.made || Date.now() - overview.at > 30000) overview = { at: Date.now(), made: overviewFrom(ROOT) };
+  return overview.made;
 }
 
 const send = (res, status, type, body) => { res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store' }); res.end(body); };
@@ -171,6 +178,7 @@ createServer(async (req, res) => {
     if (path.startsWith('/api/play/')) { const job = jobs.get(path.slice('/api/play/'.length)); return job ? json(res, 200, job) : notHere(res); }
     if (path === '/api/status' || path === '/api/status.json') return json(res, 200, { key: jev !== null, model: JEV.model, models: await modelsOffered() });
     if (path === '/api/runs' || path === '/api/runs.json') return json(res, 200, await runList(RUNS));
+    if (path === '/api/overview' || path === '/api/overview.json') return json(res, 200, await overviewNow());
     return await serveFile(res, Object.hasOwn(PAGES, path) ? PAGES[path] : path.slice(1));
   } catch (e) {
     if (!res.headersSent) json(res, 500, { error: String(e.message ?? e) });

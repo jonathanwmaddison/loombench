@@ -13,7 +13,8 @@ given to another type, to see how its results differ.
 
 | Page | Address | Content |
 | --- | --- | --- |
-| Results | [`/`](https://jonathanwmaddison.github.io/loombench/) | The benchmark: objective scores with objective against baseline, a persona-by-objective heatmap, every match |
+| Overview | [`/`](https://jonathanwmaddison.github.io/loombench/) | The main results as eight figures that move as the page is read: how a match works, persona against objective, one agent changed, group composition, the claim threshold, the decision systems, the controls, and peer influence. Every number is computed from the run records |
+| Results | [`/results`](https://jonathanwmaddison.github.io/loombench/results) | The benchmark run by run: objective scores with objective against baseline, a persona-by-objective heatmap, every match |
 | Controls | `/controls` | The switches, which runs exist under which setting, each run against the run one switch away, and the same match designs side by side under every condition |
 | Composition | `/mix` | A group of one type of agent, and the same matches with one to five of its seats given to a second type: the matches side by side, final share by type, and what one more seat changes |
 | Briefs | [`/brief`](https://jonathanwmaddison.github.io/loombench/brief), [`/brief-objective`](https://jonathanwmaddison.github.io/loombench/brief-objective) | The group-composition study on one page each, for a reader new to the benchmark and drawn from the records: one for a substituted disposition, one for a substituted objective. Question, design and result; one seed pictured at every composition; every seed before and after one substitution; the decision systems set against each other; findings and limitations. Each prints on one A4 sheet; copies are `docs/composition-brief.pdf` and `docs/objective-brief.pdf` |
@@ -47,7 +48,7 @@ node analysis/models.mjs --scores                                          # the
 node analysis/mix.mjs                                                      # group composition: each mix against the one a seat away
 node tools/site.mjs                                                        # the static copy of the site, in _site/
 node analysis/refusals.mjs                                                 # refused questions and unreadable replies, and what handling them changes
-node --test                                                                # 86 tests; no key or network needed
+node --test                                                                # 94 tests; no key or network needed
 ```
 
 No dependencies. Node 22 or later (Python 3 only to regenerate the Report and Design pages). The default decision model
@@ -622,7 +623,9 @@ the subgroup and outcome results are labelled descriptive.
 | `bench/solo.mjs` | One agent deciding: the four placeholder seats, answered without a model |
 | `bench/compare.mjs` | Two runs one switch apart, paired by match design |
 | `bench/mix.mjs` | Group composition: the runs of two types read together, and one composition against another, paired by match number |
+| `bench/overview.mjs` | Everything the Overview draws, computed from the records by the functions above: the server answers it at `api/overview.json`, and the static copy holds it as a file |
 | `tools/` | `run.mjs` (batch runs), `keep.mjs` (records, pictures, indexes), `rethumb.mjs` (redraw pictures), `site.mjs` (the static copy) |
 | `serve.mjs`, `web/` | The local server and the pages. Every address is relative, so the pages also work as static files |
+| `web/index.mjs`, `web/story/` | The Overview: its words and its scrolling (`index.mjs`), one module for each figure (`story/<figure>.mjs`), and the kit they draw and move with (`story/kit.mjs`). `/?only=<figure>&step=<n>&still` shows one figure alone at one step |
 | `.github/workflows/pages.yml` | Runs the tests, builds the static copy and publishes it to GitHub Pages on every push to `main` |
 | `docs/PLAN.md` | The specification the parts were built to, including the glossary every page follows |

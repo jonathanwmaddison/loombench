@@ -90,7 +90,7 @@ export function qs(name) {
   return new URLSearchParams(window.location.search).get(name) || null;
 }
 
-/** The top bar; `active` is 'results', 'controls', 'mix', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
+/** The top bar; `active` is 'overview', 'results', 'controls', 'mix', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
 export function topbar(active) {
   const link = (href, label, key) => h('a', {
     href,
@@ -102,7 +102,7 @@ export function topbar(active) {
       h('a', { class: 'brand', href: './' }, 'LoomBench'),
       h('span', { class: 'tag' }, 'a multi-agent benchmark')),
     h('nav', null,
-      link('./', 'Results', 'results'), link('controls', 'Controls', 'controls'), link('mix', 'Composition', 'mix'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
+      link('./', 'Overview', 'overview'), link('results', 'Results', 'results'), link('controls', 'Controls', 'controls'), link('mix', 'Composition', 'mix'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
       link('design', 'Design', 'design'), link('play', 'Play', 'play'), h('a', { class: 'source', href: REPO }, 'Source')));
 }
 

@@ -46,7 +46,7 @@ function fail(sentence) {
     topbar(null),
     h('h1', null, 'One match'),
     h('p', { class: 'lede' }, sentence),
-    h('p', null, h('a', { href: run ? `./?run=${encodeURIComponent(run)}` : './' }, '← Results')));
+    h('p', null, h('a', { href: run ? `results?run=${encodeURIComponent(run)}` : 'results' }, '← Results')));
 }
 
 /**
@@ -386,7 +386,7 @@ function show(record, rug) {
 
   main.replaceChildren(...[
     topbar(null),
-    h('p', { class: 'back' }, h('a', { href: `./?run=${encodeURIComponent(run)}` }, '← Results')),
+    h('p', { class: 'back' }, h('a', { href: `results?run=${encodeURIComponent(run)}` }, '← Results')),
     h('h1', null, typeof record.match === 'number' ? `Match ${record.match} · ${rug.name}` : `Your match · ${rug.name}`),
     subLine,
     notes.length ? h('div', { class: 'quiet-box condition-notes' }, notes.map(n => h('p', { class: 'small' }, n))) : null,

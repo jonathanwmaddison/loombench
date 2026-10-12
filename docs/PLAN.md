@@ -38,7 +38,8 @@ tools/run.mjs     the benchmark from the command line
 tools/png.mjs     (exists) a picture as PNG bytes
 serve.mjs         the pages, the kept runs, and POST /api/play
 web/app.css web/ui.mjs          the shared look and helpers
-web/index.html web/index.mjs    Results
+web/index.html web/index.mjs    Overview (the landing page; see "The Overview" in section 10)
+web/results.html web/results.mjs  Results
 web/match.html web/match.mjs    One match
 web/play.html  web/play.mjs     Seat your own bench
 test/core.test.mjs test/stats.test.mjs test/engine.test.mjs
@@ -247,7 +248,7 @@ lift, how many reached it, and the split in percent; then total calls, dollars a
 
 `serve.mjs`: `node --env-file=<file> serve.mjs`, http://127.0.0.1:4330/ (`PORT` overrides), on 127.0.0.1 only.
 
-- `GET /` is `web/index.html`, `/match` is `web/match.html`, `/play` is `web/play.html`. Other GETs serve files from
+- `GET /` is `web/index.html` (the Overview), `/results` is `web/results.html`, `/match` is `web/match.html`, `/play` is `web/play.html`. Other GETs serve files from
   `web/`, `engine/`, `bench/` and `runs/` only (never outside them), with the right content type for `.html .mjs .css
   .json .png .svg`, and `cache-control: no-store`.
 - `GET /api/status`: `{ key: boolean, model: JEV.model }`.
@@ -345,7 +346,7 @@ Every page: `<!doctype html>`, `<meta name="viewport">`, a `<title>`, `<link rel
 one `<script type="module" src="/web/<page>.mjs">`, and a `<main class="page">` the script fills. Text is set with
 `textContent` (through `h`). If something cannot load, the page says what in a sentence; it never stays blank.
 
-### Results (`/`, `web/index.mjs`)
+### Results (`/results`, `web/results.mjs`; it was the landing page until the Overview took `/`)
 
 Loads `/api/runs`. The run shown is `?run=`, else the first run that is not `play` and not `chance`, else `chance`,
 else none. With no run at all, show an empty state: what LoomBench is, and the two commands to make results (the
@@ -889,6 +890,34 @@ palette, for 26 rounds, under the same cap on share.
   switches above the seats and follows a running match round by round (`POST /api/play` answers a job;
   `GET /api/play/<job>`). Results and One match say which switches a run or a match was made under whenever one is
   off its default; the run select is grouped by model.
+
+### The Overview (12 October 2026)
+
+The landing page (`/`, `web/index.mjs`) is the main results as a paper that moves: a head with an abstract, then one
+scene for each result. In a scene the figure stays in view while short steps of text pass beside it, and reaching a
+step moves the figure to that step's state. The Results page it replaced is at `/results`; an address of the form
+`/?run=…` still opens that run there.
+
+- **Numbers** (`bench/overview.mjs`, `overviewOf(load)`). One object holds everything the page draws, computed from the
+  run records by `stats.mjs`, `compare.mjs`, `mix.mjs` and `peers.mjs`, with the matches it pictures replayed round by
+  round. The server answers it at `api/overview.json` (read again at most every 30 seconds) and `tools/site.mjs`
+  writes it as a file. `test/overview.test.mjs` checks it against the records. The page types in no result.
+- **Words** (`web/index.mjs`, `SCENES`). Every sentence of every step is there, written from the numbers and in the
+  terms of this section. A scene whose runs are not kept is left out.
+- **Figures** (`web/story/<id>.mjs`). A figure's default export is `mount(stage, data, kit)`; it draws into `stage`
+  and returns `{ step(i) }`. `step(-1)` is the empty figure and `step(0)` to `step(n - 1)` its states, and a step can
+  follow any other: every element is made once and `step(i)` says where each belongs. A figure holds no prose.
+- **The kit** (`web/story/kit.mjs`). SVG elements, a frame sized to the stage (`chart`), axes, marks, an estimate with
+  its interval, a dodge for strips of dots, the cloth of a replayed match (`loom`), and one way to move anything:
+  `to(el, target)` goes from the element's present state to the target. With motion off (the reader prefers reduced
+  motion, the tab is in the background, the address has `?still`, or the call is inside `instant`) the same call sets
+  the end state at once, so nothing the page needs in order to show itself waits for a frame.
+- **Look.** The page keeps `app.css`. `web/story.css` adds the layout, and sets the title and the section headings
+  alone in a serif; everything a figure says is in the system sans. Figures follow the rules the other charts do:
+  text is never coloured, a series is never told apart by colour alone (decision systems have a shape each), lines are
+  solid, and values are labelled selectively with the rest on hover.
+- **Checking a figure.** `/?only=<id>&step=<n>&still` shows one figure alone at one step with motion off, and
+  `&width=390` holds the page to a phone's width.
 
 ## 11. Not in this build
 

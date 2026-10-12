@@ -1,0 +1,145 @@
+/* The Overview only: a paper that moves. A head with an abstract, then scenes. In a scene the figure stays in view
+   while the steps beside it are read, and each step moves the figure to its next state. Headings alone are set in a
+   serif; everything a figure says is in the system sans of the other pages. */
+
+.story {
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  max-width: 1180px;
+}
+
+/* the head: title, abstract, four figures of the whole */
+.story-head { padding: 56px 0 8px; }
+.story-title { display: grid; grid-template-columns: minmax(0, 50rem) minmax(0, 300px); justify-content: space-between; align-items: start; gap: 24px 56px; }
+/* beside the title, one match weaving itself */
+.story-cloth { display: block; color: var(--ink-2); text-decoration: none; }
+.story-cloth svg { display: block; width: 100%; height: auto; }
+.story-cloth-cap { display: block; margin-top: 8px; font-size: 12.5px; line-height: 1.45; }
+.facts, .toc { max-width: 50rem; }
+.kicker { margin: 0 0 14px; font-size: 12.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.story-head h1 {
+  margin: 0 0 22px; font-family: var(--serif); font-weight: 600; font-size: clamp(34px, 5.2vw, 56px); line-height: 1.06;
+  letter-spacing: -0.015em; text-wrap: balance;
+}
+.abstract { margin: 0; max-width: 44rem; font-size: 18px; line-height: 1.6; color: var(--ink-2); }
+.abstract b { font-weight: 600; color: var(--ink); }
+.byline { margin: 18px 0 0; font-size: 13.5px; color: var(--muted); }
+.byline a { color: var(--ink-2); }
+
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 44px 0 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--hairline); }
+.fact { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px 20px 0; min-width: 0; color: var(--ink); text-decoration: none; }
+.fact + .fact { padding-left: 20px; border-left: 1px solid var(--hairline); }
+.fact .value { font-size: 40px; font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; white-space: nowrap; }
+.fact .value small { margin-left: 3px; font-size: 17px; font-weight: 500; color: var(--ink-2); }
+.fact .label { font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+.fact:hover .label { color: var(--ink); }
+
+/* the contents: one line, each scene by its number */
+.toc { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 22px 0 0; padding: 0; list-style: none; font-size: 13.5px; }
+.toc a { color: var(--ink-2); text-decoration: none; }
+.toc a:hover { color: var(--ink); text-decoration: underline; }
+.toc .n { margin-right: 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* a scene */
+.scene { margin-top: 112px; padding-top: 26px; border-top: 1px solid var(--ink); scroll-margin-top: 12px; }
+.scene-head { max-width: 46rem; }
+.scene-head h2 { margin: 0; font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.14; letter-spacing: -0.01em; text-wrap: balance; }
+.scrolly { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); gap: 0 56px; align-items: start; margin-top: 8px; }
+.steps { order: 1; min-width: 0; }
+.stage { order: 2; position: sticky; top: 20px; min-width: 0; padding: 20px 0; }
+
+.step { display: flex; flex-direction: column; justify-content: center; min-height: 82vh; opacity: 0.32; transition: opacity 0.35s; }
+.step.on { opacity: 1; }
+.step:first-child { min-height: 64vh; }
+.step:last-child { min-height: 70vh; }
+.step p { margin: 0; max-width: 28rem; font-size: 17.5px; line-height: 1.6; }
+.step .lead { display: block; margin: 0 0 8px; font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1.25; color: var(--ink); }
+.step .n { display: block; margin: 0 0 10px; font-size: 12px; letter-spacing: 0.08em; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* the figure */
+.fig { margin: 0; padding: 14px 18px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.fig-bar { display: flex; align-items: center; gap: 12px; min-height: 28px; margin: 0 0 8px; }
+.fig-num { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.fig-dots { display: flex; gap: 6px; margin-left: auto; padding: 0; list-style: none; }
+.fig-dots button { display: block; width: 22px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer; }
+.fig-dots button::after { content: ""; display: block; width: 8px; height: 8px; margin: 7px; border-radius: 50%; background: var(--axis); transition: background 0.2s, transform 0.2s; }
+.fig-dots button[aria-current="step"]::after { background: var(--ink); transform: scale(1.25); }
+.fig-dots button:hover::after { background: var(--ink-2); }
+.replay { padding: 3px 10px; font-size: 12.5px; color: var(--ink-2); background: none; border: 1px solid var(--axis); border-radius: 999px; cursor: pointer; }
+.replay:hover { color: var(--ink); border-color: var(--ink-2); }
+.fig-body { position: relative; min-height: 260px; }
+.fig-body .story-svg { display: block; max-width: 100%; height: auto; margin: 0 auto; overflow: visible; }
+.fig figcaption, .scene-cap { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--hairline); font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.fig figcaption b, .scene-cap b { font-weight: 600; color: var(--ink); }
+.fig figcaption a, .scene-cap a { color: var(--ink-2); }
+.scene-cap { display: none; }
+.fig-failed { margin: 0; padding: 48px 8px; font-size: 14px; color: var(--ink-2); text-align: center; }
+
+/* what a figure's SVG is set in */
+.story-svg .t { font: 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+.story-svg .t.strong { fill: var(--ink); font-weight: 600; }
+.story-svg .t.small { font-size: 11.5px; }
+.story-svg .t.mute { fill: var(--muted); }
+.story-svg .t.big { font-size: 22px; font-weight: 600; fill: var(--ink); }
+.story-svg .t.huge { font-size: 34px; font-weight: 600; fill: var(--ink); letter-spacing: -0.01em; }
+.story-legend { min-height: 20px; margin: 0 0 6px; }
+.story-legend .key svg { flex: none; overflow: visible; }
+/* words set over a figure in HTML: a quoted prompt, a note */
+.fig-note { margin: 0 0 8px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.fig-note b { font-weight: 600; color: var(--ink); }
+.fig-quote { margin: 0; padding: 8px 12px; font-size: 13px; line-height: 1.45; color: var(--ink-2); border-left: 3px solid var(--axis); background: var(--page); border-radius: 0 6px 6px 0; }
+.fig-quote b { display: block; margin-bottom: 2px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); }
+
+/* the end: limitations, and where each part is in full */
+.story-end { margin-top: 112px; padding-top: 26px; border-top: 1px solid var(--ink); }
+.story-end h2 { margin: 0 0 14px; font-family: var(--serif); font-weight: 600; font-size: clamp(24px, 3vw, 32px); line-height: 1.15; }
+.limits { max-width: 46rem; margin: 0; padding-left: 20px; font-size: 16px; line-height: 1.6; color: var(--ink-2); }
+.limits li { margin: 0 0 8px; }
+.limits b { font-weight: 600; color: var(--ink); }
+.onward { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--gap); margin: 28px 0 0; }
+.onward a { display: block; padding: 16px 18px; color: var(--ink); text-decoration: none; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); transition: border-color 0.15s; }
+.onward a:hover { border-color: var(--ink-2); }
+.onward b { display: block; margin-bottom: 4px; font-size: 15px; font-weight: 600; }
+.onward span { font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+
+/* one figure alone, for checking it: /?only=<scene>&step=<n> */
+.story.alone { max-width: 760px; }
+.story.alone .scene { margin-top: 12px; border-top: 0; }
+.story.alone .scrolly { display: block; }
+.story.alone .stage { position: static; }
+.story.alone .step { min-height: 0; margin: 14px 0; opacity: 0.4; }
+.story.alone .step.on { opacity: 1; }
+
+/* narrow: the figure pinned at the top, the steps passing beneath it */
+@media (max-width: 1099px) {
+  .story-title { display: block; }
+  .story-cloth { display: none; }
+}
+@media (max-width: 899px) {
+  .story-head { padding-top: 32px; }
+  .abstract { font-size: 16.5px; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fact:nth-child(3) { padding-left: 0; border-left: 0; }
+  .fact:nth-child(n + 3) { border-top: 1px solid var(--hairline); }
+  .fact .value { font-size: 32px; }
+  .scene { margin-top: 72px; }
+  .scrolly { display: block; }
+  .stage { top: 0; z-index: 2; margin: 0 -16px; padding: 8px 16px; background: var(--page); border-bottom: 1px solid var(--hairline); }
+  .fig { padding: 8px 10px 10px; }
+  .fig-bar { margin-bottom: 2px; }
+  .fig figcaption { display: none; }
+  .scene-cap { display: block; }
+  .step, .step:first-child, .step:last-child { min-height: 0; padding: 26vh 0 30vh; }
+  .step:first-child { padding-top: 28px; }
+  .step p { font-size: 16.5px; }
+  .step .lead { font-size: 20px; }
+  .story-end { margin-top: 72px; }
+  .story.alone .step { padding: 0; }
+}
+
+.still .step, .still .fig-dots button::after { transition: none; }
+
+@media print {
+  .stage { position: static; }
+  .step, .step:first-child, .step:last-child { min-height: 0; padding: 10px 0; opacity: 1; }
+  .fig-dots, .replay { display: none; }
+}

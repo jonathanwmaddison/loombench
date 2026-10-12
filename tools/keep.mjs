@@ -12,6 +12,7 @@ import { HUES, conditionsOf, summaryOf } from '../bench/core.mjs';
 import { heededCloth, rowsOfPeers } from '../bench/peers.mjs';
 import { PROVIDERS, chatAsker, parseModel } from '../bench/llm.mjs';
 import { decisionsAsker } from '../bench/decisions.mjs';
+import { overviewOf } from '../bench/overview.mjs';
 import { png } from './png.mjs';
 
 const writeWhole = async (file, data) => {
@@ -86,6 +87,11 @@ export async function runList(runsDir) {
     } catch { /* a folder without a readable index is not a run */ }
   }
   return runs.sort((a, b) => (a.run === 'play') - (b.run === 'play') || String(b.updated).localeCompare(String(a.updated)));
+}
+
+/** What the landing page draws (`bench/overview.mjs`), read from the runs kept under `root` (the repository, or a copy of it with `runs/`). */
+export function overviewFrom(root) {
+  return overviewOf(async path => (path === 'api/runs.json' ? runList(join(root, 'runs')) : JSON.parse(await readFile(join(root, path), 'utf8'))));
 }
 
 /**

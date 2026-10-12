@@ -183,7 +183,7 @@ function levelsTable(levels, first, second) {
     h('thead', null, h('tr', null, [`${cap(nameB)} agents`, 'Run', 'Matches', `Share, ${nameB} (%)`, `Share, ${nameA} (%)`, `Claims, ${nameB}`, `Claims, ${nameA}`,
       `Concessions, ${nameB}`, `Concessions, ${nameA}`, 'Held jointly (%)', 'Dispersion (pp)', 'Largest share (%)'].map((t, i) => h('th', { class: i > 1 ? 'num' : null }, t)))),
     h('tbody', null, levels.map(({ count, run, level }) => h('tr', null,
-      h('td', null, `${count} of ${run.matches[0]?.seats.length ?? 5}`), h('td', null, h('a', { href: `./?run=${encodeURIComponent(run.run)}` }, run.run)), h('td', { class: 'num' }, String(level.matches)),
+      h('td', null, `${count} of ${run.matches[0]?.seats.length ?? 5}`), h('td', null, h('a', { href: `results?run=${encodeURIComponent(run.run)}` }, run.run)), h('td', { class: 'num' }, String(level.matches)),
       h('td', { class: 'num' }, cell(level.types[second]?.share)), h('td', { class: 'num' }, cell(level.types[first]?.share)),
       h('td', { class: 'num' }, cell(level.types[second]?.claims)), h('td', { class: 'num' }, cell(level.types[first]?.claims)),
       h('td', { class: 'num' }, cell(level.types[second]?.concessions)), h('td', { class: 'num' }, cell(level.types[first]?.concessions)),

@@ -1,481 +1,337 @@
-// The Results page: the runs, the protocol, the objectives, final shares by persona and objective, the reference runs, persona against objective, and the matches.
-import { h, getJSON, fmt, signed, pct, qs, topbar, seatMark, choseDesigns, mark, track, splitbar, splitLegend, tip, heat, switchWords, modelName, isChatModel, isDecisionModel, PICTURES, FLAT_NOTE } from './ui.mjs';
-import { NAMES, PERSONALITIES, DISPOSITIONS, GOALS, SCORED, personality, goal, sentenceOf } from '../bench/core.mjs';
-import { rowsOf, table, mean } from '../bench/stats.mjs';
+// The Overview (the landing page): the benchmark's main results as a sequence of figures that move. A head with an
+// abstract, then one scene for each result. In a scene the figure stays in view while the steps beside it are read;
+// reaching a step moves the figure to that step's state. Every number, in the words and in the figures, comes from
+// `api/overview.json` (bench/overview.mjs), which is computed from the run records.
+//
+// A scene's figure is a module, web/story/<id>.mjs, whose default export is `mount(stage, data, kit)`: it draws into
+// `stage` and returns { step(i) }, where step(-1) is the empty figure and step(0) to step(n - 1) are its states. The
+// words of every step are written here, so the figures hold no prose of their own.
+//
+// `?only=<id>&step=<n>` shows one scene's figure alone at one step, for checking it; `&still` turns motion off, and
+// `&width=390` sets the page that many pixels wide, as on a phone (in a window narrow enough for the narrow layout).
+import { h, getJSON, fmt, signed, qs, topbar, REPO } from './ui.mjs';
+import * as kit from './story/kit.mjs';
 
-const LEDE = 'Five LLM agents act in one shared environment, a loom. Each is assigned a persona and an objective. '
-  + 'The benchmark measures how far each objective is attained, and how much of that depends on the persona.';
-const REFERENCE = ['ref-none', 'ref-grow', 'ref-give', 'ref-hold'];
+// An address kept from when this was the Results page still opens the run it names.
+if (qs('run')) window.location.replace(`results${window.location.search}`);
+
 const main = document.querySelector('main.page');
-const show = (...nodes) => main.replaceChildren(...nodes.filter(Boolean));
-
-/** Whether a run was made with every switch at its default and a model deciding: the benchmark as it is by default. */
-const isDefault = r => r.run !== 'play' && r.model !== 'chance' && r.mode !== 'peers' && r.design !== 'uniform'
-  && (!r.conditions || (r.conditions.agents === 'group' && r.conditions.area === 'free' && r.conditions.persona === 'dealt' && r.conditions.objective === 'dealt'
-    && r.conditions.designs !== 'chosen'));
-
-/**
- * The run to show: ?run=, else the default-condition model run with the most matches, else the first run that is none
- * of play, chance or uniform, else chance, else null.
- */
-function pickRun(runs) {
-  const asked = qs('run');
-  if (asked) return asked;
-  const plain = runs.filter(isDefault);
-  if (plain.length) return plain.reduce((best, r) => (r.matches > best.matches ? r : best)).run;
-  const real = runs.find(r => r.run !== 'play' && r.run !== 'chance' && r.design !== 'uniform');
-  if (real) return real.run;
-  return runs.some(r => r.run === 'chance') ? 'chance' : null;
-}
-
-/** A run as the select lists it: its name, how many matches (looms, when solo), and every switch that is not at its default. */
-function runLabel(r) {
-  const solo = r.conditions?.agents === 'solo';
-  return [r.run, `${r.matches} ${solo ? 'looms' : 'matches'}`, ...switchWords(r.conditions ?? { peers: r.mode === 'peers' })].join(' · ');
-}
+// With motion off, nothing eases in CSS either.
+if (kit.still) document.documentElement.classList.add('still');
+const pc = x => `${fmt(x, 0)}%`, pc1 = x => `${fmt(x, 1)}%`, n1 = x => fmt(x, 1);
+const ci = (e, unit = ' points') => `${signed(e.mean, 1)}${unit} [${fmt(e.lo, 1)}, ${fmt(e.hi, 1)}]`;
+const brackets = e => `[${fmt(e.lo, 1)}, ${fmt(e.hi, 1)}]`;
+const spansZero = e => e.lo <= 0 && e.hi >= 0;
+const list = xs => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : String(xs[0] ?? ''));
+const WORDS = ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];
+const word = n => WORDS[n] ?? String(n);
+const sweepOf = (d, system, added) => d.sweeps.find(s => s.system === system && s.added === added) ?? null;
+const stepOf = (d, system, contrast) => d.steps.find(s => s.system === system && s.contrast === contrast) ?? null;
+const cellOf = (d, system, key) => d.switches?.systems.find(s => s.system === system)?.cells.find(c => c.key === key) ?? null;
+const level = (sweep, k) => sweep.levels.find(l => l.k === k);
 
 /**
- * The heading row: the title and a select of runs, grouped by the model that decided, that goes to ?run= when one is
- * chosen. The select leaves out the play run and the uniform-objective reference runs, which have their own section.
+ * The scenes, in order. `needs` says whether the data for it is there; `steps` gives each step as [lead, words];
+ * `caption` is what stands under the figure. The step states each figure must show are specified with these words:
+ * step i of the figure is what step i of the words describes.
  */
-function head(runs, chosen) {
-  const listed = runs.filter(r => r.run !== 'play' && (r.design !== 'uniform' || r.conditions?.objective === 'off'));
-  const models = [...new Set(listed.map(r => r.model))];
-  // Within a model, the default condition first, then the rest by name.
-  const order = (a, b) => Number(isDefault(b)) - Number(isDefault(a)) || a.run.localeCompare(b.run);
-  const groups = models.map(model => h('optgroup', { label: modelName(model) },
-    listed.filter(r => r.model === model).sort(order).map(r => h('option', { value: r.run, selected: r.run === chosen }, runLabel(r)))));
-  if (!listed.some(r => r.run === chosen)) {
-    const asked = runs.find(r => r.run === chosen);
-    groups.unshift(h('option', { value: chosen, selected: true }, asked ? runLabel(asked) : `${chosen} · not found`));
-  }
-  const select = h('select', {
-    'aria-label': 'Run',
-    onchange: e => { window.location.href = `./?run=${encodeURIComponent(e.target.value)}`; },
-  }, groups);
-  return h('div', { class: 'spread head' }, h('h1', null, 'LoomBench'), select);
-}
-
-/** What a run's switches mean for reading its page: one sentence for each that is not at its default; an empty list at the defaults. */
-function conditionNotes(c) {
-  if (!c) return [];
-  return [
-    c.model === 'chance' ? 'No model decided: every action was sampled uniformly at random. This run is the reference for what the scoring rules give with no agent behind them.' : null,
-    isDecisionModel(c.model) ? `OpenAI's decision model (${modelName(c.model)}) decided in Jev's place. Like Jev, it is sent the state and every question of a call in one request and returns a probability for each option; `
-      + 'nothing was rephrased for it. It refuses some questions (from none to 9 per 1,000 calls, depending on the condition) and gives no reason; a refused question is asked again with a space added to the input, one refused every time is taken as no preference, and each match says how many of each there were.' : null,
-    isChatModel(c.model) ? `A chat model (${modelName(c.model)}) decided in Jev's place. It was given the words Jev is given, laid out as a chat prompt, one request for each question, and ${
-      c.read === 'stated' ? 'the chances it stated were taken as its distribution over the options' : 'the probabilities of the first token of its reply were read as its distribution over the options'
-    }${c.effort ? `; its reasoning effort was set to "${c.effort}"` : ''}.${c.read === 'stated' ? ' A reply that does not state a chance for every option summing to 100 is not used: the question is asked again, one with no readable reply after three more is taken as no preference, and each match says how many of each there were.' : ''} This is a second decision system on the same match designs, not another model behind Jev's interface.` : null,
-    c.agents === 'solo' ? `Solo: on each loom the model decides for one agent, and the other four seats are scripted neighbours that ${
-      { accept: 'never act and accept every request, so scores here are what an agent attains with no opposition', refuse: 'never act and refuse every request, which the agent can override',
-        chance: 'act at random, every choice sampled uniformly' }[c.neighbours ?? 'accept']}. `
-      + 'Each match design is run five times, once for each agent. The agent is not told. Scripted neighbours are not counted, but the scores are still ranks among the five seats.' : null,
-    c.area === 'fixed' ? 'Areas are fixed: every agent starts with 20% and keeps it, since no boundary can move. Grow, Give and Hold cannot be pursued and are not scored; their baselines below are constants. Only Borrow and the designs are informative.' : null,
-    c.designs === 'chosen' ? 'Starting designs were chosen by the agents: the group voted on a palette and each agent chose its first design (the benchmark\'s first rules). Agents are marked by colour, since they have no starting design, and the ownership map shows who holds what.' : null,
-    c.persona === 'off' ? 'Personas are off: no agent was given a trait sentence, so the persona rows below collapse to one.' : null,
-    c.size ? `A group of ${c.size} agents, not five: each starts with an equal part of the same loom (${Math.round(100 / c.size)}%), and an agent is offered no further claims once it holds the larger of 46% and that part plus 20 points.` : null,
-    c.threshold ? `The claim threshold is ${c.threshold}%: an agent is offered claims until it holds that much of the loom, where the benchmark's own rule stops at 46%.` : null,
-    c.mix ? `A mixed group: ${c.mix}. The seats of the second type rotate with the match number, so each seat holds it equally often. The Composition page sets this run beside the groups with more and fewer of that type.` : null,
-    c.persona !== 'off' && c.persona !== 'dealt' && c.persona !== 'mixed' && c.persona ? `Every agent was given the same persona (${personality(c.persona).name}).` : null,
-    c.objective === 'off' ? 'Objectives are off: no agent was given an objective, so every agent is a baseline agent and there is no attainment to report.' : null,
-    c.peers ? 'Peer communication: before each action an agent heard, three times in four, which action an adjacent agent would have it take.' : null,
-  ].filter(Boolean);
-}
-
-/** The empty state: no kept runs yet, and the two commands that make some. */
-function emptyState() {
-  return h('div', { class: 'card', style: { marginTop: '24px' } },
-    h('h2', null, 'No results yet'),
-    h('p', { class: 'sub' }, 'No run is kept yet. A run is a folder of kept matches; make one from the project folder with one of these:'),
-    h('pre', { class: 'cmd' }, 'node --env-file=<file with TYPESAFE_API_KEY> tools/run.mjs --matches 1-44 --run jev-1'),
-    h('pre', { class: 'cmd' }, 'node tools/run.mjs --chance --matches 1-22'),
-    h('p', { class: 'sub', style: { margin: 0 } },
-      'The first asks Jev for every choice. The second makes every choice by chance, as a control.'));
-}
-
-const spread = xs => {
-  const m = mean(xs);
-  return Math.sqrt(mean(xs.map(x => (x - m) ** 2)));
-};
-
-/** The five figures of a reference run: mean counts per agent over every match, and the mean spread of final shares. */
-function referenceFigures(index) {
-  const results = index.matches.flatMap(m => m.results);
-  const avg = pick => fmt(mean(results.map(pick)), 1);
-  const dispersion = mean(index.matches.map(m => spread(m.results.map(r => r.ground))));
-  return [
-    ['claims', avg(r => r.did.took)],
-    ['concessions', avg(r => r.did.gave)],
-    ['refusals', avg(r => r.did.refused)],
-    ['overrides', avg(r => r.did.insisted)],
-    ['eliminations', avg(r => r.did.pushedOut)],
-    ['dispersion of final shares', `${fmt(dispersion, 1)} pp`],
-  ];
-}
-
-/** The whole Results page for one run: every section, in the order the plan gives. */
-function resultsPage(runs, chosen, index, refs) {
-  const rows = rowsOf(index.matches);
-  const t = table(rows);
-  const conditions = index.conditions ?? null, solo = conditions?.agents === 'solo';
-  const notes = conditionNotes(conditions);
-  const condition = notes.length ? h('div', { class: 'card condition' },
-    h('h2', null, `Condition: ${[modelName(index.model), ...switchWords(conditions)].join(' · ')}`),
-    notes.map(text => h('p', null, text)),
-    h('p', null, h('a', { href: 'controls' }, 'Compare this run with the others on the Controls page'))) : null;
-  const seen = new Set(rows.map(r => r.goal));
-  // The dealt personas, then the dispositions that only a group made of one type or two has.
-  const people = [...PERSONALITIES, ...DISPOSITIONS].filter(p => t.personalities[p.key]);
-  const goals = GOALS.filter(g => seen.has(g.key));
-  const filter = { personality: '', goal: '', view: 'flat' };
-  const picks = [];
-
-  // Protocol
-  const card = (title, text) => h('div', { class: 'card' }, h('h2', null, title), h('p', null, text));
-  const how = [
-    h('h2', null, 'Protocol'),
-    h('div', { class: 'cards' },
-      card('Assignment', 'Each agent receives a one-sentence persona. Four of the five also receive a one-sentence objective; '
-        + 'the fifth receives none and serves as the baseline.'),
-      card('Interaction', 'Over 26 rounds each agent chooses an action (maintain position, claim a neighbour\'s share, concede share, '
-        + 'or propose joint ownership) and a design. The affected neighbour may accept, refuse or counter-propose.'),
-      card('Scoring', 'Each agent\'s objective score (0-100) is computed from the final state of the loom; 100 denotes full attainment.')),
-  ];
-
-  // The tiles
-  const tile = (cls, label, value, note) => h('div', { class: cls },
-    h('span', { class: 'label' }, label), h('span', { class: 'value' }, value), h('span', { class: 'note' }, note));
-  const tiles = h('div', { class: 'tiles' },
-    tile('tile hero', 'Attainment rate, with objective', pct(t.overall.told.rate), `n = ${t.overall.told.n} agents assigned an objective`),
-    tile('tile', 'Attainment rate, baseline', pct(t.overall.untold.rate), 'the same criteria applied to agents with no objective'),
-    tile('tile', solo ? 'Looms' : 'Matches', fmt(t.matches.length), `${modelName(index.model)} · ${solo ? 'one deciding agent per loom' : `${index.conditions?.size ?? 5} agents per match`}`));
-
-  // Objectives
-  const goalCard = g => {
-    const info = goal(g), s = t.goals[g], { told, untold } = s;
-    return h('div', { class: 'card goal-card' },
-      h('h2', null, info.name),
-      h('div', { class: 'small' }, info.line),
-      h('p', { class: 'small muted' }, `Instruction (verbatim): “${sentenceOf(0, g, 'goal')}”`),
-      h('p', { class: 'small' }, info.measure),
-      h('div', { class: 'small' }, `baseline ${fmt(untold.mean)} → with objective ${fmt(told.mean)}`),
-      track({ from: untold.mean, to: told.mean, title: `Baseline ${fmt(untold.mean)}, with objective ${fmt(told.mean)}` }),
-      h('p', { class: 'small muted' },
-        `Attained by ${told.reached} of ${told.n} agents with the objective (${untold.reached} of ${untold.n} baseline agents).`),
-      h('div', { class: 'split' }, h('div', { class: 'small muted' }, 'Variance decomposition of the score'), splitbar(s.split)));
-  };
-  const goalsSection = [
-    h('h2', null, 'Objectives'),
-    h('p', { class: 'sub' }, 'For each objective: the instruction given to the agent, the scoring rule, the mean score with the objective '
-      + 'against the baseline, and a variance decomposition of the score.'),
-    splitLegend(),
-    h('div', { class: 'cards' }, SCORED.map(goalCard)),
-  ];
-
-  // The matches: filters, and the gallery they narrow (built before the grid, whose cells set the filter)
-  const matchesHead = h('h2', null, index.conditions?.agents === 'solo' ? 'Looms' : 'Matches');
-  const gallery = h('div', { class: 'gallery' });
-  const count = h('span', { class: 'small muted', 'aria-live': 'polite' });
-  const keep = m => m.results.some(r => !r.placeholder && (!filter.personality || r.personality === filter.personality)
-    && (!filter.goal || r.goal === filter.goal));
-  const ownDesigns = index.conditions?.designs === 'chosen' || choseDesigns(index.matches[0]);
-  const line = r => h('div', { class: 'line' },
-    seatMark(r.seat, ownDesigns, 12, 1),
-    h('span', null, r.name),
-    h('span', null, personality(r.personality).name),
-    h('span', null, '→'),
-    h('span', null, goal(r.goal).name),
-    r.goal === 'none' ? null : h('span', { class: 'score' }, fmt(r.score)),
-    mark(r.reached, { short: true }));
-  // The agents under a thumbnail are listed in bench order: left to right as seated.
-  const bySeat = m => {
-    const order = m.bench ?? m.results.map(r => r.seat);
-    return order.map(seat => m.results.find(r => r.seat === seat)).filter(r => r && !r.placeholder);
-  };
-  // A solo loom is named by the one agent that decides on it.
-  const captionOf = m => (m.conditions?.agents === 'solo' ? `Match ${m.match} · ${NAMES[m.conditions.solo]} decides` : `Match ${m.match} · ${m.name}`);
-  const picture = () => PICTURES.find(([key]) => key === filter.view);
-  const thumb = m => {
-    const [, label, suffix] = picture();
-    return h('a', { class: 'thumb', href: `match?run=${encodeURIComponent(chosen)}&id=${encodeURIComponent(m.id)}` },
-      h('img', {
-        src: `runs/${encodeURIComponent(chosen)}/thumbs/${encodeURIComponent(m.id)}${suffix}.png`,
-        alt: `${label}, match ${m.match}`,
-        loading: 'lazy', width: 232, height: 384,
-      }),
-      h('div', { class: 'caption' }, captionOf(m)),
-      bySeat(m).map(line),
-      m.conditions?.agents === 'solo' ? h('div', { class: 'line muted' }, 'and four scripted neighbours') : null);
-  };
-  // A run of solo looms has five pictures a match design: the first 44 are drawn until the rest are asked for.
-  let limit = 44;
-  const more = h('button', { type: 'button', class: 'btn quiet', hidden: true, onclick: () => { limit = Infinity; renderGallery(); } });
-  function renderGallery() {
-    const shown = index.matches.filter(keep);
-    count.textContent = `${shown.length} of ${index.matches.length}`;
-    gallery.replaceChildren(...(shown.length ? shown.slice(0, limit).map(thumb)
-      : [h('p', { class: 'muted', style: { gridColumn: '1 / -1' } }, 'No match has an agent like that. Choose another persona or objective.')]));
-    more.hidden = shown.length <= limit;
-    more.textContent = `Show all ${shown.length}`;
-  }
-  function markPicks() {
-    for (const k of picks) k.el.classList.toggle('on', filter.personality === k.p && filter.goal === k.g);
-  }
-  const refresh = () => { markPicks(); renderGallery(); };
-
-  // The reference runs: one card each, their rugs following the same toggle as the gallery
-  const refBox = h('div', { class: 'refs' });
-  const refThumb = (run, m) => {
-    const [, label, suffix] = picture();
-    return h('a', { class: 'ref-thumb', href: `match?run=${encodeURIComponent(run)}&id=${encodeURIComponent(m.id)}` },
-      h('img', {
-        src: `runs/${encodeURIComponent(run)}/thumbs/${encodeURIComponent(m.id)}${suffix}.png`,
-        alt: `${label}, match ${m.match} of ${run}`,
-        loading: 'lazy', width: 116, height: 192,
-      }),
-      h('div', { class: 'caption' }, `Match ${m.match}`));
-  };
-  const refCard = ref => {
-    const info = goal(ref.goal);
-    return h('div', { class: 'card ref' },
-      h('div', { class: 'ref-words' },
-        h('h2', null, ref.goal === 'none' ? 'All agents: no objective' : `All agents: ${info.name}`),
-        h('div', { class: 'small' }, info.line),
-        h('table', { class: 'ref-figs' }, h('tbody', null, referenceFigures(ref.index).map(([label, value]) =>
-          h('tr', null, h('th', { scope: 'row' }, label), h('td', null, value)))))),
-      h('div', { class: 'ref-rugs' }, ref.index.matches.map(m => refThumb(ref.run, m))));
-  };
-  function renderRefs() {
-    refBox.replaceChildren(...refs.map(refCard));
-  }
-  const flatNote = h('p', { class: 'small muted', style: { margin: '8px 0 0' }, hidden: filter.view !== 'flat' }, FLAT_NOTE);
-  const viewButtons = PICTURES.map(([key, label]) => h('button', {
-    type: 'button',
-    dataset: { view: key },
-    class: key === filter.view ? 'btn' : 'btn quiet',
-    'aria-pressed': String(key === filter.view),
-    onclick: () => {
-      filter.view = key;
-      for (const b of viewButtons) {
-        const on = b.dataset.view === key;
-        b.className = on ? 'btn' : 'btn quiet';
-        b.setAttribute('aria-pressed', String(on));
-      }
-      flatNote.hidden = key !== 'flat';
-      renderGallery();
-      renderRefs();
+const SCENES = [
+  {
+    id: 'loom', title: 'One loom, five agents, twenty-six rounds',
+    needs: d => d.opening?.decision,
+    steps: d => {
+      const o = d.opening, f = o.seats.find(s => s.seat === o.focal), g = o.seats.find(s => s.objectiveKey === 'grow');
+      const most = Math.max(...o.seats.map(s => s.share)) === f.share;
+      return [
+        ['The start', `Five agents sit side by side at one loom, and each holds 20% of its width. Each is told one sentence describing a disposition, its persona. Four of the five are also told one sentence stating what to achieve, an objective. This is match ${o.seed} of the benchmark.`],
+        ['A decision', `In every round, code lists an agent's legal actions: maintain position, claim share from a neighbour, concede share to one, or propose joint ownership. The model returns a probability for each option and one is sampled. This is ${o.decision.name}'s query in round ${o.decision.round}.`],
+        ['Twenty-six rounds', 'Each round adds one row to the cloth, from the bottom up. The finished picture is therefore a record of who held which part of the loom, and when.'],
+        ['The result', `${f.name}, told to finish with less than any other agent, finished with ${pc(f.share)}${most ? ', the largest share' : ''}.${g ? ` ${g.name}, told to finish with more than any other, held ${pc(g.share)}.` : ''} Each objective is scored from this final state: an objective score from 0 to 100, and a criterion that is attained or not.`],
+      ];
     },
-  }, label));
-  const personalitySel = h('select', {
-    'aria-label': 'Persona',
-    onchange: e => { filter.personality = e.target.value; refresh(); },
-  }, h('option', { value: '' }, 'Any persona'), people.map(p => h('option', { value: p.key }, p.name)));
-  const goalSel = h('select', {
-    'aria-label': 'Objective',
-    onchange: e => { filter.goal = e.target.value; refresh(); },
-  }, h('option', { value: '' }, 'Any objective'), goals.map(g => h('option', { value: g.key }, g.name)));
+    caption: d => [`Match ${d.opening.seed} of the benchmark (run ${d.opening.run}, Jev), replayed from its record. Each colour is one agent's share of the loom; a band of two colours is a share two agents hold jointly. `,
+      h('a', { href: d.opening.href }, 'Open this match'), ' to step through its rounds and queries.'],
+  },
+  {
+    id: 'persona', title: 'A persona can outweigh an objective',
+    needs: d => d.benchmark,
+    steps: d => {
+      const b = d.benchmark, ps = b.personas, by = key => ps.find(p => p.key === key);
+      const lo = [...ps].sort((x, y) => x.none.mean - y.none.mean)[0], hi = [...ps].sort((x, y) => y.none.mean - x.none.mean)[0];
+      const grew = ps.filter(p => p.grow.mean > p.none.mean).length, gave = ps.filter(p => p.give.mean < p.none.mean).length;
+      const blunt = by('blunt'), warm = by('warm'), under = blunt ? ps.filter(p => p.key !== 'blunt' && p.grow.mean < blunt.give.mean).length : 0;
+      const best = [...b.objectives].sort((x, y) => y.attained - x.attained)[0], worst = [...b.objectives].sort((x, y) => x.attained - y.attained)[0];
+      return [
+        ['With no objective', `Across ${b.matches} matches, agents given no objective did not end with equal shares. By persona, their mean final share ran from ${pc(lo.none.mean)} (${lo.name.toLowerCase()}) to ${pc(hi.none.mean)} (${hi.name.toLowerCase()}). An equal share is 20%.`],
+        ['Told to grow', `Agents told to finish with the largest share ended with more, for ${grew === ps.length ? 'every persona' : `${word(grew)} of the ${word(ps.length)} personas`}. The gain was uneven${warm ? `: a warm agent told to maximise its share ended with ${pc(warm.grow.mean)} on average` : ''}.`],
+        ['Told to give', `Agents told to finish with the smallest share ended with less for ${word(gave)} of the ${word(ps.length)} personas.${blunt ? ` A blunt agent told to minimise its share still ended with ${pc(blunt.give.mean)} on average: more than ${word(under)} of the other ${word(ps.length - 1)} personas held when told to grow.` : ''}`],
+        ['How often an objective was attained', `Agents given an objective attained it in ${pc(b.withObjective.rate)} of cases (${b.withObjective.attained} of ${b.withObjective.n}). Agents given none met the same criteria in ${pc(b.baseline.rate)}. ${best.name}${best.key === 'borrow' ? ', which concerns designs and not share,' : ''} was attained by ${best.attained} of ${best.n}; ${worst.name} by ${worst.attained} of ${worst.n}.`],
+      ];
+    },
+    caption: d => [`Mean final share of the loom by persona under three assignments: no objective, Grow (maximise final share) and Give (minimise it). Run ${d.benchmark.run}, ${d.benchmark.matches} matches, four agents in each cell, one execution. The last step shows each objective's mean score against the baseline: agents with no objective, scored on the same rule. `,
+      h('a', { href: 'results' }, 'Every match and the full table')],
+  },
+  {
+    id: 'blunt', title: 'Change one agent, and the whole allocation moves',
+    needs: d => d.blunt?.before && d.blunt?.after,
+    steps: d => {
+      const s = d.blunt, rose = s.pairs.filter(p => p.focal[1] > p.focal[0]).length;
+      return [
+        ['Five calm agents', `Every agent is told the same sentence: that it is calm and relaxed, hard to upset, and keeps an even mood under stress. Nobody has an objective. Over ${s.seeds} matches they made ${s.claims.before ? `${n1(s.claims.before)} claims each` : 'no claims'}, and each ended close to the 20% it started with.`],
+        ['The same match, one sentence changed', `The seed, the seats and the starting designs are the same. One agent is told instead that it is blunt and hard-headed, suspicious of people's motives, and does not mind starting an argument. It made ${n1(s.claims.focal)} claims a match on average; the calm agents made ${s.claims.others ? n1(s.claims.others) : 'none'}.`],
+        ['Every match number', `The changed agent ended with ${pc1(s.focal.to)} on average, against ${pc1(s.focal.from)} in the same seat as a calm agent: a paired change of ${ci(s.focal.change)}. Its share rose in ${rose === s.seeds ? `all ${s.seeds}` : `${rose} of ${s.seeds}`} match numbers.`],
+        ['The other four', `The agents whose sentence did not change averaged ${pc1(s.others.to)} each, against ${pc1(s.others.from)}: ${ci(s.others.change)}. That difference is between the two matches that resulted. It includes everything that followed from the change, and does not isolate their response to the blunt agent.`],
+      ];
+    },
+    caption: d => [`A group of five calm agents, and the same match numbers with one agent blunt (${d.blunt.systemName}; ${d.blunt.seeds} match numbers, each run executed once). The cloths are match number ${d.blunt.seed}. Intervals are Student-t 95% over match numbers. `,
+      h('a', { href: 'brief' }, 'The brief on dispositions')],
+  },
+  {
+    id: 'sweep', title: 'More agents of the second type, less for each of them',
+    needs: d => sweepOf(d, 'jev', 'Blunt')?.levels.length > 3,
+    steps: d => {
+      const a = sweepOf(d, 'jev', 'Blunt'), b = sweepOf(d, 'gptd', 'Greedy'), ks = a.levels.filter(l => l.second !== null), mixed = a.levels.filter(l => l.k >= 2 && l.first !== null);
+      const k0 = level(a, 0), k1 = level(a, 1), kn = a.levels.at(-1);
+      const out = [
+        ['From none to five', `The same match numbers were run with ${list(ks.map(l => word(l.k)))} of the agents blunt. The pictures show one match number at each composition; k is the number of blunt agents.`],
+        ['Each blunt agent\'s share falls as their number rises', `One blunt agent averaged ${pc1(k1.second)}. With ${list(ks.slice(1).map(l => word(l.k)))}, each averaged ${list(ks.slice(1).map(l => pc1(l.second)))}.`],
+        ['The calm agents are left with little', `Each calm agent averaged ${pc1(k1.first)} beside one blunt agent, and between ${pc1(Math.min(...mixed.map(l => l.first)))} and ${pc1(Math.max(...mixed.map(l => l.first)))} beside ${word(mixed[0].k)} to ${word(mixed.at(-1).k)}.`],
+        ['Five alike do not end equal', `Five blunt agents averaged ${pc(kn.second)} each, as five calm agents did. But the dispersion of their final shares was ${n1(kn.dispersion)} points against ${n1(k0.dispersion)}, and the largest share averaged ${pc1(kn.largest)}.`],
+      ];
+      if (b) {
+        const rest = b.levels.filter(l => l.k >= 3);
+        out.push(['Another pair of dispositions', `Under OpenAI's decision model, five cooperative agents ended with ${pc1(level(b, 0).joint)} of the loom held jointly by two agents. With one greedy agent that was ${pc1(level(b, 1).joint)}, with two ${pc1(level(b, 2).joint)}, and with three or more ${Math.max(...rest.map(l => l.joint)) < 1 ? 'next to none' : `at most ${pc1(Math.max(...rest.map(l => l.joint)))}`}.`]);
+      }
+      return out;
+    },
+    caption: d => [`Mean final share of one agent of each type, by the number of agents of the second type (k). Match numbers: ${level(sweepOf(d, 'jev', 'Blunt'), 0).matches} at k = 0 and 1, ${level(sweepOf(d, 'jev', 'Blunt'), 2).matches} from k = 2; each composition executed once. A share is what an agent holds alone; a part held jointly counts for neither holder. `,
+      h('a', { href: 'mix' }, 'Every composition side by side')],
+  },
+  {
+    id: 'threshold', title: 'A rule of the task was holding the result down',
+    needs: d => d.threshold?.gap && d.threshold.pictured?.rules && d.threshold.pictured.raised,
+    steps: d => {
+      const t = d.threshold, five = t.contrasts.filter(c => c.size === 5), of = name => five.find(c => c.added === name);
+      const blunt = of('Blunt'), rude = of('Rude'), grow = of('Grow'), n = blunt.seeds.length;
+      const out = [
+        ['A rule of the task', `The rules stop offering an agent claims once it holds ${pc(t.rules)} of the loom. It is a threshold on the moves offered, not a limit on the final share. With one blunt agent in a calm group, that agent finished within a point of the threshold, or above it, in ${blunt.rules.atThreshold} of ${n} match numbers. A rude agent did in ${rude.rules.atThreshold} of ${rude.seeds.length}.`],
+        ['Under the rule, the two dispositions look alike', `The blunt agent's mean final share was ${pc1(blunt.rules.mean)} and the rude agent's ${pc1(rude.rules.mean)}: a difference of ${ci(t.gap.rules)}${spansZero(t.gap.rules) ? ', an interval that includes zero' : ''}.`],
+        [`The threshold raised to ${pc(t.raised)}`, `The same match numbers were run again with claims offered up to ${pc(t.raised)} of the loom. The blunt agent's mean final share was ${pc1(blunt.raised.mean)} and the rude agent's ${pc1(rude.raised.mean)}. The difference between them was ${ci(t.gap.raised)}.`],
+      ];
+      if (grow) out.push(['An objective did not respond the same way', `An agent told to grow, among agents with no persona and no objective, ended with ${pc1(grow.raised.mean)} at the raised threshold against ${pc1(grow.rules.mean)}: a paired change of ${ci(grow.difference)}${spansZero(grow.difference) ? ', which is inconclusive' : ''}.`]);
+      const both = blunt.seeds.find(p => p.seed === t.pictured.seed);
+      out.push(['One match, both ways', `Match number ${t.pictured.seed}, with the same blunt agent in the same seat. At the rules' threshold of ${pc(t.rules)} it finished with ${pc(both.rules)}; with the threshold at ${pc(t.raised)}, with ${pc(both.raised)}.`]);
+      return out;
+    },
+    caption: d => [`The focal agent's final share in each of ${d.threshold.contrasts[0].seeds.length} match numbers, at the rules' claim threshold (${pc(d.threshold.rules)}) and with it raised to ${pc(d.threshold.raised)} (Jev, five agents; each run executed once). Differences are paired by match number. `,
+      h('a', { href: 'brief' }, 'The threshold by group size')],
+  },
+  {
+    id: 'systems', title: 'Three decision systems: similar outcomes, different behaviour',
+    needs: d => d.systems?.rows.length > 1,
+    steps: d => {
+      const y = d.systems, [jev, ...rest] = y.rows, give = [stepOf(d, 'jev', 'No objective → Give'), stepOf(d, 'gptd', 'No objective → Give')];
+      const zero = y.versus.every(v => spansZero(v.focal));
+      const out = [
+        ['The same matches, three ways', `The step from five calm agents to one blunt agent was run under ${word(y.rows.length)} decision systems on the same ${y.seeds} match numbers: Jev, a classifier that returns a probability for each option; OpenAI's decision model; and the same OpenAI model asked as a chat model. The changed agent's share rose by ${list(y.rows.map(r => n1(r.focal.mean)))} points.`],
+        ['The change in share did not clearly differ', `Paired by match number, the differences from Jev were ${list(y.versus.map(v => ci(v.focal)))}.${zero ? ' Each interval includes zero, which is not evidence that the systems perform alike.' : ''}`],
+        ['What was recorded did differ', `The blunt agent made ${n1(jev.claims.mean)} claims a match under Jev, and ${list(rest.map(r => n1(r.claims.mean)))} under the other ${word(rest.length)}. Calm agents recorded ${jev.refusals.mean ? n1(jev.refusals.mean) : 'no'} refusals under Jev, and ${list(rest.map(r => n1(r.refusals.mean)))} each under the others.`],
+        ['Nor was the calm group equally still', `Under Jev, five calm agents made ${jev.baseClaims.mean ? `${n1(jev.baseClaims.mean)} claims each` : 'no claims'} and held ${jev.baseJoint.mean ? pc1(jev.baseJoint.mean) : 'none'} of the loom jointly. Under the other ${word(rest.length)} they made ${list(rest.map(r => n1(r.baseClaims.mean)))} claims each, and ${list(rest.map(r => pc1(r.baseJoint.mean)))} of the loom ended held jointly.`],
+      ];
+      if (give[0] && give[1]) {
+        const met = s => `${s.pairs.filter(p => p.met).length} of ${s.seeds}`;
+        out.push(['Told to give, one system gave', `With no personas, an agent told to finish with the smallest share ended with ${pc1(give[0].focal.to)} under Jev, meeting the criterion in ${met(give[0])} match numbers. Under OpenAI's decision model it ended with ${pc1(give[1].focal.to)} and met it in ${met(give[1])}.`]);
+      }
+      return out;
+    },
+    caption: d => [`One contrast (${d.systems.contrast.toLowerCase()}) under each decision system on the same ${d.systems.seeds} match numbers. Means with Student-t 95% intervals over match numbers; differences between systems are paired. A comparison between systems compares a model together with its interface and the way its probabilities are read, not models alone. `,
+      h('a', { href: 'brief' }, 'The systems set against each other')],
+  },
+  {
+    id: 'switches', title: 'Every result is read against a control',
+    needs: d => cellOf(d, 'jev', 'default') && cellOf(d, 'chance', 'default'),
+    steps: d => {
+      const c = (system, key) => cellOf(d, system, key), jev = c('jev', 'default'), again = c('jev', 'again'), has = system => c(system, 'default');
+      const out = [['A model, and no model', `On ${d.switches.designs} match designs, ${jev.n} agents had an objective. Under Jev ${pc(jev.rate)} attained it (${jev.attained} of ${jev.n}). With every action sampled uniformly at random, ${pc(c('chance', 'default').rate)} did.`]];
+      if (again) out.push(['The same run, executed twice', `A second execution of Jev's default, with nothing changed, attained ${pc(again.rate)}: ${fmt(Math.abs(again.difference.mean), 0)} points ${again.difference.mean >= 0 ? 'higher' : 'lower'}. Every other difference on this page should be read against that.`]);
+      if (c('jev', 'personaOff') && c('jev', 'solo')) {
+        out.push(['Personas off; one agent deciding', `With no personas, attainment was ${pc(c('jev', 'personaOff').rate)}. With one agent deciding among four scripted neighbours it was ${pc(c('jev', 'solo').rate)} when they accept every request${c('jev', 'soloRefuse') ? ` and ${pc(c('jev', 'soloRefuse').rate)} when they refuse` : ''}.${c('chance', 'solo') ? ` That condition also makes some criteria easier: uniform random attains ${pc(c('chance', 'solo').rate)} there.` : ''}`]);
+      }
+      if (has('gptd') && has('gptc')) {
+        const same = c('gptd', 'again') && c('gptd', 'again').attained === c('gptd', 'default').attained;
+        out.push(['Other decision systems under the same switches', `OpenAI's decision model attained ${pc(c('gptd', 'default').rate)} in the default${same ? ', identically in a second execution' : ''}, ${pc(c('gptd', 'personaOff').rate)} with personas off and ${pc(c('gptd', 'solo').rate)} solo. As a chat model it attained ${pc(c('gptc', 'default').rate)}, then ${pc(c('gptc', 'again').rate)} in a second execution.${has('local') ? ` A small local chat model attained ${pc(c('local', 'default').rate)}, below uniform random.` : ''}`]);
+      }
+      return out;
+    },
+    caption: d => [`Attainment rate: the share of agents given an objective that met its criterion, on match designs 1 to ${d.switches.designs}, under each switch and each decision system. One execution of each condition unless marked. These are separate contrasts and do not add up to a decomposition. `,
+      h('a', { href: 'controls' }, 'Every pair of runs one switch apart')],
+  },
+  {
+    id: 'peers', title: 'One sentence from a neighbour',
+    needs: d => d.peers?.example,
+    steps: d => {
+      const p = d.peers, x = p.example, said = x.options.find(o => o.advocated), blunt = p.receivers.find(r => r.key === 'blunt'), others = p.receivers.filter(r => r.key !== 'blunt');
+      const out = [
+        ['Asked twice', 'Before each action an agent is queried, then queried again. In a randomised three quarters of decisions the second query carries one sentence stating the action an adjacent agent would have it take: the treatment. In the rest the query is repeated unchanged: the control.'],
+        ['One decision', `${x.receiver}'s prior probability of the action ${x.sender} advocated was ${pc(said.prior)}. After the message it was ${pc(said.posterior)}: an influence of ${signed(x.influence, 0)} percentage points.`],
+        ['Every discordant decision', `In ${p.discordant.toLocaleString('en')} decisions the sender advocated something other than the receiver's most likely action. There the message raised the probability of the advocated action by ${n1(p.effect.mean)} points ${brackets(p.effect)} relative to the repeated query, whose own change was ${n1(p.control.influence.mean)} ${brackets(p.control.influence)}.`],
+        ['From unlikely to first choice', `The advocated action became the receiver's most likely action in ${pc(p.treatment.adoption.mean)} of those decisions, against ${pc(p.control.adoption.mean)} when the query was only repeated.`],
+      ];
+      if (blunt) {
+        out.push(['Not every receiver moved', `By receiver persona, mean influence ran from ${fmt(Math.min(...others.map(r => r.influence.mean)), 0)} to ${fmt(Math.max(...others.map(r => r.influence.mean)), 0)} points for ${word(others.length)} of the ${word(p.receivers.length)}. Blunt receivers showed ${spansZero(blunt.influence) ? 'no net shift' : 'a shift of'}, ${ci(blunt.influence)}, and moved more than 5 points away from the advocated action in ${pc(blunt.reactance)} of decisions.`]);
+      }
+      return out;
+    },
+    caption: d => [`Peer communication: ${d.peers.decisions.toLocaleString('en')} decisions from two runs of the same ${d.peers.designs} match designs. Influence is the posterior minus the prior probability of the advocated action, in percentage points. Intervals are clustered by match design (by receiving agent for personas), which are descriptive subgroups. `,
+      h('a', { href: 'report' }, 'The report'), ' has the method and its limits.'],
+  },
+];
 
-  // Clicking an objective cell filters to that persona and objective; clicking the same cell again clears the filter.
-  function pick(p, g) {
-    const clear = filter.personality === p && filter.goal === g;
-    filter.personality = clear ? '' : p;
-    filter.goal = clear ? '' : g;
-    personalitySel.value = filter.personality;
-    goalSel.value = filter.goal;
-    refresh();
-    if (!clear) matchesHead.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+const LIMITS = d => [
+  ['One execution of most conditions.', `${cellOf(d, 'jev', 'again') ? `Two executions of Jev's default differed by ${fmt(Math.abs(cellOf(d, 'jev', 'again').difference.mean), 0)} points of attainment on ${d.switches.designs} match designs. ` : ''}Most conditions were run once, so their run-to-run variation is unmeasured; the intervals describe variation over match numbers.`],
+  ['Small samples.', 'Ten or eleven match numbers for most comparisons, five for a composition with two or more agents changed, and four agents in each cell of persona by objective.'],
+  ['One wording.', 'Each persona and each objective is a single sentence. Nothing here isolates what in a sentence matters.'],
+  ['Scores are ranks among five seats.', 'They are interdependent within a match, and a difference for the agents left unchanged includes everything that followed from the change.'],
+  ['Systems, not models.', 'A comparison between decision systems compares a model together with its interface and the way its probabilities are read.'],
+  ['This task.', 'The results concern this task and its rules, including the claim threshold, and these systems.'],
+];
 
-  // Final share by persona and objective: the mean share of the loom with no objective, Grow and Give, for each persona
-  const shareOf = (p, key) => {
-    const xs = rows.filter(r => r.personality === p && r.goal === key).map(r => r.ground);
-    return { mean: mean(xs), n: xs.length };
-  };
-  const space = people.map(p => ({ p, nothing: shareOf(p.key, 'none'), most: shareOf(p.key, 'grow'), least: shareOf(p.key, 'give') }));
-  const peak = Math.max(...space.flatMap(s => [s.nothing.mean, s.most.mean, s.least.mean]).filter(Number.isFinite));
-  const max = Math.max(40, Math.ceil(peak / 10) * 10);
-  const at = v => `${(v / max) * 100}%`;
-  const share = x => (Number.isFinite(x) ? `${fmt(x)}%` : '–');
-  const pin = (cls, v) => (Number.isFinite(v) ? h('span', { class: cls, style: { left: at(v) } }) : null);
-  const span = (x, y) => (Number.isFinite(x) && Number.isFinite(y)
-    ? h('span', { class: 'link', style: { left: `${(Math.min(x, y) / max) * 100}%`, width: `${(Math.abs(x - y) / max) * 100}%` } })
-    : null);
-  const keyMark = cls => h('span', { class: 'track space-key' }, h('span', { class: cls, style: { left: '50%' } }));
-  const spaceRow = s => {
-    const { nothing, most, least } = s;
-    const words = `${s.p.name}. No objective: ${share(nothing.mean)} (n = ${nothing.n}). `
-      + `Grow: ${share(most.mean)} (n = ${most.n}). Give: ${share(least.mean)} (n = ${least.n}).`;
-    return h('div', { class: 'space-row', onpointermove: e => tip.show(e, words), onpointerleave: () => tip.hide() },
-      h('span', { class: 'space-name' }, s.p.name),
-      h('div', { class: 'track space-plot' },
-        h('span', { class: 'even', style: { left: at(20) } }),
-        span(nothing.mean, most.mean),
-        span(nothing.mean, least.mean),
-        pin('from', nothing.mean),
-        pin('tri-most', most.mean),
-        pin('tri-least', least.mean)),
-      h('span', { class: 'space-num' }, share(least.mean)),
-      h('span', { class: 'space-num' }, share(nothing.mean)),
-      h('span', { class: 'space-num' }, share(most.mean)));
-  };
-  const scale = [[0, '0%'], [20, '20% · equal share'], [40, '40%'], ...(max >= 60 ? [[60, '60%']] : [])];
-  const spaceSection = [
-    h('h2', null, 'Final share by persona and objective'),
-    h('p', { class: 'sub' }, 'Mean final share of the loom for each persona under three assignments: no objective, Grow (maximise final share) '
-      + 'and Give (minimise final share). An equal share is 20%.'),
-    h('div', { class: 'legend' },
-      h('span', { class: 'key' }, keyMark('from'), 'no objective'),
-      h('span', { class: 'key' }, keyMark('tri-most'), 'Grow (maximise)'),
-      h('span', { class: 'key' }, keyMark('tri-least'), 'Give (minimise)')),
-    h('div', { class: 'card space' },
-      h('div', { class: 'space-head small muted' },
-        h('span', { class: 'space-gap name' }), h('span', { class: 'space-gap' }),
-        h('span', { class: 'space-num' }, 'Give'), h('span', { class: 'space-num' }, 'none'), h('span', { class: 'space-num' }, 'Grow')),
-      space.map(spaceRow),
-      h('div', { class: 'space-axis small muted' },
-        h('span', { class: 'space-gap name' }),
-        h('div', { class: 'space-scale' }, scale.map(([v, text], i) => h('span', {
-          style: { left: at(v), transform: i === 0 ? 'none' : 'translateX(-50%)' },
-        }, text))))),
-  ];
+const ONWARD = [
+  ['results', 'Results', 'The benchmark run by run: objective scores, the persona-by-objective table, every match.'],
+  ['controls', 'Controls', 'The seven switches, and every pair of runs one switch apart.'],
+  ['mix', 'Composition', 'Groups of one type with one to five seats given to another, side by side.'],
+  ['brief', 'Briefs', 'The composition study on one printed page each: dispositions, and objectives.'],
+  ['peers', 'Peer influence', 'Every match under three conditions, decision by decision.'],
+  ['report', 'Report', 'The peer-influence study written up: method, results, implications.'],
+  ['design', 'Design', 'The system: every model call in a round, the schemas, records and replay.'],
+  [REPO, 'Source', 'The code, the records of every run, and the analysis scripts.'],
+];
 
-  // Reference conditions: uniform objectives, shown only when such runs exist
-  const refSection = refs.length ? [
-    h('h2', null, 'Reference conditions: uniform objectives'),
-    h('p', { class: 'sub' }, 'Matches in which all five agents have no persona and the same objective. They show the collective pattern '
-      + 'each objective produces when every agent holds it.'),
-    refBox,
-  ] : [];
+/** The tallest a figure's drawing may be, so that the whole figure fits in view while it is pinned. */
+const tallest = () => (window.matchMedia('(max-width: 899px)').matches
+  ? Math.round(Math.min(420, Math.max(250, window.innerHeight * 0.56 - 78)))
+  : Math.round(Math.min(560, Math.max(300, window.innerHeight - 250))));
 
-  // Persona against objective
-  const cell = (p, g) => {
-    const by = t.goals[g].by[p.key], info = goal(g), { told, untold } = by;
-    const canPick = told.n > 0;
-    const words = told.n
-      ? `${p.name}, objective ${info.name}: mean score ${fmt(told.mean)} (n = ${told.n}, attained by ${told.reached}). `
-        + `Baseline: ${fmt(untold.mean)} (n = ${untold.n}).`
-      : `${p.name} was not assigned the objective ${info.name} in these matches.`;
-    const td = h('td', {
-      class: canPick ? 'heat pick' : 'heat', style: heat(told.mean, 100),
-      onclick: canPick ? () => pick(p.key, g) : false,
-      onpointermove: e => tip.show(e, words),
-      onpointerleave: () => tip.hide(),
-    }, h('div', { class: 'heatcell' },
-      h('span', { class: 'num' }, fmt(told.mean)),
-      h('span', { class: 'base' }, `baseline ${fmt(untold.mean)}`)));
-    if (canPick) picks.push({ p: p.key, g, el: td });
-    return td;
-  };
-  const grid = h('div', { id: 'grid', class: 'scroll' },
-    h('table', { class: 'grid' },
-      h('thead', null, h('tr', null,
-        h('th', null, 'Persona'),
-        SCORED.map(g => h('th', null, goal(g).name, h('div', { class: 'small muted' }, goal(g).line))),
-        h('th', null, 'Mean effect'))),
-      h('tbody', null, people.map(p => h('tr', null,
-        h('td', null, p.name, h('span', { class: 'small muted' },
-          p.text ? sentenceOf(0, p.key, 'personality') : 'No trait sentence: identified only as a weaver.')),
-        SCORED.map(g => cell(p, g)),
-        h('td', null, signed(t.personalities[p.key].lift)))),
-      h('tr', { class: 'all' },
-        h('td', null, 'All personas'),
-        SCORED.map(g => h('td', { class: 'heat', style: heat(t.goals[g].told.mean, 100) }, h('div', { class: 'heatcell' },
-          h('span', { class: 'num' }, fmt(t.goals[g].told.mean)),
-          h('span', { class: 'base' }, `baseline ${fmt(t.goals[g].untold.mean)}`)))),
-        h('td', null, signed(t.overall.lift ?? NaN))))));
-  const gridSection = [
-    h('h2', null, 'Persona × objective'),
-    h('p', { class: 'sub' }, 'Mean objective score (0–100) of the agents with each persona (rows) assigned each objective (columns); a darker '
-      + 'cell is a higher score. The small figure is the baseline: agents with that persona and no objective, scored on the same rule. '
-      + 'A pale cell beside a dark column is a persona that overrode the objective. The last column is the mean effect of an objective '
-      + 'for that persona. Select a cell to list its matches.'),
-    grid,
-    h('div', { class: 'heat-scale small muted' }, h('span', null, '0'), h('span', { class: 'heat-bar' }), h('span', null, '100 · objective score')),
-  ];
-
-  // The matches
-  const matchesSection = [
-    matchesHead,
-    h('div', { class: 'row', style: { margin: '16px 0 0' } },
-      viewButtons, personalitySel, goalSel, count),
-    flatNote,
-    h('p', { class: 'small muted', style: { margin: '12px 0 0' } },
-      solo ? 'Each picture is one loom, named by the agent the model decides for. The swatch is that agent\'s starting design.'
-        : ownDesigns ? 'Agents are listed left to right as seated. The dot is each agent\'s colour in the ownership map.'
-          : 'Agents are listed left to right as seated. The swatch is each agent\'s starting design.'),
-    gallery,
-    more,
-  ];
-
-  // Method
-  const measured = [
-    'The assignment is balanced: in every 11 matches each persona holds each objective exactly once.',
-    ...SCORED.map(g => `${goal(g).name}: ${goal(g).measure}`),
-    'Baseline: agents with no objective, scored on all four rules.',
-    'Effect of an objective: the mean score with the objective minus the baseline mean.',
-    'Variance decomposition: a two-factor decomposition of each score over objective assigned or not and persona, with the '
-      + 'within-cell mean square subtracted from each effect. The residual includes seating, the other agents and sampling.',
-    'Limitations: one model; few matches per cell; rank-based scores are interdependent within a match.',
-  ];
-  const method = h('details', { class: 'method' }, h('summary', null, 'Method'),
-    measured.map(text => h('p', null, text)));
-
-  renderGallery();
-  renderRefs();
-  return [topbar('results'), head(runs, chosen), h('p', { class: 'lede' }, LEDE), condition, ...how, tiles,
-    ...goalsSection, ...spaceSection, ...refSection, ...gridSection, ...matchesSection, method];
-}
-
-/**
- * The reference runs (every agent with no persona and the same objective), in the order ref-none, ref-grow, ref-give,
- * ref-hold; a run that cannot be read is left out. A group made of one persona, or of two, is no reference run: it has
- * the Composition page.
- */
-async function referenceRuns(runs) {
-  const uniform = runs.filter(r => REFERENCE.includes(r.run) && r.design === 'uniform' && r.conditions?.persona === 'off' && !r.conditions?.mix)
-    .sort((a, b) => (REFERENCE.indexOf(a.run) + 1 || 99) - (REFERENCE.indexOf(b.run) + 1 || 99));
-  const out = [];
-  for (const r of uniform) {
-    try {
-      const index = await getJSON(`runs/${encodeURIComponent(r.run)}/index.json`);
-      const objective = index.matches[0]?.results?.[0]?.goal;
-      if (index.matches.length && objective) out.push({ run: r.run, index, goal: objective });
-    } catch {
-      // A reference run that cannot be read is left out of the section.
+/** One scene: its head, its figure (mounted from its module) and its steps. Returns { el, go(i), steps, resize() }. */
+async function sceneOf(def, number, d) {
+  const steps = def.steps(d), body = h('div', { class: 'fig-body' });
+  let scene = null, current = 0, width = 0;
+  const stepEls = steps.map(([lead, words], i) => h('div', { class: i === 0 ? 'step on' : 'step', dataset: { step: String(i) } },
+    h('p', null, h('span', { class: 'n' }, `${number}.${i + 1}`), h('span', { class: 'lead' }, lead), words)));
+  const dots = steps.map((_, i) => h('button', { type: 'button', 'aria-label': `Step ${i + 1} of ${steps.length}: ${steps[i][0]}`, 'aria-current': i === 0 ? 'step' : false,
+    onclick: () => { if (main.classList.contains('alone')) go(i); else stepEls[i].scrollIntoView({ behavior: kit.still ? 'auto' : 'smooth', block: 'center' }); } }));
+  const failed = e => { scene = null; body.replaceChildren(h('p', { class: 'fig-failed' }, `This figure could not be drawn: ${e.message}.`)); };
+  const show = (i, motion = true) => { if (!scene) return; try { if (motion) scene.step(i); else kit.instant(() => scene.step(i)); } catch (e) { failed(e); } };
+  function go(i, { replay = false } = {}) {
+    if (replay || i !== current) {
+      // A step played again starts from the one before it.
+      if (replay) show(i - 1, false);
+      show(i);
     }
+    current = i;
+    stepEls.forEach((el, k) => el.classList.toggle('on', k === i));
+    dots.forEach((b, k) => { if (k === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
   }
-  return out;
+  const caption = () => [h('b', null, `Figure ${number}. `), ...def.caption(d)];
+  const el = h('section', { class: 'scene', id: def.id },
+    h('header', { class: 'scene-head' }, h('p', { class: 'kicker' }, `Part ${number}`), h('h2', null, def.title)),
+    h('div', { class: 'scrolly' },
+      h('div', { class: 'stage' }, h('figure', { class: 'fig' },
+        h('div', { class: 'fig-bar' }, h('span', { class: 'fig-num' }, `Figure ${number}`), h('ol', { class: 'fig-dots' }, dots.map(b => h('li', null, b))),
+          h('button', { type: 'button', class: 'replay', onclick: () => go(current, { replay: true }) }, 'Replay')),
+        body, h('figcaption', null, caption()))),
+      h('div', { class: 'steps' }, stepEls)),
+    h('p', { class: 'scene-cap' }, caption()));
+  let mount = null;
+  try { mount = (await import(`./story/${def.id}.mjs`)).default; } catch (e) { failed(e); }
+  /** Draws the figure afresh at the width it now has, in the state it was in. */
+  function draw() {
+    if (!mount) return;
+    body.replaceChildren();
+    body.dataset.tallest = String(tallest());
+    width = body.clientWidth;
+    try { scene = mount(body, d, kit); } catch (e) { failed(e); return; }
+    show(current, false);
+  }
+  return { el, go, steps: stepEls, stage: body, draw, resize() { if (Math.abs(body.clientWidth - width) > 8) draw(); }, current: () => current };
 }
 
-/** Loads the runs and the chosen run, then shows the page; each failure is said in a sentence. */
+/** The head: the title, the abstract, and four figures of the whole, each a link to the scene that shows it. */
+function head(d, scenes) {
+  const b = d.benchmark, again = cellOf(d, 'jev', 'again'), facts = [
+    b ? ['persona', pc(b.withObjective.rate), '', `of agents given an objective attained it (${b.withObjective.attained} of ${b.withObjective.n}). Of agents given none, ${pc(b.baseline.rate)} met the same criteria.`] : null,
+    d.blunt ? ['blunt', signed(d.blunt.focal.change.mean, 1), 'pp', `the final share of one blunt agent among four calm ones, against the same seat as a calm agent ${brackets(d.blunt.focal.change)}.`] : null,
+    d.peers ? ['peers', signed(d.peers.effect.mean, 1), 'pp', `the probability of an action after one sentence from a neighbour advocating it ${brackets(d.peers.effect)}.`] : null,
+    again ? ['switches', fmt(Math.abs(again.difference.mean), 0), 'pp', 'between two executions of the same default run, with nothing changed: the yardstick for every other difference here.'] : null,
+  ].filter(f => f && scenes.some(s => s.def.id === f[0]));
+  return h('header', { class: 'story-head' },
+    h('div', { class: 'story-title' }, h('div', null,
+    h('p', { class: 'kicker' }, 'LoomBench · a multi-agent benchmark'),
+    h('h1', null, 'Five agents, one loom'),
+    h('p', { class: 'abstract' }, 'Five LLM agents share a loom. Each starts with a fifth of its width and, over 26 rounds, may maintain its position, claim share from a neighbour, concede share, or propose joint ownership. Each is told one sentence about its disposition, a ',
+      h('b', null, 'persona'), ', and one about what to achieve, an ', h('b', null, 'objective'), '. LoomBench measures how far each objective is attained, how much of that depends on the persona, and how a group\'s allocation differs when one agent is changed. This page goes through the main results, one figure at a time.'),
+    h('p', { class: 'byline' }, `Every number and figure is computed from the records of ${d.runs} runs. `, h('a', { href: REPO }, 'Code and data'))),
+    d.opening ? cloth(d.opening) : null),
+    facts.length ? h('div', { class: 'facts' }, facts.map(([id, value, unit, label]) => h('a', { class: 'fact', href: `#${id}` },
+      h('span', { class: 'value' }, value, unit ? h('small', null, unit) : null), h('span', { class: 'label' }, label)))) : null,
+    h('ol', { class: 'toc' }, scenes.map((s, i) => h('li', null, h('a', { href: `#${s.def.id}` }, h('span', { class: 'n' }, String(i + 1)), s.def.title)))));
+}
+
+/** Beside the title, one match weaving itself: the cloth of the match the first figure goes through, with no words on it. */
+function cloth(timeline) {
+  const W = 300, H = 380, g = kit.svg('g'), woven = kit.loom(g, timeline, { x: 0, y: 0, w: W, h: H, labels: 'none' });
+  const el = h('a', { class: 'story-cloth', href: '#loom', 'aria-label': `Match ${timeline.seed} of the benchmark, woven round by round: the first figure goes through it` },
+    kit.svg('svg', { class: 'story-svg', viewBox: `0 0 ${W} ${H}`, width: W, height: H, 'aria-hidden': 'true' }, g),
+    h('span', { class: 'story-cloth-cap' }, `Match ${timeline.seed}, as it was woven: one row a round, each colour an agent's share.`));
+  woven.show(woven.rounds, { duration: 7000, delay: 500, ease: kit.EASE.linear });
+  return el;
+}
+
+/** The end: what limits the results, and where each part is in full. */
+function end(d) {
+  return h('section', { class: 'story-end' },
+    h('h2', null, 'Limitations'),
+    h('ul', { class: 'limits' }, LIMITS(d).map(([lead, words]) => h('li', null, h('b', null, `${lead} `), words))),
+    h('div', { class: 'onward' }, ONWARD.map(([href, name, words]) => h('a', { href }, h('b', null, name), h('span', null, words)))));
+}
+
+/** Follows the reader: the step crossing a line across the view becomes its scene's current step, and a figure plays when it first comes into view. */
+function follow(scenes) {
+  const narrow = window.matchMedia('(max-width: 899px)').matches, line = narrow ? 82 : 50;
+  const stepOwner = new Map(scenes.flatMap(s => s.steps.map((el, i) => [el, [s, i]])));
+  const steps = new IntersectionObserver(entries => {
+    for (const e of entries) if (e.isIntersecting) { const [s, i] = stepOwner.get(e.target); s.go(i); }
+  }, { rootMargin: `-${line}% 0px -${100 - line}% 0px` });
+  for (const el of stepOwner.keys()) steps.observe(el);
+  const seen = new Set(), stages = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      const s = scenes.find(x => x.stage === e.target);
+      if (e.isIntersecting && s && !seen.has(s)) { seen.add(s); s.go(s.current(), { replay: true }); }
+    }
+  }, { threshold: 0.4 });
+  for (const s of scenes) stages.observe(s.stage);
+  let timer = 0;
+  window.addEventListener('resize', () => { clearTimeout(timer); timer = setTimeout(() => scenes.forEach(s => s.resize()), 180); });
+}
+
 async function start() {
-  let runs;
-  try {
-    runs = await getJSON('api/runs.json');
-  } catch (err) {
-    show(topbar('results'), h('h1', null, 'LoomBench'), h('p', { class: 'lede' }, LEDE),
-      h('p', { class: 'sub' }, `Could not load the list of runs: ${err.message}.`));
+  const d = await getJSON('api/overview.json'), only = qs('only');
+  if (Number(qs('width'))) Object.assign(main.style, { maxWidth: `${Number(qs('width'))}px`, margin: '0' });
+  const defs = SCENES.filter(s => (only ? s.id === only : true) && s.needs(d));
+  const scenes = [];
+  for (const def of defs) scenes.push({ def, ...await sceneOf(def, SCENES.indexOf(def) + 1, d) });
+  if (only) {
+    // One figure alone, at the step the address names.
+    main.classList.add('alone');
+    main.replaceChildren(...scenes.map(s => s.el));
+    for (const s of scenes) { s.draw(); const i = Math.min(s.steps.length - 1, Math.max(0, Number(qs('step')) || 0)); s.go(i, { replay: true }); }
+    document.body.dataset.ready = 'true';
     return;
   }
-  const chosen = pickRun(runs);
-  if (chosen === null) {
-    show(topbar('results'), h('h1', null, 'LoomBench'), h('p', { class: 'lede' }, LEDE), emptyState());
-    return;
-  }
-  let index;
-  try {
-    index = await getJSON(`runs/${encodeURIComponent(chosen)}/index.json`);
-  } catch (err) {
-    show(topbar('results'), head(runs, chosen), h('p', { class: 'lede' }, LEDE),
-      h('p', { class: 'sub' }, `Could not load run ${chosen}: ${err.message}.`));
-    return;
-  }
-  if (!index.matches.length) {
-    show(topbar('results'), head(runs, chosen), h('p', { class: 'lede' }, LEDE),
-      h('p', { class: 'sub' }, `Run ${chosen} has no matches yet.`));
-    return;
-  }
-  show(...resultsPage(runs, chosen, index, await referenceRuns(runs)));
+  main.replaceChildren(topbar('overview'), head(d, scenes), ...scenes.map(s => s.el), end(d));
+  for (const s of scenes) s.draw();
+  follow(scenes);
+  document.body.dataset.ready = 'true';
 }
 
-start().catch(err => show(topbar('results'), h('p', { class: 'lede' }, `The page could not be drawn: ${err.message}.`)));
+start().catch(e => main.replaceChildren(topbar('overview'), h('h1', null, 'LoomBench'), h('p', { class: 'lede' }, `The page could not be drawn: ${e.message}.`)));
