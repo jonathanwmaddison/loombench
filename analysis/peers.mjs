@@ -1,7 +1,7 @@
 // The decision-level estimates of the report (web/report.html): `node analysis/peers.mjs`. No key or network needed.
 // Prints every table and writes analysis/pooled.json, which analysis/report.py reads.
 //
-// Data: every decision of the two runs of the peer condition (run 1: first rules, runs-v1/jev-peers; run 2: rules 2,
+// Data: every decision of the two runs of the peer condition (run 1: first rules, runs/chosen-peers; run 2: rules 2,
 // runs/peers). A decision has the receiver's prior probabilities (`alone`), the sender's (`told`), the receiver's
 // posterior (`after`), whether the message was delivered (`heard`), and who the two agents were.
 //
@@ -15,7 +15,7 @@ import { towardOf } from '../bench/peers.mjs';
 import { mean } from '../bench/stats.mjs';
 
 const load = (file, run) => JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')).rows.map(r => ({ ...r, run }));
-const RUN1 = load('runs-v1/jev-peers/peers.json', 1), RUN2 = load('runs/peers/peers.json', 2), ALL = [...RUN1, ...RUN2];
+const RUN1 = load('runs/chosen-peers/peers.json', 1), RUN2 = load('runs/peers/peers.json', 2), ALL = [...RUN1, ...RUN2];
 const SETS = { run1: RUN1, run2: RUN2, pooled: ALL };
 const PERSONAS = ['plain', 'outgoing', 'reserved', 'warm', 'blunt', 'organised', 'careless', 'anxious', 'calm', 'curious', 'conventional'];
 const OBJECTIVES = ['none', 'grow', 'give', 'hold', 'borrow'], SHARE = ['grow', 'give', 'hold'];

@@ -14,7 +14,7 @@ import { apart } from '../bench/peers.mjs';
 import { mean } from '../bench/stats.mjs';
 
 const RULESETS = [
-  { name: 'Run 1 (first rules)', key: 'run1', main: 'runs-v1/jev-1', replicate: 'runs-v1/jev-2', peers: 'runs-v1/jev-peers' },
+  { name: 'Run 1 (first rules)', key: 'run1', main: 'runs/chosen-main', replicate: 'runs/chosen-replicate', peers: 'runs/chosen-peers' },
   { name: 'Run 2 (rules 2)', key: 'run2', main: 'runs/main', replicate: 'runs/replicate', peers: 'runs/peers' },
 ];
 const index = path => JSON.parse(readFileSync(new URL(`../${path}/index.json`, import.meta.url), 'utf8')).matches;

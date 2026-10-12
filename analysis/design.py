@@ -119,18 +119,24 @@ interface Seat { personality: PersonaKey; goal: ObjectiveKey }           // fiel
 
 function deal(match: number): Seat[]             // five seats; balanced: each persona holds each objective once per 11 matches
 function castOf(seats: Seat[]): Weaver[]         // engine agents: { name, she, hue, temperature: 0.7, who /* the prompt prefix */ }
-function play(o: { seats: Seat[]; seed: number; ask?: Ask | null; peers?: boolean }): Promise<Rug>
+function play(o: { seats: Seat[]; seed: number; ask?: Ask | null; peers?: boolean;
+                   solo?: number | null; neighbours?: "accept" | "refuse" | "chance";
+                   area?: "free" | "fixed"; designs?: "assigned" | "chosen" }): Promise<Rug>      // the switches: section 9
 function scoresOf(rug: Rug): { seat: number; ground: number; scores: Record<Objective, number>; met: Record<Objective, boolean>; did: Behaviour }[]
 function recordOf(rug: Rug, o: { id: string; match: number | null; seats: Seat[] }): MatchRecord
 function replay(record: MatchRecord): Promise<Rug>      // re-executes from the tape; makes no calls
 
 interface MatchRecord {
   loombench: 1; rules: 2; id: string; match: number | null; seed: number;
-  model: string; minds: "jev" | "chance"; mode: "quiet" | "peers";       // quiet = no communication
+  model: string;                                  // "jev-1.13.0", "chance", or a chat model as "<provider>:<model>"
+  minds: "jev" | "chance"; mode: "quiet" | "peers";                       // quiet = no communication
+  conditions: { agents: "group" | "solo"; solo?: number; neighbours?: "accept" | "refuse" | "chance";
+                area: "free" | "fixed"; designs?: "chosen"; read?: "tokens" | "stated" };
   seats: Seat[]; bench: number[];                 // bench: seat numbers left to right as seated
   name: string; lot: string;                      // the rug's title; the palette
   results: Result[];                              // one per seat
-  calls: number; fallbacks: number; dollars: number; seconds: number;
+  calls: number; requests?: number;               // calls a model answered; for a chat model, the HTTP requests they took
+  fallbacks: number; dollars: number; seconds: number;
   loom: object;                                   // every engine setting the match ran with
   tape: Record<string /* call id */, Answers | null>;   // every response, as returned
   peers?: PeerEntry[];                            // peer communication only
@@ -140,7 +146,9 @@ interface Result {
   ground: number;                                 // final share, % of the loom
   scores: { grow: number; give: number; hold: number; borrow: number };   // every agent is scored on every objective
   met:    { grow: boolean; give: boolean; hold: boolean; borrow: boolean };
-  score: number | null; reached: boolean | null;  // for the agent's own objective; null with none
+  score: number | null; reached: boolean | null;  // for the agent's own objective; null with none, for a placeholder,
+                                                  // and for an objective on share when areas are fixed
+  placeholder?: true;                             // solo only: a scripted neighbour, which no model decided for
   did: { worked: number; took: number; gave: number; offered: number; refused: number; insisted: number; backedDown: number; pushedOut: number; borrowed: number };
 }
 '''
@@ -185,6 +193,38 @@ interface PeerEntry {
 // influence      = 100 * (after[peerTop] - alone[peerTop])       percentage points
 // discordant     = peerTop !== aloneTop
 // adoption       = afterTop === peerTop
+'''
+T_SWITCH = r'''
+// bench/llm.mjs. A chat model answers the same body Jev answers. One request per question of the body, sent together.
+function chatAsker(o: { provider: "openai" | "ollama" | "compatible"; model: string; read?: "tokens" | "stated";
+                        apiKey?: string; baseUrl?: string; prices?: [number, number]; cap?: number }): Ask
+
+// The request (OpenAI chat-completions protocol), reading "tokens":
+POST <base>/chat/completions
+{ "model": "<model>", "logprobs": true, "top_logprobs": 20, "max_tokens": 1, "temperature": 1,
+  "messages": [
+    { "role": "system", "content": "You will be given a situation and one decision with lettered options. …" },
+    { "role": "user",   "content": "THE SITUATION\n<every line of body.state>\n\nTHE DECISION\n<question.instructions>\n\n"
+                                 + "A. <criteria.o1>\nB. <criteria.o2>\n…\n\nReply with the single letter of the option chosen, and nothing else." } ] }
+
+// The reply is read as weights, then shaped exactly as a Jev answer:
+//   tokens   weight[i] = sum of exp(logprob) over the first token's candidates that are option i's letter;
+//            refused unless the letters hold at least half the probability
+//   stated   the model replies {"A": 40, "B": 35, "C": 25}; weight[i] = the number stated for option i's letter
+// A score question (bold, fine) is asked as a choice among its anchors; score = sum of i × p[i].
+// A choice with one option is answered without a request.
+
+// bench/solo.mjs. In a solo match, a call for any seat but `seat` is answered here and never reaches the model.
+function soloAsker(ask: Ask, seat: number, count?: { scripted: number },
+                   o?: { neighbours?: "accept" | "refuse" | "chance"; seed?: number }): Ask
+// what a scripted neighbour answers, by the kind of question:      accept (default)          refuse
+//   its own action                                                  carry (maintain)          carry (maintain)
+//   its own design                                                  keep                      keep
+//   a claim on its share                                            pass (accept)             refuse
+//   a proposal of joint ownership                                   accept                    decline
+//   group decisions (border, name)        the seeded stream decides; a proposal is never refused
+//   with no share left                    it stays off the bench
+// neighbours "chance": every question is answered with equal probabilities, so the seeded stream decides everything
 '''
 PEERQ = r'''
 (1) prior      body as built by the engine                                           -> alone
@@ -241,7 +281,11 @@ propose joint ownership.</p>
 <tr><td><code>engine/cloth.mjs</code>, <code>render.mjs</code></td><td>The grid of stitches, designs and palettes; rendering to pixels (woven output, ownership map).</td><td><code>paint(cloth, dyes, options)</code></td></tr>
 <tr><td><code>bench/core.mjs</code></td><td>The benchmark: personas, objectives, the balanced assignment, starting designs, scoring, the kept record, replay.</td><td><code>deal · castOf · play · scoresOf · recordOf · replay</code></td></tr>
 <tr><td><code>bench/peers.mjs</code></td><td>Peer communication: a wrapper around <code>ask</code> that adds the sender query and the second receiver query.</td><td><code>peerAsker(ask, {{cast, seed, log}}) → ask</code></td></tr>
+<tr><td><code>bench/decisions.mjs</code></td><td>OpenAI's decision model in Jev's place: Jev's request mapped field for field onto <code>POST /v1/decisions</code>.</td><td><code>decisionsAsker(options) → ask(body)</code></td></tr>
+<tr><td><code>bench/llm.mjs</code></td><td>A chat model in Jev's place: each question of a call as one chat request, the reply read as probabilities.</td><td><code>chatAsker(options) → ask(body)</code></td></tr>
+<tr><td><code>bench/solo.mjs</code></td><td>One agent deciding: a wrapper around <code>ask</code> that answers for the four scripted neighbours without a model.</td><td><code>soloAsker(ask, seat) → ask</code></td></tr>
 <tr><td><code>bench/stats.mjs</code></td><td>Aggregation: scores with objective against baseline, effects, variance decomposition.</td><td><code>rowsOf · table · split</code></td></tr>
+<tr><td><code>bench/compare.mjs</code></td><td>Two runs that differ in one switch, paired by match design.</td><td><code>differsIn · measuresOf · compare</code></td></tr>
 <tr><td><code>tools/run.mjs</code>, <code>keep.mjs</code></td><td>Batch execution; writing a match record, its pictures and a run index.</td><td><code>runs/&lt;run&gt;/matches/&lt;id&gt;.json</code></td></tr>
 <tr><td><code>serve.mjs</code>, <code>web/</code></td><td>Local server and pages. The pages replay records in the browser with the same engine.</td><td><code>GET /runs/… · POST /api/play</code></td></tr>
 </tbody></table></div>
@@ -357,7 +401,35 @@ among its options it makes two further calls, adding about 250 calls to a match.
 {code(PEERQ)}
 {code(T_PEER)}
 
-<h2>9. Records, replay and scoring</h2>
+<h2>9. Switches</h2>
+<p class="sub">A match is run under one setting of each switch, and its record keeps them (<code>conditions</code>, with the model
+and the assignment). Each switch is implemented at one point, so the rest of the code path is unchanged. Three wrap or replace
+<code>ask</code>; two are in what a seat is told; one is an engine setting; one is in what the engine is given at the start.</p>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Switch</th><th>Settings</th><th>Where it acts</th><th>What changes in the calls of a round</th></tr></thead>
+<tbody>
+<tr><td>Decision model</td><td>Jev · OpenAI's decision model · a chat model · uniform random</td><td><code>ask</code>: <code>jevAsker</code>, <code>decisionsAsker</code>, <code>chatAsker</code>, or none</td><td>Jev and OpenAI's decision model: one HTTP call per engine call, holding every question. A chat model: one request per question of the call (3 or 4 for an action call). Uniform random: no call.</td></tr>
+<tr><td>Personas</td><td>dealt · off · one for all</td><td><code>seats[i].personality</code></td><td>The trait sentence is left out of the prompt prefix (<code>"plain"</code>), or is the same for every agent.</td></tr>
+<tr><td>Objectives</td><td>dealt · off · one for all</td><td><code>seats[i].goal</code></td><td>The objective sentence is left out of the prompt prefix (<code>"none"</code>), or is the same for every agent.</td></tr>
+<tr><td>Agents deciding</td><td>all five · one (solo), its four neighbours scripted to accept, to refuse, or to act by chance</td><td><code>soloAsker</code> around <code>ask</code></td><td>Only the one agent's calls reach the model: 26 action calls, its replies, and its part in the two group decisions. The four scripted neighbours are answered locally.</td></tr>
+<tr><td>Areas</td><td>can change · fixed</td><td>engine setting <code>loom.fixed</code></td><td>The action question has one option (maintain position), so there are no response or reply calls. The design question is unchanged.</td></tr>
+<tr><td>Starting designs</td><td>assigned · chosen</td><td>whether <code>lot</code>, <code>pot</code> and <code>starts</code> are given to <code>weave</code></td><td>Chosen: one more group decision (the palette, 5 to 10 calls), and the design question is asked in the first round too.</td></tr>
+<tr><td>Peer communication</td><td>off · on</td><td><code>peerAsker</code> around <code>ask</code></td><td>Two further calls per action call (section 8).</td></tr>
+</tbody></table></div>
+<p class="sub">In every setting each agent starts with the same area, 20 of the loom's 100 width units. The switches combine, except
+that peer communication needs a model, five deciding agents and areas that can change, and a solo match needs assigned designs.
+A chat model is a second decision system and not another model behind Jev's interface: the prompt below is a rendering of Jev's
+request, the reading sees the host's twenty likeliest first tokens, and a preference for a letter stays in the distribution (it is
+spread over the options by the seeded order they are listed in).</p>
+{code(T_SWITCH)}
+<p class="sub"><b>What the solo agent is told.</b> Nothing about the switch. Its prompt prefix, the state and the options are built
+by the same code as in a group match, and at the first round the request is identical to the group match's. From then on the two
+differ only through what the other seats did.</p>
+<p class="sub"><b>Comparing runs.</b> Two runs made from the same match designs that differ in one switch are paired by match
+design (<code>bench/compare.mjs</code>); the Controls page lists every such pair. A run folder holds one setting, and the runner
+refuses to add a match made under another.</p>
+
+<h2>10. Records, replay and scoring</h2>
 {code(T_CORE)}
 <p class="sub"><b>Replay.</b> <code>replay(record)</code> calls <code>weave</code> with the record's seed, assignment, settings and
 <code>tape</code>. The engine takes each response from the tape in place of a call, so it rebuilds the same state, the same
@@ -373,7 +445,7 @@ identical.</p>
 <tr><td>Borrow</td><td>percentage of the 26 rounds whose design contains another agent's pattern or colour</td><td>at least 50%</td></tr>
 </tbody></table></div>
 
-<h2>10. Cost</h2>
+<h2>11. Cost</h2>
 <div class="scroll"><table class="grid">
 <thead><tr><th>Call</th><th>Calls per match</th><th>Questions per call</th><th>Input tokens per call</th></tr></thead>
 <tbody>
@@ -383,7 +455,9 @@ identical.</p>
 <tr><td>Group decisions</td><td>20</td><td>1</td><td>230 to 300</td></tr>
 </tbody></table></div>
 <p class="sub">Input is billed at $0.042 per million tokens and output is free, so a match costs about one cent; with peer
-communication, about two. Figures are for match 3 of run <code>main</code>; phases 2 and 3 vary with how contested a match is.</p>
+communication, about two. Figures are for match 3 of run <code>main</code>; phases 2 and 3 vary with how contested a match is.
+A chat model is charged at its own prices for about 520 requests a match (one output token each when read by tokens); a model
+on the same machine costs nothing and took about 2.5 minutes a match on the machine these runs were made on.</p>
 </main>
 <script type="module">
 import {{ topbar }} from './web/ui.mjs';

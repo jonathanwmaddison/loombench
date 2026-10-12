@@ -4,9 +4,12 @@
 /** The four goals that are scored, in the order the tables show them. */
 export const SCORED = ['grow', 'give', 'hold', 'borrow'];
 
-/** Flattens matches ([{ id, results }]) into rows: each result, with the match id added as `match`. */
+/**
+ * Flattens matches ([{ id, results }]) into rows: each agent's result, with the match id added as `match`. A solo
+ * match's four placeholders decided nothing, so they are not rows.
+ */
 export function rowsOf(matches) {
-  return matches.flatMap((m) => m.results.map((r) => ({ ...r, match: m.id })));
+  return matches.flatMap((m) => m.results.filter((r) => !r.placeholder).map((r) => ({ ...r, match: m.id })));
 }
 
 /** The mean of a list of numbers; NaN for an empty list. */
@@ -24,7 +27,7 @@ function tally(pairs) {
 /** Told and untold results for one goal, and the lift (told mean minus untold mean). */
 export function group(rows, goal) {
   const pair = (r) => ({ value: r.scores[goal], reached: r.met[goal] });
-  const told = tally(rows.filter((r) => r.goal === goal).map(pair));
+  const told = tally(rows.filter((r) => r.goal === goal && r.score !== null).map(pair));
   const untold = tally(rows.filter((r) => r.goal === 'none').map(pair));
   return { told, untold, lift: told.mean - untold.mean };
 }
@@ -76,7 +79,8 @@ export function split(rows, goal) {
 /** Everything the Results page shows: overall told against untold, each goal by personality, and each personality. */
 export function table(rows) {
   const matches = [...new Set(rows.map((r) => r.match))];
-  const withGoal = rows.filter((r) => r.goal !== 'none');
+  // An agent given an objective it could not pursue (one about share, with areas fixed) has no score, and is not counted.
+  const withGoal = rows.filter((r) => r.goal !== 'none' && r.score !== null);
   const untold = rows.filter((r) => r.goal === 'none');
   const overall = {
     told: tally(withGoal.map((r) => ({ value: r.score, reached: r.reached }))),

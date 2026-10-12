@@ -6,6 +6,15 @@
   "mode": "quiet",
   "design": "dealt",
   "rules": 2,
+  "conditions": {
+    "model": "jev-1.13.0",
+    "persona": "dealt",
+    "objective": "dealt",
+    "agents": "group",
+    "area": "free",
+    "designs": "assigned",
+    "peers": false
+  },
   "updated": "2026-10-11T15:17:35.787Z",
   "matches": [
     {

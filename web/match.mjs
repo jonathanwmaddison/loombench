@@ -1,6 +1,6 @@
 // One match: the woven output and a map of ownership at any time in it, the five agents' scores and queries, and what happened in the round.
-import { h, getJSON, fmt, pct, signed, qs, topbar, chipPersonality, chipGoal, startSwatch, mark, drawRug } from './ui.mjs';
-import { HUES, NAMES, castOf, sentenceOf, replay, goal } from '../bench/core.mjs';
+import { h, getJSON, fmt, pct, signed, qs, topbar, chipPersonality, chipGoal, seatMark, choseDesigns, mark, drawRug, switchWords, modelName, isChatModel, isDecisionModel, FLAT_NOTE } from './ui.mjs';
+import { HUES, NAMES, castOf, sentenceOf, replay, goal, conditionsOf } from '../bench/core.mjs';
 
 const STEP_MS = 350;
 const SCALE = 3;
@@ -9,6 +9,18 @@ const HEARD_NOTE = 'Each colour denotes an agent\'s share. Stripes in a second c
   + 'advocated by the neighbour of that colour; solid areas mark rounds in which it did not.';
 // Events of these kinds are left off the list: they are the quiet ones.
 const QUIET = new Set(['plain', 'free', 'fed', 'unfed', 'lost', 'council']);
+// What a scripted neighbour of a solo match does, by how the match scripted them.
+const SCRIPTED_NOTE = {
+  accept: 'This seat is a scripted neighbour: no model decides for it. In every round it keeps working on its own piece and keeps its design, and it accepts every request made of it.',
+  refuse: 'This seat is a scripted neighbour: no model decides for it. In every round it keeps working on its own piece and keeps its design, and it refuses every request made of it.',
+  chance: 'This seat is a scripted neighbour: no model decides for it. Every choice it makes is sampled uniformly at random.',
+};
+const SCRIPTED_SOLO = {
+  accept: 'never act and accept every request, so it meets no opposition', refuse: 'never act and refuse every request, which it can override',
+  chance: 'act at random, every choice sampled uniformly',
+};
+// The objectives that are about share, which nobody can pursue when areas are fixed.
+const SHARE_GOALS = new Set(['grow', 'give', 'hold']);
 // What an agent did, in the order the row lists it.
 const DID = [
   ['took', 'claims'], ['gave', 'concessions'], ['refused', 'refusals'], ['insisted', 'overrides'],
@@ -42,7 +54,7 @@ function fail(sentence) {
  * With `peer` (a decision from a peer-communication match), each bar also gets a tick at its prior weight, its
  * number reads prior → posterior, and the option the sender advocates is tagged.
  */
-function bars(options, chose, peer = null) {
+function bars(options, chose, peer = null, how = '') {
   const prior = peer ? new Map(peer.entry.options.map((o, i) => [o.key, peer.entry.alone[i]])) : null;
   const advocated = peer ? peer.entry.options[peer.entry.peerTop]?.key : null;
   const list = h('ul', { class: 'bars' }, [...options].sort((a, b) => b.p - a.p).map(o => {
@@ -59,7 +71,7 @@ function bars(options, chose, peer = null) {
         h('span', { class: peer ? 'w peer-w' : 'w' }, ticked ? `prior ${pct(before)} → posterior ${pct(o.p)}` : pct(o.p)),
         drawn ? h('span', { class: 'drawn' }, 'sampled') : null));
   }));
-  const head = !peer ? 'Bars show the probability the model assigned to each option; one option was then sampled (temperature 0.7).'
+  const head = !peer ? `Bars show the probability ${how || 'the model assigned to each option'}; one option was then sampled (temperature 0.7).`
     : peer.heard ? 'Bars show the posterior probability (after the message); ticks show the prior. One option was then sampled.'
       : 'Bars show the probability on the repeated query; ticks show the first query. One option was then sampled.';
   return h('div', null, h('p', { class: 'small muted' }, head), list);
@@ -103,9 +115,9 @@ function byNote(by) {
   return null;
 }
 
-/** One titled query of a turn, with its options as bars. */
-function question(title, ask, block) {
-  return h('div', null, h('h3', { class: 'q-title' }, title), h('p', { class: 'q-ask' }, ask), bars(block.options, block.chose));
+/** One titled query of a turn, with its options as bars. `how` says where the probabilities came from when it was not Jev. */
+function question(title, ask, block, how = '') {
+  return h('div', null, h('h3', { class: 'q-title' }, title), h('p', { class: 'q-ask' }, ask), bars(block.options, block.chose, null, how));
 }
 
 /** Shows one woven match: the woven output and the ownership map with the time control, the scoreboard, the chosen agent's queries and the events. */
@@ -115,10 +127,19 @@ function show(record, rug) {
   const log = rug.record;
   const cast = castOf(record.seats);
   const bench = record.bench;
+  const conditions = conditionsOf(record);
+  const solo = record.conditions?.agents === 'solo' ? record.conditions.solo : null, neighbours = conditions.neighbours ?? 'accept';
+  const fixed = conditions.area === 'fixed', chosen = choseDesigns(record);
+  const PLACEHOLDER_NOTE = SCRIPTED_NOTE[neighbours];
+  const isPlaceholder = s => solo !== null && s !== solo;
+  // Where a query's probabilities came from, when not from Jev's own answer.
+  const how = record.model === 'chance' ? 'of each option under uniform sampling (no model was queried)'
+    : conditions.read === 'tokens' ? 'the model gave each option, read from the probabilities of the first token of its reply'
+      : conditions.read === 'stated' ? 'the model stated for each option' : '';
   let t = clampInt(qs('t'), 0, last, last);
-  let seat = clampInt(qs('seat'), 0, 4, bench[0]);
+  let seat = clampInt(qs('seat'), 0, 4, solo ?? bench[0]);
   // The right-hand map: 'heard' (the adoption map) only for a peer-communication match, else the ownership map.
-  let view = qs('view') === 'heard' && record.mode === 'peers' ? 'heard' : 'who';
+  let view = qs('view') === 'heard' && record.mode === 'peers' ? 'heard' : qs('view') === 'flat' ? 'flat' : 'who';
   let timer = null;
 
   // The sparkline's scale: 0 up to the largest share anyone ever held, and the x position of each entry.
@@ -133,15 +154,15 @@ function show(record, rug) {
   const adoptBtn = record.mode === 'peers'
     ? h('button', { type: 'button', class: 'btn quiet', 'aria-pressed': 'false', onclick: () => setView('heard') }, 'Adoption map')
     : null;
-  const rightHead = adoptBtn
-    ? h('div', { class: 'pic-head row' }, ownBtn, adoptBtn)
-    : h('div', { class: 'pic-head' }, 'Ownership map');
+  const flatBtn = h('button', { type: 'button', class: 'btn quiet', 'aria-pressed': 'false', onclick: () => setView('flat') }, 'Flat colours');
+  const rightHead = h('div', { class: 'pic-head row' }, ownBtn, flatBtn, adoptBtn);
   const pair = h('div', { class: 'pair' },
     h('div', { class: 'pic-col' }, h('div', { class: 'pic-head' }, 'Woven output'), woven),
     h('div', { class: 'pic-col' }, rightHead, owned, whoNote));
   const strip = h('div', { class: 'bench-strip' },
-    h('p', { class: 'small muted' }, 'Starting positions, left to right. Each agent begins with 20% of the loom in its own design.'),
-    h('div', { class: 'bench-cells' }, bench.map(s => h('div', { class: 'bench-cell' }, startSwatch(s, 12, 3), h('span', { class: 'small' }, NAMES[s])))));
+    h('p', { class: 'small muted' }, chosen ? 'Starting positions, left to right. Each agent begins with 20% of the loom and chooses its first design.'
+      : 'Starting positions, left to right. Each agent begins with 20% of the loom in its own design.'),
+    h('div', { class: 'bench-cells' }, bench.map(s => h('div', { class: 'bench-cell' }, seatMark(s, chosen, 12, 3), h('span', { class: 'small' }, NAMES[s])))));
   const range = h('input', {
     type: 'range', min: 0, max: last, step: 1, value: t, 'aria-label': 'Time in the match',
     oninput: e => { stop(); setTime(Number(e.target.value)); },
@@ -170,10 +191,11 @@ function show(record, rug) {
       }),
       marker);
     const did = DID.filter(([k]) => res.did[k] > 0).map(([k, label]) => `${label} ${res.did[k]}`);
-    const person = chipPersonality(spec.personality);
-    const goalChip = chipGoal(spec.goal);
-    const personSentence = sentenceOf(s, spec.personality, 'personality');
-    const goalSentence = sentenceOf(s, spec.goal, 'goal');
+    // A placeholder is told nothing and asked nothing: it has no persona or objective to show.
+    const person = isPlaceholder(s) ? h('span', { class: 'chip', title: PLACEHOLDER_NOTE }, 'Scripted') : chipPersonality(spec.personality);
+    const goalChip = isPlaceholder(s) ? h('span', { class: 'muted' }, '–') : chipGoal(spec.goal);
+    const personSentence = isPlaceholder(s) ? '' : sentenceOf(s, spec.personality, 'personality');
+    const goalSentence = isPlaceholder(s) ? '' : sentenceOf(s, spec.goal, 'goal');
     if (personSentence) person.title = personSentence;
     if (goalSentence) goalChip.title = goalSentence;
     const el = h('div', {
@@ -187,13 +209,14 @@ function show(record, rug) {
         }
       },
     },
-      h('span', { class: 'c-name' }, startSwatch(s), NAMES[s]),
+      h('span', { class: 'c-name' }, seatMark(s, chosen), NAMES[s]),
       h('span', { class: 'c-person' }, person),
       h('span', { class: 'c-goal' }, goalChip),
       spark,
       now,
       score,
-      h('p', { class: 'c-did small muted' }, did.length ? did.join(' · ') : 'maintained position in every round'));
+      h('p', { class: 'c-did small muted' }, isPlaceholder(s) && neighbours !== 'chance' ? `scripted: ${neighbours === 'refuse' ? 'never acts, refuses every request' : 'never acts, accepts every request'}`
+        : `${isPlaceholder(s) ? 'scripted, by chance: ' : ''}${did.length ? did.join(' · ') : 'maintained position in every round'}`));
     return { seat: s, res, el, now, score, marker };
   }
 
@@ -202,7 +225,9 @@ function show(record, rug) {
   /** The score cell: nothing before the end, then the whole score with its mark, or the objective's name when there is none. */
   function scoreNodes(res) {
     if (t !== last) return [];
+    if (res.placeholder) return [h('span', { class: 'muted' }, 'not scored')];
     if (res.score === null) return [h('span', { class: 'muted' }, goal('none').name)];
+    if (fixed && SHARE_GOALS.has(res.goal)) return [h('span', { class: 'muted', title: 'Areas are fixed in this match, so no agent can change its share.' }, 'not applicable')];
     return [`${fmt(res.score)} `, mark(res.reached)];
   }
 
@@ -226,10 +251,17 @@ function show(record, rug) {
     const turn = passage ? log.find(x => x.kind === 'turn' && x.who === seat && x.pass === entry.pass) : null;
     const talks = passage ? log.filter(x => x.kind === 'talk' && x.pass === entry.pass && x.beats.some(b => b.who === seat)) : [];
     const body = [];
+    if (isPlaceholder(seat)) {
+      choices.replaceChildren(h('div', { class: 'quiet-box' }, PLACEHOLDER_NOTE),
+        h('p', { class: 'sub' }, `Select ${NAMES[solo]}, the one agent the model decides for in this match, to inspect its queries.`));
+      return;
+    }
     if (turn) {
       const peer = record.mode === 'peers' ? (record.peers ?? []).find(e => e.seat === seat && e.pass === entry.pass) : undefined;
-      body.push(peer ? peerQuestion(turn, peer) : question('Action', turn.asked.move, turn.move));
-      if (turn.yarn) body.push(question('Design', turn.asked.yarn, turn.yarn));
+      // With fixed areas the action has one option, so there is no decision to show.
+      if (turn.move.options.length > 1) body.push(peer ? peerQuestion(turn, peer) : question('Action', turn.asked.move, turn.move, how));
+      else body.push(h('div', null, h('h3', { class: 'q-title' }, 'Action'), h('p', { class: 'sub' }, `One option only: ${turn.move.options[0].text}`)));
+      if (turn.yarn) body.push(question('Design', turn.asked.yarn, turn.yarn, how));
       const note = byNote(turn.by);
       if (note) body.push(note);
     }
@@ -237,7 +269,7 @@ function show(record, rug) {
       const other = talk.from === seat ? talk.to : talk.from;
       const beats = talk.beats.filter(b => b.who === seat).map(b => h('div', null,
         h('p', { class: 'q-ask' }, b.asked),
-        bars(b.options, b.chose),
+        bars(b.options, b.chose, null, how),
         byNote(b.by)));
       body.push(h('div', { class: 'talk' }, h('h3', { class: 'q-title' }, `With ${NAMES[other]}`), beats, h('p', { class: 'small' }, talk.text)));
     }
@@ -304,9 +336,10 @@ function show(record, rug) {
   function setView(v) {
     view = v;
     ownBtn.setAttribute('aria-pressed', String(v === 'who'));
+    flatBtn.setAttribute('aria-pressed', String(v === 'flat'));
     adoptBtn?.setAttribute('aria-pressed', String(v === 'heard'));
-    whoNote.textContent = v === 'heard' ? HEARD_NOTE : WHO_NOTE;
-    owned.setAttribute('aria-label', v === 'heard' ? `The adoption map of ${rug.name}` : `The ownership map of ${rug.name}`);
+    whoNote.textContent = v === 'heard' ? HEARD_NOTE : v === 'flat' ? FLAT_NOTE : WHO_NOTE;
+    owned.setAttribute('aria-label', `${v === 'heard' ? 'The adoption map' : v === 'flat' ? 'The flat-colour picture' : 'The ownership map'} of ${rug.name}`);
     redraw();
   }
 
@@ -330,23 +363,33 @@ function show(record, rug) {
     }, STEP_MS);
   }
 
-  const sub = record.minds === 'chance'
-    ? `seed ${record.seed} · woven by chance: no model was asked`
-    : `${record.model} · seed ${record.seed} · ${record.calls} calls · $${fmt(record.dollars, 2)}`;
-
-  const subLine = record.mode === 'peers'
-    ? h('p', { class: 'sub' }, sub, ' · condition: peer communication · ', h('a', { href: 'report' }, 'method'))
-    : h('p', { class: 'sub' }, sub);
+  const sub = record.model === 'chance'
+    ? `seed ${record.seed} · uniform random: no model was queried`
+    : `${modelName(record.model)} · seed ${record.seed} · ${record.calls} calls${record.requests == null ? '' : ` (${record.requests} requests)`} · $${fmt(record.dollars, 2)}`;
+  // Every switch that is not at its default, with what it means for reading this match.
+  const off = switchWords(conditions);
+  const subLine = h('p', { class: 'sub' }, sub, off.length ? ` · condition: ${off.join(', ')} · ` : null,
+    off.length ? h('a', { href: record.mode === 'peers' ? 'report' : 'controls' }, record.mode === 'peers' ? 'method' : 'what the switches do') : null);
+  const notes = [
+    solo !== null ? `Solo: the model decides only for ${NAMES[solo]}. The other four seats are scripted neighbours that ${SCRIPTED_SOLO[neighbours]}. ${NAMES[solo]} is not told.` : null,
+    chosen ? 'Starting designs were chosen by the agents: the group voted on the palette and each agent chose its first design, so the woven output does not show who holds what. The ownership map does.' : null,
+    fixed ? 'Areas are fixed: no boundary can move, so every agent holds 20% throughout and only designs are decided. The share objectives (Grow, Give, Hold) cannot be pursued.' : null,
+    conditions.persona === 'off' ? 'Personas are off: no agent was given a trait sentence.' : null,
+    conditions.objective === 'off' ? 'Objectives are off: no agent was given an objective.' : null,
+    isChatModel(record.model) ? `A chat model (${modelName(record.model)}) decided in Jev's place: it was given the words Jev is given as a chat prompt, one request for each question.` : null,
+    isDecisionModel(record.model) ? `OpenAI's decision model (${modelName(record.model)}) decided in Jev's place: like Jev, it returns a probability for each option, and nothing was rephrased for it.` : null,
+  ].filter(Boolean);
 
   const board = h('div', { class: 'card scoreboard' },
     h('div', { class: 'score-head small muted' }, HEADS.map(([cls, text]) => h('span', { class: cls }, text))),
     rows.map(r => r.el));
 
-  main.replaceChildren(
+  main.replaceChildren(...[
     topbar(null),
     h('p', { class: 'back' }, h('a', { href: `./?run=${encodeURIComponent(run)}` }, '← Results')),
     h('h1', null, typeof record.match === 'number' ? `Match ${record.match} · ${rug.name}` : `Your match · ${rug.name}`),
     subLine,
+    notes.length ? h('div', { class: 'quiet-box condition-notes' }, notes.map(n => h('p', { class: 'small' }, n))) : null,
     h('div', { class: 'match-grid' },
       h('div', { class: 'match-left' },
         pair,
@@ -358,7 +401,7 @@ function show(record, rug) {
         h('h2', null, 'Queries and responses'),
         choices)),
     eventHead,
-    eventBox);
+    eventBox].filter(Boolean));
 
   setView(view);
   setTime(t);

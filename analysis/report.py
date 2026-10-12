@@ -43,7 +43,7 @@ ACT = [('Maintain position', 'work'), ('Concede share to the sender', 'giveMe'),
 ract = ci_rows([(lab, f'advocated {k}: influence', 'n = {n}') for lab, k in ACT])
 
 # advocated action by sender objective: pooled shares, read from both peers.json files
-rows = json.load(open(f'{R}/runs-v1/jev-peers/peers.json'))['rows'] + json.load(open(f'{R}/runs/peers/peers.json'))['rows']
+rows = json.load(open(f'{R}/runs/chosen-peers/peers.json'))['rows'] + json.load(open(f'{R}/runs/peers/peers.json'))['rows']
 SEG = [('work', 'maintain position', 's1'), ('giveMe', 'concede to sender', 's2'), ('takeMine', 'claim from sender', 's3'), ('takeOther', 'claim from a third agent', 's4'), ('shareMe', 'joint ownership with sender', 's5')]
 def stack():
     out = ['<div class="keys">' + ''.join(f'<span class="key"><span class="sw {cls}"></span>{e(lab)}</span>' for _, lab, cls in SEG) + '<span class="key"><span class="sw s6"></span>other</span></div>', '<div class="stack">']
@@ -123,8 +123,8 @@ it = lambda xs: ', '.join(f'<i>{x}</i>' for x in xs[:-1]) + f' and <i>{xs[-1]}</
 
 # ---- outcomes by run -------------------------------------------------------------------------------------------------
 def idx(path, upto=22): return [x for x in json.load(open(f'{R}/{path}/index.json'))['matches'] if x['match'] <= upto]
-RUNS = [('Run 1', 'No communication', idx('runs-v1/jev-1')), ('Run 1', 'No communication (replicate)', idx('runs-v1/jev-2')), ('Run 2', 'No communication', idx('runs/main')), ('Run 2', 'No communication (replicate)', idx('runs/replicate')),
-        ('Run 1', 'Peer communication', idx('runs-v1/jev-peers')), ('Run 2', 'Peer communication', idx('runs/peers'))]
+RUNS = [('Run 1', 'No communication', idx('runs/chosen-main')), ('Run 1', 'No communication (replicate)', idx('runs/chosen-replicate')), ('Run 2', 'No communication', idx('runs/main')), ('Run 2', 'No communication (replicate)', idx('runs/replicate')),
+        ('Run 1', 'Peer communication', idx('runs/chosen-peers')), ('Run 2', 'Peer communication', idx('runs/peers'))]
 did = lambda k: (lambda ms: st.mean(r['did'][k] for x in ms for r in x['results']))
 of = lambda g, f: (lambda ms: st.mean(f(next(r for r in x['results'] if r['goal'] == g)) for x in ms))
 attain = lambda ms: 100 * st.mean((1 if r['reached'] else 0) for x in ms for r in x['results'] if r['goal'] != 'none')
@@ -610,15 +610,15 @@ shift used here are different measures, so magnitudes are not compared. For refe
 </ul>
 
 <h2>7. Reproduction</h2>
-<pre class="code">node analysis/peers.mjs       # every decision-level estimate, from the records in runs/ and runs-v1/ (no key needed)
+<pre class="code">node analysis/peers.mjs       # every decision-level estimate, from the records in runs/ (no key needed)
 node analysis/outcomes.mjs    # the match-level comparisons of Section 3.7
 python3 analysis/report.py    # this page, from the two files those write
 
 node --env-file=&lt;file with TYPESAFE_API_KEY&gt; tools/run.mjs --matches 1-22 --run main          # no communication
 node --env-file=&lt;file&gt; tools/run.mjs --matches 1-22 --run replicate                        # its replicate
 node --env-file=&lt;file&gt; tools/run.mjs --peers --matches 1-22 --run peers                    # peer communication (about $0.02 a match)</pre>
-<p class="sub">Run 2 is in <code>runs/main</code>, <code>runs/replicate</code> and <code>runs/peers</code>; Run 1 in
-<code>runs-v1/</code>. Every decision of the peer condition, with prior, sender and posterior probabilities, is in
+<p class="sub">Run 2 is in <code>runs/main</code>, <code>runs/replicate</code> and <code>runs/peers</code>; Run 1, made under the
+first rules, is in <code>runs/chosen-main</code>, <code>runs/chosen-replicate</code> and <code>runs/chosen-peers</code>. Every decision of the peer condition, with prior, sender and posterior probabilities, is in
 <code>runs/peers/peers.json</code>; every response of every match is in its record's <code>tape</code>, from which the match
 re-executes without the model. An outside review of a draft of this report by a second model led to the clustering by match
 design, the treatment-effect rows and the narrower wording of Sections 3 and 4.</p>

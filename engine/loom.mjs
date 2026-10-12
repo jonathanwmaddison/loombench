@@ -33,6 +33,7 @@ export const LOOM = Object.freeze({
   refuse: 0.58,            // Where along REACT a weaver will not have what the guild's caller proposes.
   combine: true,           // Whether weavers may take from each other's yarns and hold ground together, or only argue.
   simple: false,           // The plain game: see `SIMPLE` below.
+  fixed: false,            // No edge can be moved: every weaver keeps the ground they began with, and only yarns are decided.
   councilTemperature: 0.35,
   stepBacks: [9, 18],      // Before these passages the guild steps back and looks at the whole.
   lotsOffered: 4, bandsOffered: 5, namesOffered: 6, movesOffered: 8,
@@ -346,8 +347,9 @@ function moveOffer(S, w, rnd) {
 
   const mine = width(S, k), beside = { L: S.grounds[k - 1] ?? null, R: S.grounds[k + 1] ?? null };
   const at = s => (beside[s] ? nameOf(S, beside[s], w) : `the ${SIDE[s]} selvedge`), ki = s => (s === 'L' ? k - 1 : k + 1);
-  const mayGrow = mine + 2 <= L.maxShare * S.field, mayGive = mine >= 6, still = !!S.spell;
-  out.push({ key: 'carry', kind: 'carry', text: still ? `Weave straight on while the bench is put even: your ground is ${mine} warps, between ${at('L')} and ${at('R')}.`
+  const mayGrow = mine + 2 <= L.maxShare * S.field, mayGive = mine >= 6, still = !!S.spell || L.fixed;
+  out.push({ key: 'carry', kind: 'carry', text: L.fixed ? `Weave straight on. On this loom no edge can be moved: your ground stays ${mine} warps, between ${at('L')} and ${at('R')}.`
+    : still ? `Weave straight on while the bench is put even: your ground is ${mine} warps, between ${at('L')} and ${at('R')}.`
     : `Weave straight on. Keep both your edges where they are: ${mine} warps between ${at('L')} and ${at('R')}.` });
   if (!still) {
     for (const s of ['L', 'R']) {

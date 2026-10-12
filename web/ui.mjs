@@ -90,7 +90,7 @@ export function qs(name) {
   return new URLSearchParams(window.location.search).get(name) || null;
 }
 
-/** The top bar; `active` is 'results', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
+/** The top bar; `active` is 'results', 'controls', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
 export function topbar(active) {
   const link = (href, label, key) => h('a', {
     href,
@@ -102,8 +102,59 @@ export function topbar(active) {
       h('a', { class: 'brand', href: './' }, 'LoomBench'),
       h('span', { class: 'tag' }, 'a multi-agent benchmark')),
     h('nav', null,
-      link('./', 'Results', 'results'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
+      link('./', 'Results', 'results'), link('controls', 'Controls', 'controls'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
       link('design', 'Design', 'design'), link('play', 'Play', 'play'), h('a', { class: 'source', href: REPO }, 'Source')));
+}
+
+/** The pictures of a match a page can show: [key, button label, file suffix]. */
+export const PICTURES = Object.freeze([['flat', 'Flat colours', '-flat'], ['cloth', 'Woven output', ''], ['who', 'Ownership map', '-who']]);
+/** How to read the flat picture. */
+export const FLAT_NOTE = 'Each colour is one agent\'s share. Thin diagonal lines of a second colour mark a design taken from that agent; '
+  + 'broad bands of two colours mark a share the two hold jointly.';
+
+/** Whether a match (a record, or its summary in an index) was made with the agents choosing their own first designs. */
+export const choseDesigns = m => !(m.rules >= 2) || m.conditions?.designs === 'chosen';
+
+/**
+ * An agent's mark beside its name: a swatch of its starting design, or, in a match where the agents chose their own
+ * designs (`chosen`), a dot in its colour, since it has no starting design to show.
+ */
+export function seatMark(seat, chosen = false, cells = 12, px = 2) {
+  return chosen ? dot(seat) : startSwatch(seat, cells, px);
+}
+
+/**
+ * A model as a page names it: 'uniform random' for chance; else its name without the provider and the publisher
+ * ('ollama:someone/gemma:4b' is 'gemma:4b'), with which of OpenAI's two interfaces it was asked through, since one
+ * model answers both ('gpt-6-luna (Decisions API)', 'gpt-6-luna (chat)').
+ */
+export function modelName(model) {
+  if (!model) return 'no model';
+  if (model === 'chance') return 'uniform random';
+  const m = /^([a-z-]+):(.+)$/.exec(String(model));
+  if (!m) return String(model);
+  const name = m[2].replace(/^.*\//, '');
+  return m[1] === 'openai-decisions' ? `${name} (Decisions API)` : m[1] === 'openai' ? `${name} (chat)` : name;
+}
+
+/** Whether a run's model is a chat model, asked through a chat prompt and read as probabilities (`bench/llm.mjs`). */
+export const isChatModel = model => /^(openai|ollama|compatible):/.test(String(model));
+/** Whether a run's model is OpenAI's decision model, asked as Jev is (`bench/decisions.mjs`). */
+export const isDecisionModel = model => String(model).startsWith('openai-decisions:');
+
+/**
+ * The switches of a run or a match (`conditionsOf`) in words, leaving out every default: an empty list when it was run
+ * as the benchmark is by default.
+ */
+export function switchWords(c) {
+  if (!c) return [];
+  return [
+    c.persona === 'off' ? 'personas off' : c.persona && c.persona !== 'dealt' ? `every persona ${personality(c.persona).name.toLowerCase()}` : null,
+    c.objective === 'off' ? 'objectives off' : c.objective === 'uniform' ? 'one objective for all' : c.objective && c.objective !== 'dealt' ? `every objective ${goal(c.objective).name}` : null,
+    c.agents === 'solo' ? `solo${{ refuse: ', neighbours refuse', chance: ', neighbours by chance' }[c.neighbours] ?? ''}` : null,
+    c.area === 'fixed' ? 'areas fixed' : null, c.designs === 'chosen' ? 'designs chosen by the agents' : null,
+    c.peers ? 'peer communication' : null,
+  ].filter(Boolean);
 }
 
 // The sequential ramp for heatmaps: one hue, light to dark, from a neutral grey at zero.

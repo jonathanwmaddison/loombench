@@ -738,8 +738,8 @@ below is "Previous matches".
 Under the first rules the group voted on a palette and each agent chose its first design, and most chose the same undyed
 wool, so the woven output did not show who held what. From rules 2 (`RULES` in `bench/core.mjs`; a record carries
 `rules: 2`): every match uses one palette, and each agent starts with a design no other agent has. Nobody is asked for
-either, and an agent may still change its design from the second round. Runs made under the first rules are kept in
-`runs-v1/` and are not shown.
+either, and an agent may still change its design from the second round. Runs made under the first rules were first
+kept apart in `runs-v1/`; since the switches below they are `runs/chosen-*` (the *Starting designs: chosen* setting).
 
 | Seat | Agent | Starting design | Page colour |
 | --- | --- | --- | --- |
@@ -790,8 +790,72 @@ What the pages do with it (the helpers exist: `startSwatch(seat)` in `web/ui.mjs
   credit or the key is refused; `tools/run.mjs` then stops, and it never keeps a match in which any call fell back to
   the engine's default. A run with nothing kept leaves no folder.
 
+### Switches: what a match is run under, and one run set against another (11 October 2026)
+
+Asked for as "more controls": agents deciding on their own, the same area for every agent, personas on or off, and a
+language model in Jev's place. A **switch** changes one thing about a match and leaves the rest as it is. Each has a
+default (first), and a record kept before a switch existed was run at its default.
+
+| Switch | Settings | Where it acts | Runner flag |
+| --- | --- | --- | --- |
+| Decision model | Jev · a chat model · uniform random | `ask` given to `play` (`engine/jev.mjs`, `bench/llm.mjs`, or none) | `--model jev \| chance \| <provider>:<model>` |
+| Starting designs | assigned · chosen by the agents | `play({ designs })`: with `chosen`, no palette or starting design is given to the engine | `--designs chosen` |
+| Personas | dealt · off · one for all | `seats[i].personality` (`plain` is off) | `--persona off \| KEY` |
+| Objectives | dealt · off · one for all | `seats[i].goal` (`none` is off) | `--objective off \| KEY` |
+| Agents deciding | all five · one (solo), among neighbours scripted to accept, refuse or act by chance | `play({ solo, neighbours })`, `bench/solo.mjs` | `--solo [--neighbours refuse \| chance]` |
+| Areas | can change · fixed | `play({ area })`, engine setting `loom.fixed` | `--area fixed` |
+| Peer communication | off · on | `play({ peers })`, `bench/peers.mjs` | `--peers` |
+
+Held constant under every setting: each agent starts with 20 of the 100 warps, in its own starting design, from one
+palette, for 26 rounds, under the same cap on share.
+
+- **Solo.** The model decides for one seat. The other four are scripted neighbours (`neighbours`). `accept`, the
+  default: on their own turn they keep working on their piece and keep their design, they accept a claim on their
+  share and a proposal of joint ownership, and one left with no share stays off the bench. `refuse`: the same, but
+  they refuse every claim and decline every proposal (an agent can still override a refusal). `chance`: every choice
+  of theirs is sampled uniformly. In the two group decisions (border, name) the seeded stream decides for them and
+  they never refuse. The agent is not told, and its first request is the group match's. `tools/run.mjs --solo` runs
+  each match design five times, once for each seat (`m003-s0` … `m003-s4`). A scripted neighbour's result carries
+  `placeholder: true`, has no score, and is left out of every table. Solo is not an agent alone on a loom, and pages
+  must not say so: objectives are relative to the other weavers and scores are ranks among five seats. It needs
+  assigned designs (a scripted neighbour keeps its design).
+- **Starting designs chosen.** The first rules as a setting: the group votes on a palette and each agent chooses its
+  first design. Pages mark agents by a dot in their colour, since they have no starting design to show.
+- **Areas fixed.** The action question has one option (maintain position), so nothing is claimed, conceded or
+  refused and every agent holds 20% throughout. An agent whose objective is about share (Grow, Give, Hold) has no
+  score; Borrow is scored as ever.
+- **A chat model.** `chatAsker` puts each question of a Jev body to an OpenAI-compatible host as one request and
+  returns the answer in Jev's shape, so nothing downstream changes. Reading `tokens`: the model replies with one
+  letter and the probabilities of the first token are the distribution (refused when the option letters hold less than
+  half of it). Reading `stated`: the model states a chance for each letter as JSON, taken only when it is complete and
+  sums to 100 within five. A model on this machine (Ollama) costs nothing; a priced model stops at a cap in dollars,
+  counting what requests in flight could cost; a refused key, an empty account or an absent host is fatal to the run,
+  as for Jev. Pages call a run made this way a second decision system, not another model behind Jev's interface.
+- **Another decision model** (asked for as "their decision model", 11 October 2026). `decisionsAsker`
+  (`bench/decisions.mjs`, spec `openai-decisions:gpt-6-luna`) maps a Jev body onto OpenAI's Decisions API field for
+  field: `state` to `input`, a choice's `criteria` to `choices` (`value` the option key, `description` its text), a
+  score's anchors to `levels`, every question of a call in one request. A refusal or a broken distribution fails the
+  call. OpenAI's models are limited to its current ones: the decision model, and the chat models in `PRICES`.
+- **Flat colours** (asked for as "simplify rug designs ... flat color ... primary colors"). A third picture of a
+  match, `view: 'flat'` in `engine/render.mjs` and `<id>-flat.png` in a run's thumbs: every stitch the flat colour of
+  its holder; thin diagonal lines of a second colour where the stitch's pattern or colour was taken from that agent;
+  broad bands of two colours where two hold the share jointly. It is the first picture on Controls and a button on
+  Results and One match. The designs in the rules are unchanged; making them flat is a rules change and a re-run.
+- **The record** carries `conditions: { agents, solo?, neighbours?, area, designs?, read? }` beside `model`, `seats`
+  and `mode`, and for a chat model `requests` (HTTP requests) beside `calls` (the loom's calls a model answered);
+  `conditionsOf(record)` is the full set, and a run's index repeats it (`conditions`). A run folder holds one setting:
+  the runner refuses to add a match made under another.
+- **One switch apart** (`bench/compare.mjs`). Two runs made from the same match designs that differ in one switch, or
+  in none (a second execution), are paired by match design: for each measure, the two means and the paired difference
+  with a Student-t interval over designs. A solo design is measured over its five deciding agents.
+- **Pages.** `/controls` lists the switches, a table of runs by model and condition, every comparison one switch from
+  a chosen baseline, and the woven outputs of each match design under each condition, side by side. Play has the seven
+  switches above the seats and follows a running match round by round (`POST /api/play` answers a job;
+  `GET /api/play/<job>`). Results and One match say which switches a run or a match was made under whenever one is
+  off its default; the run select is grouped by model.
+
 ## 11. Not in this build
 
-Other models in Jev's place, a dark theme, more than five seats, and objectives about joint ownership (the loom only
+A dark theme, more than five seats, different models at one loom, and objectives about joint ownership (the loom only
 offers it when two neighbours weave different designs, so it cannot be reached reliably). Not yet run for want of API
-credit: the uniform-objective reference runs and six matches of the replicate.
+credit: the uniform-objective reference runs, six matches of the replicate, and Jev under the new switches.

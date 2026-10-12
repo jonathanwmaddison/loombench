@@ -300,8 +300,9 @@ async function start() {
     show(...frame(), protocolSection(), noPeers());
     return;
   }
-  // The no-communication run is the largest dealt run with a model and no peer communication; the replicate, the next one.
-  const quietRuns = runs.filter(r => r.mode !== 'peers' && r.design !== 'uniform' && r.model !== 'chance' && r.run !== 'play')
+  // The no-communication run is the largest run of the same model made at the default switches; the replicate, the next one.
+  const model = runs.find(r => r.run === peersName)?.model, plain = c => !c || (c.agents === 'group' && c.area === 'free' && c.persona === 'dealt' && c.objective === 'dealt');
+  const quietRuns = runs.filter(r => r.mode !== 'peers' && r.design !== 'uniform' && r.model !== 'chance' && r.run !== 'play' && (!model || r.model === model) && plain(r.conditions))
     .sort((a, b) => b.matches - a.matches);
   const indexOf = name => getJSON(`runs/${enc(name)}/index.json`);
   let peers, peersJSON, quiet = null, again = null;

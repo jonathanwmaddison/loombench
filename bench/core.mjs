@@ -5,7 +5,9 @@
 import { weave } from '../engine/loom.mjs';
 import { WEAVERS, TYPES, american, typed, said } from '../engine/weavers.mjs';
 import { mindsOf, strand, sized, stitchOf, yarnName, DYE_LOTS } from '../engine/cloth.mjs';
+import { JEV } from '../engine/jev.mjs';
 import { peerAsker } from './peers.mjs';
+import { NEIGHBOURS, soloAsker, chanceAsker } from './solo.mjs';
 
 /** Seats at the loom. */
 export const SEATS = 5;
@@ -41,6 +43,23 @@ export function startStitch(seat, x, y) {
   return dyes[stitchOf(sized(startsOf()[seat], 2), x, y, {}).dye].hex;
 }
 const given = () => ({ lot: LOT, pot: [...POT], starts: startsOf() });
+
+/**
+ * THE SWITCHES of a match, besides who is told what. Each has a default (listed first), and a record kept before a
+ * switch existed was run at its default.
+ *
+ *   agents   'group': all five agents decide. 'solo': one agent decides and the other four seats are scripted
+ *            neighbours (`solo.mjs`): by default they never act and accept whatever is asked of them, so the agent
+ *            meets no opposition; `neighbours` can instead have them refuse everything, or act by chance.
+ *   area     'free': an agent can claim or concede share. 'fixed': no boundary can move, so every agent holds its 20
+ *            warps for the whole match and only designs are decided.
+ *   designs  'assigned': one palette for every match, and each agent starts with a design of its own (rules 2).
+ *            'chosen': the group votes on a palette and each agent chooses its first design, as under the first rules.
+ *
+ * The other switches are in what a seat is told (a persona or none, an objective or none: `seats`), in who decides (the
+ * model, or nobody: `ask`), and in whether agents hear a neighbour before acting (`peers`).
+ */
+export const SWITCHES = Object.freeze({ agents: Object.freeze(['group', 'solo']), area: Object.freeze(['free', 'fixed']), designs: Object.freeze(['assigned', 'chosen']) });
 
 const cap = key => key[0].toUpperCase() + key.slice(1);
 /** Every personality: 'plain' (no sentence) and the ten trait sentences, each { key, name, text }. */
@@ -80,6 +99,8 @@ export const GOALS = Object.freeze([
 
 /** The goals that are scored. */
 export const SCORED = Object.freeze(['grow', 'give', 'hold', 'borrow']);
+/** The goals that are about share. With areas fixed nobody can pursue them, and an agent given one has no score. */
+export const SHARE_GOALS = Object.freeze(['grow', 'give', 'hold']);
 
 /** The personality with this key, or throws. */
 export function personality(key) {
@@ -120,17 +141,43 @@ export function sentenceOf(seat, key, kind) {
 }
 
 /**
- * Weaves one match with the seats dealt. `ask` is a Jev asker, or null to choose by chance. With `peers` and an `ask`,
- * each move is asked again after the neighbour speaks (`peers.mjs`), and the log of those decisions is `rug.peers`.
- * Returns the finished rug.
+ * Weaves one match with the seats dealt. `ask` is a model's asker (Jev's, or a chat model's: `llm.mjs`), or null to
+ * choose by chance. With `peers` and an `ask`, each move is asked again after the neighbour speaks (`peers.mjs`), and
+ * the log of those decisions is `rug.peers`. `solo` is the one seat that decides (0 to 4), the rest being scripted as
+ * `neighbours` says ('accept', 'refuse' or 'chance'); `area: 'fixed'` lets no boundary move, and `designs: 'chosen'`
+ * lets the agents choose the palette and their first designs (`SWITCHES`). Returns the finished rug, with
+ * `rug.conditions` and `rug.cost`.
  */
-export async function play({ seats, seed, ask = null, onPass, peers = false }) {
-  const cast = castOf(seats), log = [], speaking = Boolean(peers && ask);
+export async function play({ seats, seed, ask = null, onPass, peers = false, solo = null, neighbours = 'accept', area = 'free', designs = 'assigned' }) {
+  if (solo !== null && !(Number.isInteger(solo) && solo >= 0 && solo < SEATS)) throw Error(`solo: a seat from 0 to ${SEATS - 1}`);
+  if (!NEIGHBOURS.includes(neighbours)) throw Error(`neighbours: ${NEIGHBOURS.join(', ')}`);
+  if (solo === null && neighbours !== 'accept') throw Error('neighbours are scripted only in a solo match');
+  if (!SWITCHES.area.includes(area)) throw Error(`area: ${SWITCHES.area.join(' or ')}`);
+  if (!SWITCHES.designs.includes(designs)) throw Error(`designs: ${SWITCHES.designs.join(' or ')}`);
+  // A placeholder keeps its design, so it must be given one.
+  if (solo !== null && designs === 'chosen') throw Error('a solo match needs assigned designs: a placeholder chooses nothing');
+  if (peers && solo !== null) throw Error('peer communication needs neighbours that decide, so it cannot be run solo');
+  if (peers && area === 'fixed') throw Error('peer communication is about the action, and with fixed areas there is one action');
+  const cast = castOf(seats), log = [], speaking = Boolean(peers && ask), count = { scripted: 0 }, cost = { dollars: null, requests: null };
+  // What a chat model charges, and how many requests an answer took, are carried beside each of its answers; Jev's
+  // cost is the loom's own count of tokens, and a Jev call is one request.
+  const metered = ask && (async (body, put) => {
+    const answers = await ask(body, put);
+    if (answers.dollars != null) cost.dollars = (cost.dollars ?? 0) + answers.dollars;
+    if (answers.requests != null) cost.requests = (cost.requests ?? 0) + answers.requests;
+    return answers;
+  });
+  let asker = speaking ? peerAsker(metered, { cast, seed, log }) : metered;
+  if (solo !== null) asker = soloAsker(asker ?? chanceAsker(seed, count), solo, count, { neighbours, seed });
   const rug = await weave({
-    seed, weavers: cast, ask: speaking ? peerAsker(ask, { cast, seed, log }) : ask, minds: ask ? 'jev' : 'chance',
-    simple: true, loom: { stepBacks: [] }, onPass, ...given(),
+    seed, weavers: cast, ask: asker, minds: asker ? 'jev' : 'chance', model: ask ? ask.model ?? JEV.model : 'chance',
+    simple: true, loom: { stepBacks: [], ...(area === 'fixed' ? { fixed: true } : {}) }, onPass, ...(designs === 'assigned' ? given() : {}),
   });
   if (speaking) rug.peers = log;
+  rug.conditions = { agents: solo === null ? 'group' : 'solo', ...(solo === null ? {} : { solo, neighbours }), area, ...(designs === 'chosen' ? { designs } : {}), ...(ask?.read ? { read: ask.read } : {}) };
+  rug.scripted = count.scripted;
+  rug.cost = ask ? cost.dollars ?? rug.stats.dollars : 0;
+  rug.requests = cost.requests;
   return rug;
 }
 
@@ -164,24 +211,58 @@ export function scoresOf(rug) {
   });
 }
 
-/** What is kept on disk for one match: the seats, each weaver's result, the costs, and the tape and loom that replay it. */
+/**
+ * What is kept on disk for one match: the seats, each agent's result, the switches it was run under, the costs, and
+ * the tape and loom that replay it. In a solo match the four scripted neighbours' results are marked `placeholder`,
+ * and the tables leave them out (`stats.mjs`). With areas fixed, an agent whose objective is about share has no
+ * `score`.
+ */
 export function recordOf(rug, { id, match = null, seats }) {
+  const conditions = rug.conditions ?? { agents: 'group', area: 'free' }, chance = rug.minds === 'chance' || rug.model === 'chance';
   return {
     // A rug woven by chance asked no model, whatever the engine's default model is called.
-    loombench: 1, id, match, seed: rug.seed, model: rug.minds === 'chance' ? 'chance' : rug.model, minds: rug.minds, seats,
+    loombench: 1, id, match, seed: rug.seed, model: chance ? 'chance' : rug.model, minds: chance ? 'chance' : rug.minds, seats,
     bench: rug.bench, name: rug.name,
     lot: rug.lot.name,
     results: scoresOf(rug).map(s => {
-      const { key } = goal(seats[s.seat].goal);
+      // No score for an agent with no objective, for one whose objective is about share when no share can change, or
+      // for a placeholder, which was told nothing.
+      const { key } = goal(seats[s.seat].goal), placeholder = conditions.agents === 'solo' && s.seat !== conditions.solo;
+      const unscored = key === 'none' || placeholder || (conditions.area === 'fixed' && SHARE_GOALS.includes(key));
       return {
         seat: s.seat, name: rug.weavers[s.seat].name, personality: seats[s.seat].personality, goal: key,
         ground: s.ground, scores: s.scores, met: s.met, did: s.did,
-        score: key === 'none' ? null : s.scores[key], reached: key === 'none' ? null : s.met[key],
+        score: unscored ? null : s.scores[key], reached: unscored ? null : s.met[key],
+        ...(placeholder ? { placeholder: true } : {}),
       };
     }),
-    calls: rug.stats.calls.jev, fallbacks: rug.stats.calls.script, dollars: rug.stats.dollars, seconds: rug.stats.ms / 1000,
+    // `calls` are the loom's calls that a model answered: one for each time an agent is asked, whatever number of
+    // questions it holds. Calls answered for a placeholder, or by chance, asked no model and are not counted. A chat
+    // model takes one request for each question, so its record also says how many `requests` were sent.
+    calls: rug.stats.calls.jev - (rug.scripted ?? 0), ...(rug.requests == null ? {} : { requests: rug.requests }),
+    fallbacks: rug.stats.calls.script, dollars: rug.cost ?? rug.stats.dollars, seconds: rug.stats.ms / 1000,
     loom: rug.loom, tape: rug.tape,
-    mode: rug.peers ? 'peers' : 'quiet', ...(rug.peers?.length ? { peers: rug.peers } : {}), rules: RULES,
+    mode: rug.peers ? 'peers' : 'quiet', ...(rug.peers?.length ? { peers: rug.peers } : {}), rules: RULES, conditions,
+  };
+}
+
+/**
+ * The switches a record was run under, in full: its model, whether personas and objectives were assigned ('dealt' when
+ * they differ between agents, 'off' when nobody has one, or the one key everybody has), who decides, whether areas can
+ * change, whether starting designs were assigned, and whether agents hear a neighbour. A record kept before a switch
+ * existed reads as its default.
+ */
+export function conditionsOf(record) {
+  // In a solo match the placeholders keep the persona and objective their seat was dealt, though nothing is asked as them.
+  const one = (pick, off) => { const keys = [...new Set(record.seats.map(pick))]; return keys.length > 1 ? 'dealt' : keys[0] === off ? 'off' : keys[0]; };
+  return {
+    model: record.model, persona: one(s => s.personality, 'plain'), objective: one(s => s.goal, 'none'),
+    agents: record.conditions?.agents ?? 'group',
+    ...(record.conditions?.agents === 'solo' ? { neighbours: record.conditions.neighbours ?? 'accept' } : {}),
+    area: record.conditions?.area ?? 'free',
+    // Under the first rules (a record with no `rules`) the agents always chose.
+    designs: record.rules >= 2 ? record.conditions?.designs ?? 'assigned' : 'chosen', peers: record.mode === 'peers',
+    ...(record.conditions?.read ? { read: record.conditions.read } : {}),
   };
 }
 
@@ -190,12 +271,14 @@ export function summaryOf(record) {
   return Object.fromEntries(Object.entries(record).filter(([k]) => k !== 'tape' && k !== 'loom' && k !== 'peers'));
 }
 
-/** The rug again from its record, asking nobody. */
-export async function replay(record) {
+/** The rug again from its record, asking nobody. `onAsk` is shown every question as it was put (`weave`). */
+export async function replay(record, { onAsk = null } = {}) {
   return weave({
-    seed: record.seed, weavers: castOf(record.seats), loom: record.loom, minds: record.minds,
+    onAsk,
+    seed: record.seed, weavers: castOf(record.seats), loom: record.loom, minds: record.minds, model: record.model,
     // A record kept under the first rules has no `rules`, and is woven again as it was: a voted lot, a chosen first design.
-    ...(record.rules >= 2 ? given() : {}),
-    ...(record.minds === 'chance' ? {} : { tape: record.tape }),
+    ...(record.rules >= 2 && record.conditions?.designs !== 'chosen' ? given() : {}),
+    // A match woven wholly by chance has nothing on its tape; a solo match by chance has its placeholders' answers there.
+    ...(record.minds === 'chance' && record.conditions?.agents !== 'solo' ? {} : { tape: record.tape }),
   });
 }

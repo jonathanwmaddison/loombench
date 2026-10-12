@@ -6,6 +6,15 @@
   "mode": "quiet",
   "design": "dealt",
   "rules": 2,
+  "conditions": {
+    "model": "chance",
+    "persona": "dealt",
+    "objective": "dealt",
+    "agents": "group",
+    "area": "free",
+    "designs": "assigned",
+    "peers": false
+  },
   "updated": "2026-10-11T15:18:05.735Z",
   "matches": [
     {

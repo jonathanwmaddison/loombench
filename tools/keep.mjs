@@ -8,8 +8,10 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { paint } from '../engine/render.mjs';
 import { jevAsker, directPost, JEV } from '../engine/jev.mjs';
-import { HUES, summaryOf } from '../bench/core.mjs';
+import { HUES, conditionsOf, summaryOf } from '../bench/core.mjs';
 import { heededCloth, rowsOfPeers } from '../bench/peers.mjs';
+import { PROVIDERS, chatAsker, parseModel } from '../bench/llm.mjs';
+import { decisionsAsker } from '../bench/decisions.mjs';
 import { png } from './png.mjs';
 
 const writeWhole = async (file, data) => {
@@ -20,13 +22,15 @@ const writeWhole = async (file, data) => {
 
 /**
  * Writes a match's pictures under `dir/thumbs/`: `<id>.png` (the rug), `<id>-who.png` (each stitch in its holder's
- * colour), and, when the rug has neighbours' decisions, `<id>-heard.png` (the rug read by who was heeded).
+ * colour), `<id>-flat.png` (flat colours: who holds what, with what was taken from whom drawn over it), and, when the
+ * rug has neighbours' decisions, `<id>-heard.png` (the rug read by who was heeded).
  */
 export async function keepPictures(dir, id, rug) {
   await mkdir(join(dir, 'thumbs'), { recursive: true });
   const thumb = join(dir, 'thumbs', id);
   await writeWhole(`${thumb}.png`, png(paint(rug.cloth, rug.lot.dyes, { scale: 2 })));
   await writeWhole(`${thumb}-who.png`, png(paint(rug.cloth, rug.lot.dyes, { scale: 2, view: 'who', hues: HUES })));
+  await writeWhole(`${thumb}-flat.png`, png(paint(rug.cloth, rug.lot.dyes, { scale: 2, view: 'flat', hues: HUES })));
   if (rug.peers?.length) {
     const heeded = heededCloth(rug.cloth, rug.peers);
     await writeWhole(`${thumb}-heard.png`, png(paint(heeded, rug.lot.dyes, { scale: 2, view: 'who', hues: HUES })));
@@ -56,8 +60,10 @@ export async function writeIndex(dir, run) {
     // `design`: 'uniform' when, in every match, all five agents hold one objective (a reference run); else the balanced deal.
     design: records.length && records.every(r => new Set(r.seats.map(x => x.goal)).size === 1) ? 'uniform' : 'dealt',
     rules: records[0]?.rules ?? 1,
+    // The switches the run was made under (`conditionsOf`): a run is one condition, so its first match speaks for it.
+    conditions: records.length ? conditionsOf(records[0]) : null,
     updated: new Date().toISOString(), matches: records.map(summaryOf),
-    totals: { matches: records.length, calls: sum('calls'), dollars: sum('dollars'), seconds: sum('seconds') },
+    totals: { matches: records.length, calls: sum('calls'), ...(records.some(r => r.requests != null) ? { requests: sum('requests') } : {}), dollars: sum('dollars'), seconds: sum('seconds') },
   };
   await mkdir(dir, { recursive: true });
   await writeWhole(join(dir, 'index.json'), JSON.stringify(index, null, 2));
@@ -75,7 +81,7 @@ export async function runList(runsDir) {
       const index = JSON.parse(await readFile(join(runsDir, run, 'index.json'), 'utf8'));
       runs.push({
         run, model: index.model, minds: index.minds, mode: index.mode ?? 'quiet', design: index.design ?? 'dealt',
-        rules: index.rules ?? 1, matches: index.totals.matches, updated: index.updated,
+        rules: index.rules ?? 1, matches: index.totals.matches, updated: index.updated, conditions: index.conditions ?? null,
       });
     } catch { /* a folder without a readable index is not a run */ }
   }
@@ -105,4 +111,22 @@ export function environmentAsk() {
     }
   };
   return Object.defineProperty(jevAsker(tried, { budget: 100000 }), 'fatal', { get: () => state.fatal });
+}
+
+/**
+ * The asker for a model spec, from this process's environment: 'jev' (`environmentAsk`), 'openai-decisions:<model>'
+ * (OpenAI's decision model, `bench/decisions.mjs`) or '<provider>:<model>' (a chat model, `bench/llm.mjs`), its key
+ * read from the provider's variable and its address from `<PROVIDER>_BASE_URL` when
+ * that is set; `LLM_AT_ONCE` overrides how many requests are in flight together. Null when the key it needs is not set.
+ * Throws a sentence for a spec that is not one.
+ */
+export function askerFor(spec = 'jev', { read = null, effort = null, prices = null, cap = 1 } = {}) {
+  if (spec === 'jev') return environmentAsk();
+  const { provider, model } = parseModel(spec), P = PROVIDERS[provider];
+  const apiKey = P.keyEnv ? process.env[P.keyEnv] ?? null : null;
+  const baseUrl = process.env[P.urlEnv ?? `${provider.toUpperCase().replace(/-/g, '_')}_BASE_URL`] ?? null;
+  if (P.keyEnv && !apiKey && P.url) return null;
+  if (P.api === 'decisions') return decisionsAsker({ apiKey, model, cap, ...(baseUrl ? { baseUrl } : {}) });
+  const atOnce = Number(process.env.LLM_AT_ONCE) || null;
+  return chatAsker({ provider, model, read, effort, apiKey, baseUrl, prices, cap, atOnce });
 }

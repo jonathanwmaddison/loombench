@@ -33,7 +33,8 @@ canvas, img { max-width: 100%; }
 .topbar .who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .topbar .brand { font-weight: 600; color: var(--ink); text-decoration: none; }
 .topbar .tag { font-size: 14px; color: var(--muted); }
-.topbar nav { display: flex; gap: 20px; }
+.topbar nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.topbar nav a { white-space: nowrap; }
 .topbar nav a { color: var(--ink-2); text-decoration: none; }
 .topbar nav a:hover, .topbar .brand:hover { text-decoration: underline; }
 .topbar nav a.on { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
@@ -205,6 +206,6 @@ details.method > :not(summary) { font-size: 14px; color: var(--ink-2); max-width
 @media (max-width: 759px) {
   .page { padding: 20px 16px 72px; }
   .cards, .tiles { grid-template-columns: 1fr; }
-  .topbar nav { gap: 16px; }
+  .topbar nav { gap: 6px 16px; }
   h1 { font-size: 26px; }
 }

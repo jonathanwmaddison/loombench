@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controls: LoomBench</title>
+<link rel="stylesheet" href="web/app.css">
+<style>
+  /* Controls only: the tables of switches and runs, a comparison's rows with their interval plot, and the grid of pictures. */
+  h2 { margin-top: 36px; }
+  .switch-table td, .runs-table td, .compare td, .pictures td { vertical-align: top; }
+  .switch-table { min-width: 900px; }
+  .switch-table td:first-child { white-space: nowrap; }
+  .switch-table code, .sub code, .small code { font: 12.5px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+  .switch-table td:last-child { white-space: nowrap; }
+  .runs-table td:first-child { white-space: nowrap; }
+  .runs-table td > div + div { margin-top: 4px; }
+
+  .comparison { margin: 16px 0 0; }
+  .comparison h3 { margin: 0 0 6px; font-size: 16px; }
+  .comparison p { margin: 0 0 6px; max-width: 84ch; }
+  .comparison .scroll { margin: 10px 0 0; }
+  .compare { min-width: 720px; }
+  .compare th, .compare td { padding: 8px 12px; }
+  .compare td:first-child { font-weight: 400; }
+  .compare .num { text-align: right; white-space: nowrap; }
+  .compare td.plot { width: 34%; min-width: 180px; }
+  .compare tbody tr:last-child td { border-bottom: 0; }
+
+  /* A paired difference: an axis centred on zero, the interval as a bar, the mean as a dot. */
+  .ci { position: relative; display: block; height: 16px; }
+  .ci-zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--axis); }
+  .ci-bar { position: absolute; top: 7px; height: 2px; background: var(--ink-2); border-radius: 1px; }
+  .ci-dot { position: absolute; top: 4px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--surface); }
+
+  .pictures { width: auto; }
+  .pictures th { white-space: nowrap; }
+  .pictures td:first-child { min-width: 190px; font-weight: 600; }
+  .who-lines { margin-top: 6px; font-weight: 400; }
+  .who-line { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 18px; color: var(--ink-2); white-space: nowrap; }
+  .pic { display: block; width: 104px; }
+  .pic img { display: block; width: 100%; height: auto; border-radius: 4px; background: var(--hairline); }
+  .minis { display: flex; gap: 6px; }
+  .pic.mini { width: 62px; text-decoration: none; color: var(--ink-2); }
+  .mini-who { display: flex; align-items: center; gap: 3px; margin-top: 3px; font-size: 10.5px; line-height: 14px; white-space: nowrap; overflow: hidden; }
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="muted">Loading…</p>
+</main>
+<script type="module" src="web/controls.mjs"></script>
+</body>
+</html>

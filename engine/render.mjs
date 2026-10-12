@@ -37,6 +37,12 @@ function strand(img, lot, x, y0, y1, k) {
  * `shown`) as bare warp. `view` is 'cloth'; or 'who', every stitch tinted by whose ground it is in; or 'ideas', by whose
  * idea put it there (`hues`, one per weaver). A stitch of two (a ground held together, one weaver's pattern in another's
  * colour) is striped in both, so the two readings of one cloth can be laid side by side.
+ *
+ * `view: 'flat'` is the cloth with the designs taken out: every stitch is the flat colour of whoever holds it, with no
+ * shading. Two things are drawn over that, each in two flat colours. A ground two hold together is in broad bands of
+ * both their colours. A stitch whose pattern or colour was taken from another weaver carries thin diagonal lines of
+ * that weaver's colour, so a borrowed pattern shows as a lined figure on the holder's flat ground, and a design copied
+ * whole as a ground lined all over.
  */
 export function paintRows(img, cloth, dyes, y0, y1, { shown = cloth.rows, view = 'cloth', hues = [] } = {}) {
   const s = img.s, W = cloth.W, lot = dyes.map(d => rgb(d.hex)), wall = img.v.wall, who = hues.map(rgb);
@@ -56,6 +62,16 @@ export function paintRows(img, cloth, dyes, y0, y1, { shown = cloth.rows, view =
           const thread = q === (s >> 1) - 1 || q === (s >> 1);
           px(img, img.ox + x * s + q, top + j, thread ? lot[UNDYED] : wall, thread ? (0.8 + 0.14 * hash(x, 7)) * (1 - 0.1 * (((top + j) >> 1) & 1)) : 0.62);
         }
+        continue;
+      }
+      if (view === 'flat') {
+        const own = cloth.own[i], own2 = cloth.own2[i], by = cloth.by[i], by2 = cloth.by2[i];
+        // Whose idea a stitch is, when it is not its holder's: the pattern's first, else the colour's.
+        const lender = own >= 0 && by >= 0 && by !== own && by !== own2 ? by : own >= 0 && by2 >= 0 && by2 !== own && by2 !== own2 ? by2 : -1;
+        // Held by two: bands four rows deep. Taken from another: one thread in three, on the diagonal, so the holder's colour still fills the ground.
+        const w = own < 0 ? -1 : own2 >= 0 && own2 !== own ? (((y >> 2) & 1) ? own2 : own) : lender >= 0 && (x + y) % 3 === 0 ? lender : own;
+        const flat = w >= 0 ? who[w] : [222, 218, 208];
+        for (let j = 0; j < s; j++) for (let q = 0; q < s; q++) px(img, img.ox + x * s + q, top + j, flat, 1);
         continue;
       }
       let c = lot[dye];

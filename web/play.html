@@ -21,6 +21,30 @@
   .seat select { width: 100%; }
   .seat .note { display: flex; flex-direction: column; gap: 4px; }
   .controls { margin-top: 8px; }
+
+  /* The switches: one row each, its name, its control, and what the current setting does. */
+  .switches { margin: 24px 0 0; }
+  .switches h2 { margin-bottom: 4px; }
+  .switches > p { margin: 0 0 12px; max-width: 72ch; }
+  .switch { display: grid; grid-template-columns: 160px 280px minmax(0, 1fr); gap: 6px 20px; align-items: center; padding: 12px 0; border-top: 1px solid var(--hairline); }
+  .switch:last-child { padding-bottom: 0; }
+  .switch-name { font-size: 14px; font-weight: 600; }
+  .switch-control select { max-width: 100%; }
+  .switch-note { max-width: 68ch; }
+  .segmented { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg-btn { font-size: 14px; line-height: 1.2; padding: 8px 14px; min-height: 34px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--axis); }
+  .seg-btn[aria-pressed="true"] { background: var(--ink); color: #fff; font-weight: 500; }
+  .seg-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .seg-btn:focus-visible { outline-offset: -3px; }
+  @media (max-width: 899px) {
+    .switch { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* A seat that decides nothing in a solo match. */
+  .seat.placeholder { background: transparent; border-style: dashed; }
+  .seat.placeholder .part { opacity: 0.45; }
+  .seat .role:empty { display: none; }
 </style>
 </head>
 <body>
