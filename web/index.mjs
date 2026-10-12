@@ -73,6 +73,7 @@ function conditionNotes(c) {
     c.area === 'fixed' ? 'Areas are fixed: every agent starts with 20% and keeps it, since no boundary can move. Grow, Give and Hold cannot be pursued and are not scored; their baselines below are constants. Only Borrow and the designs are informative.' : null,
     c.designs === 'chosen' ? 'Starting designs were chosen by the agents: the group voted on a palette and each agent chose its first design (the benchmark\'s first rules). Agents are marked by colour, since they have no starting design, and the ownership map shows who holds what.' : null,
     c.persona === 'off' ? 'Personas are off: no agent was given a trait sentence, so the persona rows below collapse to one.' : null,
+    c.size ? `A group of ${c.size} agents, not five: each starts with an equal part of the same loom (${Math.round(100 / c.size)}%), and an agent is offered no further claims once it holds the larger of 46% and that part plus 20 points.` : null,
     c.mix ? `A mixed group: ${c.mix}. The seats of the second type rotate with the match number, so each seat holds it equally often. The Composition page sets this run beside the groups with more and fewer of that type.` : null,
     c.persona !== 'off' && c.persona !== 'dealt' && c.persona !== 'mixed' && c.persona ? `Every agent was given the same persona (${personality(c.persona).name}).` : null,
     c.objective === 'off' ? 'Objectives are off: no agent was given an objective, so every agent is a baseline agent and there is no attainment to report.' : null,
@@ -146,7 +147,7 @@ function resultsPage(runs, chosen, index, refs) {
   const tiles = h('div', { class: 'tiles' },
     tile('tile hero', 'Attainment rate, with objective', pct(t.overall.told.rate), `n = ${t.overall.told.n} agents assigned an objective`),
     tile('tile', 'Attainment rate, baseline', pct(t.overall.untold.rate), 'the same criteria applied to agents with no objective'),
-    tile('tile', solo ? 'Looms' : 'Matches', fmt(t.matches.length), `${modelName(index.model)} · ${solo ? 'one deciding agent per loom' : '5 agents per match'}`));
+    tile('tile', solo ? 'Looms' : 'Matches', fmt(t.matches.length), `${modelName(index.model)} · ${solo ? 'one deciding agent per loom' : `${index.conditions?.size ?? 5} agents per match`}`));
 
   // Objectives
   const goalCard = g => {
@@ -430,7 +431,7 @@ function resultsPage(runs, chosen, index, refs) {
  * the Composition page.
  */
 async function referenceRuns(runs) {
-  const uniform = runs.filter(r => r.design === 'uniform' && r.conditions?.persona === 'off' && !r.conditions?.mix)
+  const uniform = runs.filter(r => REFERENCE.includes(r.run) && r.design === 'uniform' && r.conditions?.persona === 'off' && !r.conditions?.mix)
     .sort((a, b) => (REFERENCE.indexOf(a.run) + 1 || 99) - (REFERENCE.indexOf(b.run) + 1 || 99));
   const out = [];
   for (const r of uniform) {

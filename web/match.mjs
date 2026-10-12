@@ -137,7 +137,7 @@ function show(record, rug) {
     : conditions.read === 'tokens' ? 'the model gave each option, read from the probabilities of the first token of its reply'
       : conditions.read === 'stated' ? 'the model stated for each option' : '';
   let t = clampInt(qs('t'), 0, last, last);
-  let seat = clampInt(qs('seat'), 0, 4, solo ?? bench[0]);
+  let seat = clampInt(qs('seat'), 0, record.seats.length - 1, solo ?? bench[0]);
   // The first picture: flat colours unless another is asked for; 'heard' (the adoption map) only for a peer-communication match.
   let view = qs('view') === 'heard' && record.mode === 'peers' ? 'heard' : qs('view') === 'who' ? 'who' : 'flat';
   let timer = null;
@@ -161,7 +161,7 @@ function show(record, rug) {
     h('div', { class: 'pic-col' }, h('div', { class: 'pic-head' }, 'Woven output'), woven));
   const strip = h('div', { class: 'bench-strip' },
     h('p', { class: 'small muted' }, chosen ? 'Starting positions, left to right. Each agent begins with 20% of the loom and chooses its first design.'
-      : 'Starting positions, left to right. Each agent begins with 20% of the loom in its own design.'),
+      : `Starting positions, left to right. Each agent begins with ${Math.round(100 / record.seats.length)}% of the loom in its own design.`),
     h('div', { class: 'bench-cells' }, bench.map(s => h('div', { class: 'bench-cell' }, seatMark(s, chosen, 12, 3), h('span', { class: 'small' }, NAMES[s])))));
   const range = h('input', {
     type: 'range', min: 0, max: last, step: 1, value: t, 'aria-label': 'Time in the match',

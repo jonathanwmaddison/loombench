@@ -166,3 +166,38 @@ test('two models are set against each other on the same step, paired by match nu
   // The same model against itself differs in nothing.
   assert.ok(between(a, a).rows.every(r => r.difference.mean === 0));
 });
+
+test('a group can have two to five agents: equal parts of the same loom, the odd seats by the same rule, and its size in the record', async () => {
+  for (const size of [2, 3, 4, 5]) {
+    for (let n = 1; n <= 2 * size; n++) {
+      assert.equal(oddSeats(n, 1, size)[0], (n - 1) % size);
+      assert.deepEqual(oddSeats(n, 2, size).slice(0, 1), oddSeats(n, 1, size));
+      assert.equal(new Set(oddSeats(n, size, size)).size, size);
+    }
+  }
+  assert.deepEqual(oddSeats(1, 3), oddSeats(1, 3, 5));
+  assert.throws(() => oddSeats(1, 1, 6), /from 2 to 5 agents/);
+  assert.throws(() => oddSeats(1, 4, 3), /a count from 0 to 3/);
+  const seats = [{ personality: 'blunt', goal: 'none' }, { personality: 'calm', goal: 'none' }, { personality: 'calm', goal: 'none' }];
+  assert.equal(castOf(seats).length, 3);
+  assert.throws(() => castOf(seats.slice(0, 1)), /from 2 to 5 agents/);
+  const rug = await play({ seats, seed: 4 }), record = recordOf(rug, { id: 'm004', match: 4, seats });
+  assert.equal(record.results.length, 3);
+  const c = conditionsOf(record);
+  assert.deepEqual([c.size, c.mix, c.persona], [3, '1 blunt + 2 calm', 'mixed']);
+  assert.equal(conditionsOf({ model: 'x', rules: 2, seats: group(1, 1) }).size, undefined);
+  // What the agents hold alone and what two hold jointly are the whole loom, whatever the size.
+  assert.ok(Math.abs(record.results.reduce((s, r) => s + r.ground, 0) + record.joint + (record.bare ?? 0) - 100) < 0.6);
+  // Hold is scored against a third of the loom, not a fifth: an agent ending on its starting part scores 100.
+  const third = record.results.map(r => Math.abs(r.ground - 100 / 3));
+  assert.ok(record.results.every((r, i) => Math.abs(r.scores.hold - Math.max(0, 100 * (1 - third[i] * 3 / 100))) < 0.6));
+  assert.ok(sameCloth(await replay(JSON.parse(JSON.stringify(record))), rug));
+  await assert.rejects(play({ seats, seed: 4, solo: 0 }), /fewer than five/);
+  // A group of three is a setting of its own, and is read apart from the groups of five.
+  assert.equal(switchesOf({ conditions: c }).agents, 'group of 3');
+  const calm = { personality: 'calm', goal: 'none' }, blunt = { personality: 'blunt', goal: 'none' };
+  const few = (run, k) => runOf(run, 'm', [1, 2].map(n => { const s = Array.from({ length: 2 }, () => ({ ...calm })); for (const i of oddSeats(n, k, 2)) s[i] = { ...blunt }; return { match: n, id: `m${n}`, seats: s, bench: [0, 1], results: s.map((x, seat) => ({ seat, personality: x.personality, goal: 'none', ground: 50, did: { took: 0, gave: 0, offered: 0, refused: 0, borrowed: 0 } })) }; }));
+  const five = [runOf('c-0', 'm', [1, 2].map(n => made(n, group(n, 0, calm, blunt), [20, 20, 20, 20, 20], [0, 0, 0, 0, 0]))), runOf('c-1', 'm', [1, 2].map(n => made(n, group(n, 1, calm, blunt), [20, 20, 20, 20, 20], [0, 0, 0, 0, 0])))];
+  const sets = compositions([...five, few('d-0', 0), few('d-1', 1)]);
+  assert.deepEqual(sets.map(s => [s.size, s.types.join('+'), s.levels.map(l => l.count).join()]).sort(), [[2, 'calm+blunt', '0,1'], [5, 'calm+blunt', '0,1']]);
+});

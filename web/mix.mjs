@@ -6,18 +6,20 @@ import { NAMES, HUES, personality, goal, sentenceOf, typeOf } from '../bench/cor
 import { compositions, levelOf, shift, seatTypes } from '../bench/mix.mjs';
 
 const main = document.querySelector('main.page');
-const LEDE = 'How a group\'s results differ when one or more of its agents are given another type. A group is first made of five agents of one type; then the same matches are run again '
+const LEDE = 'How a group\'s results differ when one or more of its agents are given another type. A group is first made of agents of one type (five, unless a set says otherwise); then the same matches are run again '
   + 'with one of its seats given to a second type, then two, and so on. The match number fixes the seed, the palette, each agent\'s starting design '
   + 'and the order on the bench, so within a row only the types differ.';
 const cap = text => text[0].toUpperCase() + text.slice(1);
+/** A type (a persona's key, then `>objective`) as the page names it: the disposition, or the objective where there is no persona. */
+const labelOf = type => { const [persona, objective] = String(type).split('>'); return persona === 'no persona' ? (objective ? goal(objective).name : 'no objective') : objective ? `${persona}, ${goal(objective).name}` : persona; };
 
 /** A type as the page names it, and the seat spec ({ personality, goal }) of one seat that holds it. */
 function typeInfo(set, type) {
   for (const { run } of set.levels) for (const m of run.matches) {
     const seat = seatTypes(m).indexOf(type);
-    if (seat >= 0) return { type, name: cap(type), spec: m.seats[seat] };
+    if (seat >= 0) return { type, name: cap(labelOf(type)), spec: m.seats[seat] };
   }
-  return { type, name: cap(type), spec: null };
+  return { type, name: cap(labelOf(type)), spec: null };
 }
 
 /** The sentences an agent of a type is told, as seat 0 would be. */
@@ -33,17 +35,19 @@ function typeCard(info, role) {
 
 /** The five agents of a match left to right as seated: a square in each agent's colour, ringed where it is of the second type. */
 function benchStrip(m, second) {
+  const nameB = labelOf(second);
   const order = m.bench ?? m.results.map(r => r.seat), types = seatTypes(m);
   const odd = order.filter(s => types[s] === second);
   return h('div', { class: 'strip' },
-    h('div', { class: 'strip-row', role: 'img', 'aria-label': `Left to right: ${order.map(s => `${NAMES[s]} (${types[s]}, ${fmt(m.results.find(r => r.seat === s).ground)}%)`).join(', ')}` },
+    h('div', { class: 'strip-row', role: 'img', 'aria-label': `Left to right: ${order.map(s => `${NAMES[s]} (${labelOf(types[s])}, ${fmt(m.results.find(r => r.seat === s).ground)}%)`).join(', ')}` },
       order.map(s => h('span', { class: types[s] === second ? 'sq odd' : 'sq', style: { background: HUES[s] },
-        title: `${NAMES[s]}: ${types[s]}, final share ${fmt(m.results.find(r => r.seat === s).ground)}%` }))),
-    h('div', { class: 'strip-who small' }, odd.length === 0 ? '' : odd.length === 5 ? `all ${second}` : odd.map(s => `${NAMES[s]} ${fmt(m.results.find(r => r.seat === s).ground)}%`).join(', ')));
+        title: `${NAMES[s]}: ${labelOf(types[s])}, final share ${fmt(m.results.find(r => r.seat === s).ground)}%` }))),
+    h('div', { class: 'strip-who small' }, odd.length === 0 ? '' : odd.length === 5 ? `all ${nameB}` : odd.map(s => `${NAMES[s]} ${fmt(m.results.find(r => r.seat === s).ground)}%`).join(', ')));
 }
 
 /** The pictures: a row a match number, a column a composition. */
 function pictures(set, second) {
+  const nameB = labelOf(second);
   const numbers = [...new Set(set.levels.flatMap(l => l.run.matches.map(m => m.match)))].sort((a, b) => a - b);
   let view = 'flat', shown = numbers.slice(0, 5);
   const suffix = () => PICTURES.find(([key]) => key === view)[2], label = () => PICTURES.find(([key]) => key === view)[1];
@@ -55,11 +59,11 @@ function pictures(set, second) {
     return h('td', null,
       h('a', { class: 'pic', href: `match?run=${encodeURIComponent(level.run.run)}&id=${encodeURIComponent(m.id)}`, title: `${level.run.run}, match ${n}` },
         h('img', { src: `runs/${encodeURIComponent(level.run.run)}/thumbs/${encodeURIComponent(m.id)}${suffix()}.png`, loading: 'lazy', width: 232, height: 384,
-          alt: `${label()}, match ${n}, ${level.count} ${second}` })),
+          alt: `${label()}, match ${n}, ${level.count} ${nameB}` })),
       benchStrip(m, second));
   };
   const draw = () => box.replaceChildren(h('table', { class: 'grid pictures' },
-    h('thead', null, h('tr', null, h('th', null, 'Match'), set.levels.map(l => h('th', { title: `Run ${l.run.run}` }, `${l.count} ${second}`)))),
+    h('thead', null, h('tr', null, h('th', null, 'Match'), set.levels.map(l => h('th', { title: `Run ${l.run.run}` }, `${l.count} ${nameB}`)))),
     h('tbody', null, shown.map(n => h('tr', null, h('td', null, `Match ${n}`), set.levels.map(l => cell(l, n)))))));
   const buttons = PICTURES.map(([key, text]) => h('button', {
     type: 'button', class: key === view ? 'btn' : 'btn quiet', 'aria-pressed': String(key === view), dataset: { view: key },
@@ -86,6 +90,7 @@ const svg = (tag, attrs, ...children) => {
 
 /** The final share of an agent of each type against how many seats hold the second: two lines on one axis, intervals over matches. */
 function chart(levels, first, second) {
+  const nameA = labelOf(first), nameB = labelOf(second);
   const W = 780, H = 320, L = 52, R = 190, T = 18, B = 44, counts = levels.map(l => l.count);
   const all = levels.flatMap(l => [first, second].map(t => l.level.types[t]?.share).filter(Boolean)).flatMap(d => [d.mean, d.hi, d.lo].filter(Number.isFinite));
   const top = Math.max(40, 10 * Math.ceil(Math.max(...all) / 10));
@@ -106,7 +111,7 @@ function chart(levels, first, second) {
       pts.map(p => [
         Number.isFinite(p.d.lo) ? svg('line', { x1: x(p.c), x2: x(p.c), y1: y(p.d.lo), y2: y(p.d.hi), stroke: ink, 'stroke-width': 1, opacity: 0.55 }) : null,
         svg('circle', { cx: x(p.c), cy: y(p.d.mean), r: 4.5, fill: solid ? ink : 'var(--surface)', stroke: ink, 'stroke-width': 2 },
-          svg('title', null, `${p.c} ${second}: an agent of type ${type} ends with ${fmt(p.d.mean, 1)}% on average`
+          svg('title', null, `${p.c} ${nameB}: an agent of type ${type} ends with ${fmt(p.d.mean, 1)}% on average`
             + `${Number.isFinite(p.d.lo) ? ` (95% interval ${fmt(p.d.lo, 1)} to ${fmt(p.d.hi, 1)})` : ''}, ${p.n} matches`)),
       ]),
       svg('text', { x: x(end.c) + 12, y: labelAt(type), 'font-size': 13, fill: 'var(--ink)' }, `${cap(type)} ${fmt(end.d.mean)}%`),
@@ -114,13 +119,13 @@ function chart(levels, first, second) {
   };
   return h('div', { class: 'card chart-card' },
     svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', class: 'chart',
-      'aria-label': `Mean final share of an agent of each type, by the number of ${second} agents among the five. The table below gives the same numbers.` },
+      'aria-label': `Mean final share of an agent of each type, by the number of ${nameB} agents among the five. The table below gives the same numbers.` },
     ticks.map(v => [svg('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: 'var(--hairline)', 'stroke-width': 1 }),
       svg('text', { x: L - 8, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 12, fill: 'var(--ink-2)' }, `${v}%`)]),
     svg('line', { x1: L, x2: W - R, y1: y(20), y2: y(20), stroke: 'var(--axis)', 'stroke-width': 1, 'stroke-dasharray': '2 3' }),
     svg('text', { x: W - R + 12, y: labelAt('start'), 'font-size': 12, fill: 'var(--ink-2)' }, 'every agent starts with 20%'),
     counts.map(c => svg('text', { x: x(c), y: H - B + 20, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--ink-2)' }, String(c))),
-    svg('text', { x: (L + W - R) / 2, y: H - 6, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--ink-2)' }, `agents of type ${second}, of five`),
+    svg('text', { x: (L + W - R) / 2, y: H - 6, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--ink-2)' }, `agents of type ${nameB}, of five`),
     series.map(line)),
     h('p', { class: 'small muted', style: { margin: '6px 0 0' } }, `Mean final share of one agent of each type; the bars are 95% intervals over matches. `
       + 'A share is what an agent holds alone, so the shares of a match sum to less than 100 where ground is held jointly.'));
@@ -128,18 +133,19 @@ function chart(levels, first, second) {
 
 /** How the loom ends divided under each composition: one bar a composition, the second type's agents together, the first type's, and what two agents hold jointly. */
 function bars(levels, first, second) {
-  const parts = [[second, 'part-second', cap(second)], [first, 'part-first', cap(first)], ['joint', 'part-joint', 'Held jointly']];
+  const nameA = labelOf(first), nameB = labelOf(second);
+  const parts = [[second, 'part-second', cap(nameB)], [first, 'part-first', cap(nameA)], ['joint', 'part-joint', 'Held jointly']];
   return h('div', { class: 'card bars-card' },
     h('div', { class: 'legend small' }, parts.map(([, cls, name]) => h('span', { class: 'legend-item' }, h('span', { class: `key ${cls}` }), name))),
     levels.map(({ count, level }) => {
       const d = level.division, total = parts.reduce((s, [k]) => s + d[k], 0) || 1;
       return h('div', { class: 'bar-row' },
-        h('div', { class: 'bar-name' }, `${count} ${second}`),
-        h('div', { class: 'bar', role: 'img', 'aria-label': `${count} ${second}: ${parts.map(([k, , name]) => `${name} ${fmt(d[k])}%`).join(', ')}` },
+        h('div', { class: 'bar-name' }, `${count} ${nameB}`),
+        h('div', { class: 'bar', role: 'img', 'aria-label': `${count} ${nameB}: ${parts.map(([k, , name]) => `${name} ${fmt(d[k])}%`).join(', ')}` },
           parts.filter(([k]) => d[k] > 0.05).map(([k, cls, name]) => h('span', { class: `part ${cls}`, style: { width: `${100 * d[k] / total}%` }, title: `${name}: ${fmt(d[k], 1)}% of the loom` },
             d[k] / total > 0.07 ? `${fmt(d[k])}%` : ''))));
     }),
-    h('p', { class: 'small muted', style: { margin: '10px 0 0' } }, `The mean over matches of how the loom ends divided: what the ${second} agents hold alone, what the ${first} agents hold alone, `
+    h('p', { class: 'small muted', style: { margin: '10px 0 0' } }, `The mean over matches of how the loom ends divided: what the ${nameB} agents hold alone, what the ${nameA} agents hold alone, `
       + 'and what two agents hold jointly. An agent\'s share, here and below, is what it holds alone. Compositions with two or more of the second type rest on fewer matches.'));
 }
 
@@ -148,6 +154,7 @@ const clear = d => Number.isFinite(d.lo) && (d.lo > 0 || d.hi < 0);
 
 /** One step of the set (one more seat of the second type), paired by match number. */
 function shiftCard(a, b, second) {
+  const nameB = labelOf(second);
   const s = shift(a.run.matches, b.run.matches);
   if (s.matches < 2) return h('p', { class: 'sub' }, 'Fewer than two match numbers are in both runs.');
   const block = (label, rows) => rows.map((r, i) => h('tr', { class: i ? null : 'first' },
@@ -158,10 +165,10 @@ function shiftCard(a, b, second) {
     h('p', { class: 'small muted' }, `${a.run.run} against ${b.run.run} · ${s.matches} match numbers in both · difference is the second minus the first, with a 95% interval over matches; `
       + 'bold where the interval excludes zero. Counts are per agent over the 26 rounds.'),
     h('div', { class: 'scroll' }, h('table', { class: 'grid compare' },
-      h('thead', null, h('tr', null, ['Seats', 'Measure', `${a.count} ${second}`, `${b.count} ${second}`, 'Difference [95% interval]'].map((t, i) => h('th', { class: i > 1 ? 'num' : null }, t)))),
+      h('thead', null, h('tr', null, ['Seats', 'Measure', `${a.count} ${nameB}`, `${b.count} ${nameB}`, 'Difference [95% interval]'].map((t, i) => h('th', { class: i > 1 ? 'num' : null }, t)))),
       h('tbody', null,
-        s.changed ? block(`The ${s.changed.seats === 1 ? 'seat' : `${s.changed.seats} seats`} that changed: ${s.changed.from} → ${s.changed.to}`, picked(s.changed.rows)) : null,
-        Object.entries(s.kept).map(([type, kept]) => block(`The ${kept.seats === 1 ? 'seat' : `${kept.seats} seats`} that stayed ${type}`, picked(kept.rows))),
+        s.changed ? block(`The ${s.changed.seats === 1 ? 'seat' : `${s.changed.seats} seats`} that changed: ${labelOf(s.changed.from)} → ${labelOf(s.changed.to)}`, picked(s.changed.rows)) : null,
+        Object.entries(s.kept).map(([type, kept]) => block(`The ${kept.seats === 1 ? 'seat' : `${kept.seats} seats`} that stayed ${labelOf(type)}`, picked(kept.rows))),
         h('tr', { class: 'first' }, h('td', null, 'The group'), h('td', null, 'Dispersion of final shares (pp)'), h('td', { class: 'num' }, fmt(s.dispersion.from, 1)),
           h('td', { class: 'num' }, fmt(s.dispersion.to, 1)), h('td', { class: clear(s.dispersion.difference) ? 'num strong' : 'num' }, ci(s.dispersion.difference))),
         h('tr', null, h('td', null, ''), h('td', null, 'Held jointly (% of the loom)'), h('td', { class: 'num' }, fmt(s.joint.from, 1)),
@@ -170,12 +177,13 @@ function shiftCard(a, b, second) {
 
 /** Every composition of the set in one table. */
 function levelsTable(levels, first, second) {
+  const nameA = labelOf(first), nameB = labelOf(second);
   const cell = d => (d ? fmt(d.mean, 1) : '–');
   return h('div', { class: 'scroll' }, h('table', { class: 'grid' },
-    h('thead', null, h('tr', null, [`${cap(second)} agents`, 'Run', 'Matches', `Share, ${second} (%)`, `Share, ${first} (%)`, `Claims, ${second}`, `Claims, ${first}`,
-      `Concessions, ${second}`, `Concessions, ${first}`, 'Held jointly (%)', 'Dispersion (pp)', 'Largest share (%)'].map((t, i) => h('th', { class: i > 1 ? 'num' : null }, t)))),
+    h('thead', null, h('tr', null, [`${cap(nameB)} agents`, 'Run', 'Matches', `Share, ${nameB} (%)`, `Share, ${nameA} (%)`, `Claims, ${nameB}`, `Claims, ${nameA}`,
+      `Concessions, ${nameB}`, `Concessions, ${nameA}`, 'Held jointly (%)', 'Dispersion (pp)', 'Largest share (%)'].map((t, i) => h('th', { class: i > 1 ? 'num' : null }, t)))),
     h('tbody', null, levels.map(({ count, run, level }) => h('tr', null,
-      h('td', null, `${count} of 5`), h('td', null, h('a', { href: `./?run=${encodeURIComponent(run.run)}` }, run.run)), h('td', { class: 'num' }, String(level.matches)),
+      h('td', null, `${count} of ${run.matches[0]?.seats.length ?? 5}`), h('td', null, h('a', { href: `./?run=${encodeURIComponent(run.run)}` }, run.run)), h('td', { class: 'num' }, String(level.matches)),
       h('td', { class: 'num' }, cell(level.types[second]?.share)), h('td', { class: 'num' }, cell(level.types[first]?.share)),
       h('td', { class: 'num' }, cell(level.types[second]?.claims)), h('td', { class: 'num' }, cell(level.types[first]?.claims)),
       h('td', { class: 'num' }, cell(level.types[second]?.concessions)), h('td', { class: 'num' }, cell(level.types[first]?.concessions)),
@@ -184,6 +192,7 @@ function levelsTable(levels, first, second) {
 
 function page(sets, set) {
   const [first, second] = set.types, a = typeInfo(set, first), b = typeInfo(set, second);
+  const nameA = labelOf(first), nameB = labelOf(second);
   const levels = set.levels.map(l => ({ ...l, level: levelOf(l.run.matches, set.types) }));
   const steps = levels.slice(1).map((l, i) => [levels[i], l]).filter(([p, q]) => q.count === p.count + 1);
   let step = steps[0] ?? null;
@@ -192,21 +201,21 @@ function page(sets, set) {
     step = [p, q];
     for (const x of stepButtons) { const on = x === e.currentTarget; x.className = on ? 'btn' : 'btn quiet'; x.setAttribute('aria-pressed', String(on)); }
     stepBox.replaceChildren(shiftCard(p, q, second));
-  } }, `${p.count} → ${q.count} ${second}`));
+  } }, `${p.count} → ${q.count} ${nameB}`));
   if (step) stepBox.replaceChildren(shiftCard(step[0], step[1], second));
   const select = sets.length > 1 ? h('select', { 'aria-label': 'Set of runs', onchange: e => { window.location.search = `?set=${encodeURIComponent(e.target.value)}`; } },
-    sets.map(s => h('option', { value: s.key, selected: s === set }, `${modelName(s.model)} · ${s.types.join(' and ')}`))) : null;
+    sets.map(s => h('option', { value: s.key, selected: s === set }, `${modelName(s.model)} · ${s.types.map(labelOf).join(', with ')}${(s.size ?? 5) === 5 ? '' : ` · ${s.size} agents`}`))) : null;
   return [
     topbar('mix'),
     h('div', { class: 'spread head' }, h('h1', null, 'Composition'), select),
     h('p', { class: 'lede' }, LEDE),
-    h('p', { class: 'sub' }, h('a', { href: 'brief' }, 'The study on one page'), ' has the main results of every set with their figures.'),
-    h('p', { class: 'sub' }, `Decision model: ${modelName(set.model)}. Compositions run: ${levels.map(l => `${l.count} ${second} (${l.level.matches} matches)`).join(', ')}. `
+    h('p', { class: 'sub' }, 'The study on one page: ', h('a', { href: 'brief' }, 'dispositions'), ' and ', h('a', { href: 'brief-objective' }, 'objectives'), ', each with the main results and their figures.'),
+    h('p', { class: 'sub' }, `Decision model: ${modelName(set.model)}. Compositions run: ${levels.map(l => `${l.count} ${nameB} (${l.level.matches} matches)`).join(', ')}. `
       + 'Which seats hold the second type rotates with the match number, so each seat holds it equally often, and the seat that holds it when one does still holds it when two do.'),
     h('div', { class: 'types' }, typeCard(a, 'The group'), typeCard(b, 'The type that is added')),
     h('h2', null, 'The same matches as the group changes'),
-    h('p', { class: 'sub' }, `Each row is one match number, each column one more ${second} agent. Under a picture the five agents are shown left to right as seated, `
-      + `each in its colour; a square with a dark outline is a ${second} agent, named beneath with its final share. Select a picture to open the match.`),
+    h('p', { class: 'sub' }, `Each row is one match number, each column one more ${nameB} agent. Under a picture the agents are shown left to right as seated, `
+      + `each in its colour; a square with a dark outline is a ${nameB} agent, named beneath with its final share. Select a picture to open the match.`),
     ...pictures(set, second),
     h('h2', null, 'How the loom ends divided'),
     bars(levels, first, second),

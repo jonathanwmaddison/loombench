@@ -29,7 +29,7 @@ export const TYPE_MEASURES = Object.freeze([
 /** The type each seat of a match holds, as `typeOf` words it: an array by seat. */
 export const seatTypes = m => m.seats.map(typeOf);
 
-/** The standard deviation of a match's five final shares, in percentage points: 0 when every agent ends with 20%. */
+/** The standard deviation of a match's final shares, in percentage points: 0 when every agent ends with the same share. */
 export function dispersion(m) {
   const shares = m.results.map(r => r.ground), mu = mean(shares);
   return Math.sqrt(mean(shares.map(x => (x - mu) ** 2)));
@@ -51,13 +51,15 @@ export function division(m, types) {
 /**
  * The sets of runs to read together. `runs` are run indexes. A set is a model, the other switches, and two types: every
  * run of that model whose seats hold only those two types, by how many seats hold the second (`count`, 0 to 5). The
- * second type is the one that is added: the type with fewer seats in the set's largest run of both types (the later
- * in alphabetical order when that does not say). Only runs with every other switch alike are put together, and a set
+ * A set is also of one group size (`size`, five unless its runs were made with fewer agents). The
+ * second type is the one that is added: the type with fewer seats in the set's largest run of both types (where that
+ * run is split evenly, the type that is not the one with the larger run to itself; failing that, the later in
+ * alphabetical order). Only runs with every other switch alike are put together, and a set
  * needs a run with both types in it.
  * Returns [{ key, model, types: [first, second], levels: [{ count, run }] }], levels by count.
  */
 export function compositions(runs) {
-  const rest = r => { const c = r.conditions ?? {}; return JSON.stringify([c.agents ?? 'group', c.neighbours ?? null, c.area ?? 'free', c.designs ?? 'assigned', Boolean(c.peers), c.read ?? null, c.effort ?? null]); };
+  const rest = r => { const c = r.conditions ?? {}; return JSON.stringify([c.agents ?? 'group', c.neighbours ?? null, c.area ?? 'free', c.designs ?? 'assigned', Boolean(c.peers), c.read ?? null, c.effort ?? null, c.size ?? 5]); };
   // What types a run is made of: the same in every match, or it is no run of a composition.
   const made = new Map();
   for (const r of runs) {
@@ -69,14 +71,17 @@ export function compositions(runs) {
   for (const [r, kinds] of made) {
     if (kinds.length !== 2) continue;
     const key = `${r.model} ${rest(r)} ${kinds.join(' | ')}`;
-    if (!sets.has(key)) sets.set(key, { key, model: r.model, rest: rest(r), types: kinds, levels: [] });
+    if (!sets.has(key)) sets.set(key, { key, model: r.model, rest: rest(r), size: r.conditions?.size ?? 5, types: kinds, levels: [] });
   }
   for (const set of sets.values()) {
     // Which type is the one added: the minority of the largest run that has both (then of the most unequal one).
     const seatsOfType = (r, t) => seatTypes(r.matches[0]).filter(x => x === t).length;
     const lead = [...made].filter(([r, kinds]) => kinds.length === 2 && r.model === set.model && rest(r) === set.rest && kinds.join(' | ') === set.types.join(' | ')).map(([r]) => r)
-      .sort((a, b) => b.matches.length - a.matches.length || Math.abs(2.5 - seatsOfType(b, set.types[0])) - Math.abs(2.5 - seatsOfType(a, set.types[0])) || a.run.localeCompare(b.run))[0];
-    if (seatsOfType(lead, set.types[0]) < seatsOfType(lead, set.types[1])) set.types = [set.types[1], set.types[0]];
+      .sort((a, b) => b.matches.length - a.matches.length || Math.abs(set.size / 2 - seatsOfType(b, set.types[0])) - Math.abs(set.size / 2 - seatsOfType(a, set.types[0])) || a.run.localeCompare(b.run))[0];
+    // Where that run is split evenly (a group of two), the group's type is the one that has a run to itself with more matches.
+    const alone = t => Math.max(0, ...[...made].filter(([r, kinds]) => kinds.length === 1 && kinds[0] === t && r.model === set.model && rest(r) === set.rest).map(([r]) => r.matches.length));
+    const [p, q] = set.types.map(t => seatsOfType(lead, t));
+    if (p < q || (p === q && alone(set.types[1]) > alone(set.types[0]))) set.types = [set.types[1], set.types[0]];
     for (const [r, kinds] of made) {
       if (r.model !== set.model || rest(r) !== set.rest || kinds.some(k => !set.types.includes(k))) continue;
       const counts = r.matches.map(m => seatTypes(m).filter(t => t === set.types[1]).length);
@@ -156,9 +161,9 @@ export const BETWEEN = Object.freeze([
  */
 export function between(a, b) {
   const by = runs => new Map(runs.map(m => [m.match, m])), A0 = by(a.none), A1 = by(a.one), B0 = by(b.none), B1 = by(b.one);
-  const numbers = [...A1.keys()].filter(n => A0.has(n) && B0.has(n) && B1.has(n)).sort((x, y) => x - y), seats = [0, 1, 2, 3, 4];
+  const numbers = [...A1.keys()].filter(n => A0.has(n) && B0.has(n) && B1.has(n)).sort((x, y) => x - y);
   const of = (m0, m1) => {
-    const t0 = seatTypes(m0), t1 = seatTypes(m1), focal = seats.filter(s => t0[s] !== t1[s]), others = seats.filter(s => t0[s] === t1[s]);
+    const t0 = seatTypes(m0), t1 = seatTypes(m1), seats = [...t0.keys()], focal = seats.filter(s => t0[s] !== t1[s]), others = seats.filter(s => t0[s] === t1[s]);
     const avg = (m, which, f) => mean(which.map(s => f(m.results.find(r => r.seat === s))));
     const out = { 'focal.before': avg(m0, focal, r => r.ground), 'focal.after': avg(m1, focal, r => r.ground), 'others.before': avg(m0, others, r => r.ground), 'others.after': avg(m1, others, r => r.ground),
       'focal.claims': avg(m1, focal, r => r.did.took), 'others.refusals': avg(m1, others, r => r.did.refused), 'base.claims': avg(m0, seats, r => r.did.took), 'base.joint': joint(m0) };

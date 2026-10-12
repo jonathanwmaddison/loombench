@@ -861,6 +861,13 @@ palette, for 26 rounds, under the same cap on share.
   reader new to the benchmark (asked for as "a report with some interesting visualizations 1 pager", then "intermodel
   differences would be interesting ... make this readable by an academic"): it says "focal agent" for the seat that is
   changed, "other agents" for the four that are not, "seed" for a match number and k for the count.
+  Then (12 October 2026) "1 page for disposition, 1 page for objective -- also does it matter to have so many agents?":
+  `/brief` (dispositions) and `/brief-objective` (no personas; one agent given Grow or Give, or Grow among agents told
+  to Hold) are one module with two settings (`BRIEFS` in `web/brief.mjs`), and a group can have two to five agents
+  (`--size N`, `oddSeats(match, count, size)`, `conditions.size`; a set of runs is of one size). The engine's
+  `maxShare` (46% for five agents; the larger of 46% and an equal part plus 20 points for fewer) is a threshold on the
+  claims offered, not a limit on the final share: pages call it the claim threshold and say how often the changed agent
+  finished at it.
   The two sentences for cooperative and greedy, and the one for rude, are mine; the user has not seen alternatives.
 - **Flat colours** (asked for as "simplify rug designs ... flat color ... primary colors"). A third picture of a
   match, `view: 'flat'` in `engine/render.mjs` and `<id>-flat.png` in a run's thumbs: every stitch the flat colour of

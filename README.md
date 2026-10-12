@@ -16,7 +16,7 @@ given to another type, to see how its results differ.
 | Results | [`/`](https://jonathanwmaddison.github.io/loombench/) | The benchmark: objective scores with objective against baseline, a persona-by-objective heatmap, every match |
 | Controls | `/controls` | The switches, which runs exist under which setting, each run against the run one switch away, and the same match designs side by side under every condition |
 | Composition | `/mix` | A group of one type of agent, and the same matches with one to five of its seats given to a second type: the matches side by side, final share by type, and what one more seat changes |
-| Brief | [`/brief`](https://jonathanwmaddison.github.io/loombench/brief) | The group-composition study on one page for a reader new to the benchmark, drawn from the records: question, design and result; one seed pictured at every composition; every seed before and after one substitution; the decision systems set against each other; findings and limitations. Prints on one A4 sheet; a copy is `docs/composition-brief.pdf` |
+| Briefs | [`/brief`](https://jonathanwmaddison.github.io/loombench/brief), [`/brief-objective`](https://jonathanwmaddison.github.io/loombench/brief-objective) | The group-composition study on one page each, for a reader new to the benchmark and drawn from the records: one for a substituted disposition, one for a substituted objective. Question, design and result; one seed pictured at every composition; every seed before and after one substitution; the decision systems set against each other; findings and limitations. Each prints on one A4 sheet; copies are `docs/composition-brief.pdf` and `docs/objective-brief.pdf` |
 | Peer influence | [`/peers`](https://jonathanwmaddison.github.io/loombench/peers) | The peer-communication study, interactive: every match under three conditions |
 | Report | [`/report`](https://jonathanwmaddison.github.io/loombench/report) | The peer-influence study written up: method, results with heatmaps, implications for multi-agent collaboration |
 | Design | [`/design`](https://jonathanwmaddison.github.io/loombench/design) | The system: every model call in a round, request and response schemas, records and replay |
@@ -37,6 +37,8 @@ node --env-file=<file> tools/run.mjs --model openai:gpt-6-luna --effort none --m
 node --env-file=<file> tools/run.mjs --model openai:gpt-6-luna --effort none --matches 1-11 --solo   # ... each agent deciding alone
 node tools/run.mjs --model ollama:gemma3:4b --matches 1-11 --persona off   # ... a model on this machine, with no personas
 node --env-file=<file> tools/run.mjs --persona calm --objective off --odd blunt --matches 1-10   # four calm agents and one blunt
+node --env-file=<file> tools/run.mjs --persona off --objective off --odd ">grow" --matches 1-10   # no personas; one agent told to grow
+node --env-file=<file> tools/run.mjs --persona calm --objective off --odd blunt --size 3 --matches 1-10   # the same contrast with three agents
 node tools/rethumb.mjs --run main                                          # redraw a run's pictures from its records
 node analysis/peers.mjs && node analysis/outcomes.mjs                      # every estimate in the report, from the records
 node analysis/controls.mjs --answers                                       # every run against the run one switch away
@@ -44,7 +46,7 @@ node analysis/models.mjs --scores                                          # the
 node analysis/mix.mjs                                                      # group composition: each mix against the one a seat away
 node tools/site.mjs                                                        # the static copy of the site, in _site/
 node analysis/refusals.mjs                                                 # refused questions and unreadable replies, and what handling them changes
-node --test                                                                # 85 tests; no key or network needed
+node --test                                                                # 86 tests; no key or network needed
 ```
 
 No dependencies. Node 22 or later (Python 3 only to regenerate the Report and Design pages). The default decision model
@@ -336,6 +338,13 @@ the Brief (`/brief`) puts the main results on one page, and `node analysis/mix.m
 Match numbers 1-10 for none and for one agent of the second type, 1-5 for two to five; each composition was executed
 once. Differences are paired by match number, with a 95% interval over match numbers.
 
+**A threshold on claims.** The rules stop offering an agent claims once it holds 46% of the loom (`maxShare` in
+`engine/loom.mjs`). It is a threshold on the moves offered, not a limit on the final share: an agent can pass it by
+what others concede (52% in one of Jev's matches with a blunt agent). In the disposition comparisons below the agent that was changed
+finished at 45% or more in 5 to 10 of the 10 match numbers (7 for Jev's blunt agent, 10 for its rude agent); with an
+objective in place of a disposition, in 1 to 3 of 10. These comparisons cannot show how much the threshold affected
+the results, so a final share near 46% should be read with it in mind.
+
 ### A calm group, and blunt agents added (Jev)
 
 *Calm* and *blunt* are two of the benchmark's ten trait sentences ("Jessica is calm and relaxed, hard to upset, and
@@ -415,6 +424,49 @@ Three decision systems were run on this step with the same 10 match numbers: Jev
 
 A comparison between systems compares a model together with its interface and the way its probabilities are read,
 not models alone.
+
+### One agent given an objective
+
+The same design with no personas: the group has no objective (or all are told to hold their starting share), and
+one agent is given another objective. The objective brief (`/brief-objective`) has the figures. The criterion is the
+objective's own: for *Grow* the strictly largest final share, for *Give* the strictly smallest.
+
+| Group → the changed agent | System | Its final share, before → after | Change [95% interval] | Each other agent's change | Criterion met |
+| --- | --- | --- | --- | --- | --- |
+| No objective → Grow | Jev | 18.2% → 38.7% | +20.5 [15.1, 25.9] | −5.8 [−8.2, −3.5] | 10 of 10 |
+| No objective → Grow | GPT (Decisions) | 18.3% → 32.6% | +14.3 [7.3, 21.3] | −4.6 [−7.4, −1.8] | 8 of 10 |
+| No objective → Give | Jev | 18.2% → 7.0% | −11.2 [−13.9, −8.5] | +2.8 [2.2, 3.5] | 9 of 10 |
+| No objective → Give | GPT (Decisions) | 18.3% → 16.4% | −1.9 [−11.8, 8.0] | +1.0 [−2.9, 4.8] | 2 of 10 |
+| Hold → Grow | Jev | 20.0% → 34.7% | +14.7 [8.7, 20.7] | −3.7 [−5.2, −2.2] | 10 of 10 |
+
+- **Told to grow**, the changed agent's mean share rose under both systems; the paired difference between them
+  (decision model minus Jev) was −6.2 points [−16.7, 4.3], an interval that includes zero.
+- **Told to give**, Jev's agent ended with 7.0% and met the criterion in 9 of 10 match numbers; the decision model's
+  showed no clear change in share and met it in 2 of 10.
+- **Among agents all told to hold**, which recorded no claim and no refusal in 10 matches, one agent told to grow
+  averaged 34.7%, and the agents left with *Hold* then recorded 1.4 claims and 2.6 refusals each per match.
+- **By the number of agents told to grow**, the mean share of each was 38.7, 39.0, 30.1, 24.4 and 20.0% under Jev and
+  32.6, 29.5, 25.1, 19.1 and 18.5% under the decision model, for one to five (5 match numbers from two on).
+- `gpt-6-luna` as a chat model is missing here: the OpenAI account ran out of credit as its runs began.
+
+### Group size
+
+Whether the result depends on there being five agents: the calm group with one blunt agent, run by Jev with two,
+three and four agents as well (`--size N`; 10 match numbers each). In a smaller group each agent starts with an equal
+part of the same loom, and the claim threshold is the larger of 46% and that part plus 20 points.
+
+| Agents | Starting share | Claim threshold | The changed agent's final share, before → after | Change [95% interval] | Each other agent's change | Finished no more than 1 point below the threshold |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2 | 50% | 70% | 50.0% → 71.6% | +21.6 [19.7, 23.5] | −21.6 [−23.5, −19.7] | 10 of 10 |
+| 3 | 33% | 53% | 32.7% → 53.8% | +21.1 [19.9, 22.3] | −10.6 [−11.2, −9.9] | 8 of 10 |
+| 4 | 25% | 46% | 25.0% → 44.6% | +19.6 [14.2, 25.0] | −6.5 [−8.3, −4.7] | 9 of 10 |
+| 5 | 20% | 46% | 19.6% → 42.6% | +23.0 [16.4, 29.6] | −6.0 [−7.7, −4.3] | 7 of 10 |
+
+In this comparison the changed agent gained about 20 points at each group size, and the loss was divided among more
+agents as the group grew: about 22 points from the one other agent of a group of two, about 6 points from each of
+four. The changed agent finished at or above the claim threshold in most match numbers, sometimes well above it (78%
+in one match of two agents). Because the threshold changes with group size, these runs cannot separate the effect of
+group size from that of the threshold, or show what would happen without it.
 
 Limits. Each composition was executed once: 10 match numbers for the step from none to one, 5 for the rest. Jev's
 default differed across two executions, and each composition here was run once, so any run-to-run variation in these
@@ -506,7 +558,7 @@ the subgroup and outcome results are labelled descriptive.
 | `runs/replicate` | No communication | 22 | A second execution of matches 1-22 |
 | `runs/persona-off`, `objective-off`, `fixed` | Jev with personas off, objectives off, areas fixed | 11 each | Matches 1-11 |
 | `runs/solo`, `solo-refuse` | Jev, one agent deciding among scripted neighbours that accept, or refuse | 55 looms each | 11 match designs, five looms each |
-| `runs/ref-none`, `ref-grow`, `ref-give`, `ref-hold` | Every agent with no persona and the one objective | 4 each | The reference section of the Results page |
+| `runs/ref-none`, `ref-grow`, `ref-give`, `ref-hold` | Every agent with no persona and the one objective | 10, 5, 4, 10 | The reference section of the Results page; also the groups of one objective in the composition study |
 | `runs/medgemma`, `medgemma-again`, `medgemma-persona-off`, `medgemma-objective-off`, `medgemma-fixed` | A local chat model (`medgemma:4b`) under each switch | 11 each | Matches 1-11 |
 | `runs/medgemma-solo`, `medgemma-solo-refuse` | The local chat model, one agent deciding | 55 looms each | 11 match designs, five looms each |
 | `runs/luna-decisions`, `luna-decisions-again`, `luna-decisions-persona-off`, `luna-decisions-objective-off`, `luna-decisions-fixed` | OpenAI's decision model (`gpt-6-luna`, Decisions API): default, a second execution, and each switch | 11 each | Matches 1-11 |
@@ -517,6 +569,9 @@ the subgroup and outcome results are labelled descriptive.
 | `runs/luna-decisions-calm`, `luna-decisions-calm-blunt-1` to `-5`, `luna-decisions-calm-rude-1` | The decision model on the same groups | 10, 10, 5, 5, 5, 5, 10 | |
 | `runs/luna-decisions-greedy-0` to `luna-decisions-greedy-5` | The decision model: five cooperative agents, then one to five of them greedy | 10, 10, 5, 5, 5, 5 | |
 | `runs/luna-chat-calm`, `luna-chat-calm-blunt-1` | The chat model: five calm agents, then one of them blunt | 10 each | Matches 1-10 |
+| `runs/none-grow-1` to `none-grow-4`, `none-give-1`, `hold-grow-1` | Jev, no personas: a group with no objective and one to four agents told to grow, or one told to give; a group told to hold and one told to grow | 10, 5, 5, 5, 10, 10 | The groups of one objective are `ref-none`, `ref-hold` and `ref-grow`, extended to 10, 10 and 5 matches |
+| `runs/luna-decisions-none`, `luna-decisions-none-grow-1` to `-5`, `luna-decisions-none-give-1` | The decision model on the same objective groups | 10, 10, 5, 5, 5, 5, 10 | |
+| `runs/calm-size-2` to `calm-size-4`, `calm-blunt-1-size-2` to `-4` | Jev: the calm group, and one blunt agent, with two, three and four agents | 10 each | Group size |
 | `runs/peers` | Peer communication | 22 | Matches 1-22; `peers.json` lists every decision |
 | `runs/chance` | Control, no model | 44 | Actions sampled uniformly |
 | `runs/chosen-main`, `chosen-replicate`, `chosen-peers`, `chosen-chance` | Starting designs chosen (the first rules) | 44, 22, 22, 44 | Run 1 of the report |

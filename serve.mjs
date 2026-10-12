@@ -30,7 +30,7 @@ import { askerFor, keepMatch, runList, writeIndex } from './tools/keep.mjs';
 const PORT = Number(process.env.PORT ?? 4330), HOST = '127.0.0.1', ROOT = fileURLToPath(new URL('./', import.meta.url));
 const PAGES = {
   '/': 'web/index.html', '/match': 'web/match.html', '/peers': 'web/peers.html', '/play': 'web/play.html',
-  '/report': 'web/report.html', '/design': 'web/design.html', '/controls': 'web/controls.html', '/mix': 'web/mix.html', '/brief': 'web/brief.html',
+  '/report': 'web/report.html', '/design': 'web/design.html', '/controls': 'web/controls.html', '/mix': 'web/mix.html', '/brief': 'web/brief.html', '/brief-objective': 'web/brief-objective.html',
 };
 const TREES = ['web', 'engine', 'bench', 'runs'];
 const TYPES = {

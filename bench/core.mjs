@@ -141,11 +141,15 @@ export function deal(match) {
  * A MIXED GROUP. The seats that hold the other type when `count` of the five do, in match `match`. The sets are nested
  * (the seat that is odd when one is stays odd when two are) and rotate with the match, so over any five consecutive
  * matches each seat is the single odd one once. Where a seat sits on the bench is the seed's shuffle, so who an odd
- * agent sits beside varies from match to match.
+ * agent sits beside varies from match to match. `size` is how many agents the group has (five unless a smaller
+ * group is asked for): the same rule over that many seats.
  */
-export function oddSeats(match, count) {
-  if (!(Number.isInteger(count) && count >= 0 && count <= SEATS)) throw Error(`odd seats: a count from 0 to ${SEATS}`);
-  return [0, 2, 4, 1, 3].slice(0, count).map(s => (s + match - 1) % SEATS);
+export function oddSeats(match, count, size = SEATS) {
+  if (!(Number.isInteger(size) && size >= 2 && size <= SEATS)) throw Error(`a group has from 2 to ${SEATS} agents`);
+  if (!(Number.isInteger(count) && count >= 0 && count <= size)) throw Error(`odd seats: a count from 0 to ${size}`);
+  // The even seats, then the odd ones: in a group of five, 0 2 4 1 3.
+  const order = [...Array(size).keys()].filter(s => s % 2 === 0).concat([...Array(size).keys()].filter(s => s % 2 === 1));
+  return order.slice(0, count).map(s => (s + match - 1) % size);
 }
 
 /** A seat's type in words: its persona's key, then `>objective` when it has one ('no persona' for plain). */
@@ -158,9 +162,13 @@ export function mixOf(seats) {
   return kinds.size === 2 ? [...kinds].sort((a, b) => a[0].localeCompare(b[0])).map(([type, n]) => `${n} ${type}`).join(' + ') : null;
 }
 
-/** The five engine weavers for these seats: each typed with its personality, and its goal's sentence before "Choose as". */
+/**
+ * The engine weavers for these seats (five, or the first two to four of them for a smaller group): each typed with its
+ * personality, and its goal's sentence before "Choose as".
+ */
 export function castOf(seats) {
-  return BASE.map((w, i) => {
+  if (!(seats.length >= 2 && seats.length <= SEATS)) throw Error(`a group has from 2 to ${SEATS} agents, not ${seats.length}`);
+  return BASE.slice(0, seats.length).map((w, i) => {
     const extra = DISPOSITIONS.find(x => x.key === seats[i].personality), plain = typed(w, extra ? 'plain' : seats[i].personality);
     // A disposition's sentence stands where a trait sentence stands: after the opening, before "Choose as".
     const t = extra ? { ...plain, who: plain.who.replace(' Choose as', ` ${said(w, extra.text)} Choose as`) } : plain, g = goal(seats[i].goal);
@@ -184,6 +192,10 @@ export function sentenceOf(seat, key, kind) {
  */
 export async function play({ seats, seed, ask = null, onPass, peers = false, solo = null, neighbours = 'accept', area = 'free', designs = 'assigned' }) {
   if (solo !== null && !(Number.isInteger(solo) && solo >= 0 && solo < SEATS)) throw Error(`solo: a seat from 0 to ${SEATS - 1}`);
+  // A smaller group: every agent then starts with an equal part of the same loom (a third each for three), and the
+  // share at which an agent is offered no further claims is the larger of 46% and that part plus 20 points
+  // (engine/loom.mjs, `maxShare`: a threshold on the claims offered, not a limit on what an agent can end with).
+  if (seats.length !== SEATS && (solo !== null || peers || designs === 'chosen')) throw Error('a group of fewer than five is run with every agent deciding, no peer communication and assigned designs');
   if (!NEIGHBOURS.includes(neighbours)) throw Error(`neighbours: ${NEIGHBOURS.join(', ')}`);
   if (solo === null && neighbours !== 'accept') throw Error('neighbours are scripted only in a solo match');
   if (!SWITCHES.area.includes(area)) throw Error(`area: ${SWITCHES.area.join(' or ')}`);
@@ -225,7 +237,7 @@ const EPS = 1e-9, round1 = x => Math.round(x * 10) / 10;
 
 /** Each seat's ground, scores (grow, give, hold, borrow), whether it reached each, and what it did, from the finished rug. */
 export function scoresOf(rug) {
-  const share = rug.history.at(-1).shares, n = SEATS, rows = rug.history.filter(h => h.kind !== 'border');
+  const share = rug.history.at(-1).shares, n = share.length, rows = rug.history.filter(h => h.kind !== 'border');
   return share.map((s, i) => {
     const others = share.filter((_, j) => j !== i);
     const less = others.filter(x => x < s - EPS).length, tied = others.filter(x => Math.abs(x - s) <= EPS).length;
@@ -312,6 +324,8 @@ export function conditionsOf(record) {
   const one = (pick, off) => { const keys = [...new Set(record.seats.map(pick))]; return keys.length > 1 ? (mix ? 'mixed' : 'dealt') : keys[0] === off ? 'off' : keys[0]; };
   return {
     model: record.model, persona: one(s => s.personality, 'plain'), objective: one(s => s.goal, 'none'), ...(mix ? { mix } : {}),
+    // How many agents the group has, when it is not the benchmark's five.
+    ...(record.seats.length !== SEATS ? { size: record.seats.length } : {}),
     agents: record.conditions?.agents ?? 'group',
     ...(record.conditions?.agents === 'solo' ? { neighbours: record.conditions.neighbours ?? 'accept' } : {}),
     area: record.conditions?.area ?? 'free',
