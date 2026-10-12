@@ -1,6 +1,6 @@
 // The Results page: the runs, the protocol, the objectives, final shares by persona and objective, the reference runs, persona against objective, and the matches.
 import { h, getJSON, fmt, signed, pct, qs, topbar, seatMark, choseDesigns, mark, track, splitbar, splitLegend, tip, heat, switchWords, modelName, isChatModel, isDecisionModel, PICTURES, FLAT_NOTE } from './ui.mjs';
-import { NAMES, PERSONALITIES, GOALS, SCORED, personality, goal, sentenceOf } from '../bench/core.mjs';
+import { NAMES, PERSONALITIES, DISPOSITIONS, GOALS, SCORED, personality, goal, sentenceOf } from '../bench/core.mjs';
 import { rowsOf, table, mean } from '../bench/stats.mjs';
 
 const LEDE = 'Five LLM agents act in one shared environment, a loom. Each is assigned a persona and an objective. '
@@ -62,10 +62,10 @@ function conditionNotes(c) {
   return [
     c.model === 'chance' ? 'No model decided: every action was sampled uniformly at random. This run is the reference for what the scoring rules give with no agent behind them.' : null,
     isDecisionModel(c.model) ? `OpenAI's decision model (${modelName(c.model)}) decided in Jev's place. Like Jev, it is sent the state and every question of a call in one request and returns a probability for each option; `
-      + 'nothing was rephrased for it.' : null,
+      + 'nothing was rephrased for it. It refuses some questions (from none to 9 per 1,000 calls, depending on the condition) and gives no reason; a refused question is asked again with a space added to the input, one refused every time is taken as no preference, and each match says how many of each there were.' : null,
     isChatModel(c.model) ? `A chat model (${modelName(c.model)}) decided in Jev's place. It was given the words Jev is given, laid out as a chat prompt, one request for each question, and ${
       c.read === 'stated' ? 'the chances it stated were taken as its distribution over the options' : 'the probabilities of the first token of its reply were read as its distribution over the options'
-    }. This is a second decision system on the same match designs, not another model behind Jev's interface.` : null,
+    }${c.effort ? `; its reasoning effort was set to "${c.effort}"` : ''}.${c.read === 'stated' ? ' A reply that does not state a chance for every option summing to 100 is not used: the question is asked again, one with no readable reply after three more is taken as no preference, and each match says how many of each there were.' : ''} This is a second decision system on the same match designs, not another model behind Jev's interface.` : null,
     c.agents === 'solo' ? `Solo: on each loom the model decides for one agent, and the other four seats are scripted neighbours that ${
       { accept: 'never act and accept every request, so scores here are what an agent attains with no opposition', refuse: 'never act and refuse every request, which the agent can override',
         chance: 'act at random, every choice sampled uniformly' }[c.neighbours ?? 'accept']}. `
@@ -73,7 +73,8 @@ function conditionNotes(c) {
     c.area === 'fixed' ? 'Areas are fixed: every agent starts with 20% and keeps it, since no boundary can move. Grow, Give and Hold cannot be pursued and are not scored; their baselines below are constants. Only Borrow and the designs are informative.' : null,
     c.designs === 'chosen' ? 'Starting designs were chosen by the agents: the group voted on a palette and each agent chose its first design (the benchmark\'s first rules). Agents are marked by colour, since they have no starting design, and the ownership map shows who holds what.' : null,
     c.persona === 'off' ? 'Personas are off: no agent was given a trait sentence, so the persona rows below collapse to one.' : null,
-    c.persona !== 'off' && c.persona !== 'dealt' && c.persona ? `Every agent was given the same persona (${personality(c.persona).name}).` : null,
+    c.mix ? `A mixed group: ${c.mix}. The seats of the second type rotate with the match number, so each seat holds it equally often. The Composition page sets this run beside the groups with more and fewer of that type.` : null,
+    c.persona !== 'off' && c.persona !== 'dealt' && c.persona !== 'mixed' && c.persona ? `Every agent was given the same persona (${personality(c.persona).name}).` : null,
     c.objective === 'off' ? 'Objectives are off: no agent was given an objective, so every agent is a baseline agent and there is no attainment to report.' : null,
     c.peers ? 'Peer communication: before each action an agent heard, three times in four, which action an adjacent agent would have it take.' : null,
   ].filter(Boolean);
@@ -121,9 +122,10 @@ function resultsPage(runs, chosen, index, refs) {
     notes.map(text => h('p', null, text)),
     h('p', null, h('a', { href: 'controls' }, 'Compare this run with the others on the Controls page'))) : null;
   const seen = new Set(rows.map(r => r.goal));
-  const people = PERSONALITIES.filter(p => t.personalities[p.key]);
+  // The dealt personas, then the dispositions that only a group made of one type or two has.
+  const people = [...PERSONALITIES, ...DISPOSITIONS].filter(p => t.personalities[p.key]);
   const goals = GOALS.filter(g => seen.has(g.key));
-  const filter = { personality: '', goal: '', view: 'cloth' };
+  const filter = { personality: '', goal: '', view: 'flat' };
   const picks = [];
 
   // Protocol
@@ -244,8 +246,8 @@ function resultsPage(runs, chosen, index, refs) {
   function renderRefs() {
     refBox.replaceChildren(...refs.map(refCard));
   }
-  const flatNote = h('p', { class: 'small muted', style: { margin: '8px 0 0' }, hidden: true }, FLAT_NOTE);
-  const viewButtons = [PICTURES[1], PICTURES[2], PICTURES[0]].map(([key, label]) => h('button', {
+  const flatNote = h('p', { class: 'small muted', style: { margin: '8px 0 0' }, hidden: filter.view !== 'flat' }, FLAT_NOTE);
+  const viewButtons = PICTURES.map(([key, label]) => h('button', {
     type: 'button',
     dataset: { view: key },
     class: key === filter.view ? 'btn' : 'btn quiet',
@@ -422,9 +424,13 @@ function resultsPage(runs, chosen, index, refs) {
     ...goalsSection, ...spaceSection, ...refSection, ...gridSection, ...matchesSection, method];
 }
 
-/** The reference runs (design 'uniform'), in the order ref-none, ref-grow, ref-give, ref-hold; a run that cannot be read is left out. */
+/**
+ * The reference runs (every agent with no persona and the same objective), in the order ref-none, ref-grow, ref-give,
+ * ref-hold; a run that cannot be read is left out. A group made of one persona, or of two, is no reference run: it has
+ * the Composition page.
+ */
 async function referenceRuns(runs) {
-  const uniform = runs.filter(r => r.design === 'uniform')
+  const uniform = runs.filter(r => r.design === 'uniform' && r.conditions?.persona === 'off' && !r.conditions?.mix)
     .sort((a, b) => (REFERENCE.indexOf(a.run) + 1 || 99) - (REFERENCE.indexOf(b.run) + 1 || 99));
   const out = [];
   for (const r of uniform) {

@@ -828,21 +828,43 @@ palette, for 26 rounds, under the same cap on share.
   returns the answer in Jev's shape, so nothing downstream changes. Reading `tokens`: the model replies with one
   letter and the probabilities of the first token are the distribution (refused when the option letters hold less than
   half of it). Reading `stated`: the model states a chance for each letter as JSON, taken only when it is complete and
-  sums to 100 within five. A model on this machine (Ollama) costs nothing; a priced model stops at a cap in dollars,
+  sums to 100 within five. A stated reply that fails that test is not reshaped: the question is asked again as it was
+  first sent (a reply is a sample, so another is drawn), up to three more times, and one with no readable reply after
+  that is taken as no preference, as a refused question of the decision model is; the record counts both (`reasked`,
+  `unanswered`). Before this rule about one reply in 600 from `gpt-6-luna` with its reasoning off stated chances that
+  summed to 108 to 140, and keeping no match with a failed answer discarded 2 of the first 4 matches. The token reading
+  is not asked again. A model on this machine (Ollama) costs nothing; a priced model stops at a cap in dollars,
   counting what requests in flight could cost; a refused key, an empty account or an absent host is fatal to the run,
   as for Jev. Pages call a run made this way a second decision system, not another model behind Jev's interface.
 - **Another decision model** (asked for as "their decision model", 11 October 2026). `decisionsAsker`
-  (`bench/decisions.mjs`, spec `openai-decisions:gpt-6-luna`) maps a Jev body onto OpenAI's Decisions API field for
-  field: `state` to `input`, a choice's `criteria` to `choices` (`value` the option key, `description` its text), a
-  score's anchors to `levels`, every question of a call in one request. A refusal or a broken distribution fails the
-  call. OpenAI's models are limited to its current ones: the decision model, and the chat models in `PRICES`.
+  (`bench/decisions.mjs`, spec `openai-decisions:gpt-6-luna`) carries a Jev body over to OpenAI's Decisions API word for
+  word: `state` to `input`, a choice's `criteria` to `choices` (`value` the option key, `description` its text), a
+  score's anchors to `levels`, every question of a call in one request. A broken distribution fails the call. The
+  live API refuses from none to 9 questions per 1,000 calls, depending on the condition, with no reason given, repeatably, and nearly half of them on the border
+  vote. A refused question is asked again on its own with a space more on the input, up to three times (most refusals
+  do not survive one space); one refused every time is taken as no preference, every option equally likely. The
+  record counts both (`reasked`, `unanswered`). The first rule, that a refusal fails the call and so the match is not
+  kept, threw away 6 matches in 10 and kept a selected sample. OpenAI's models are limited to its current ones: the decision model, and the chat models in `PRICES`.
+- **Group composition** (asked for on 12 October 2026 as "how shifting personality types amongst homogenous group makes
+  an impact -- i.e. you have cooperators and then add a greed person", then "one group of calm people and then add a
+  blunt person, or a 'rude' person", then "use jev though"). A group of one type (`--persona KEY --objective KEY|off`)
+  with `K` of its seats given to a second type (`--odd TYPE --odd-count K`, TYPE a persona, `persona>objective` or
+  `>objective`). `oddSeats(match, K)` gives the seats: nested in K and rotating with the match number, so runs with
+  K = 0, 1, 2 ... are paired by match number and each seat is the single odd one once in five matches. Three
+  dispositions are added for this and never dealt (`DISPOSITIONS`: cooperative, greedy, rude), so the balanced deal is
+  unchanged; any dealt persona can be the group's or the odd one's. `conditionsOf` names a group of two types
+  (`mix: '4 calm + 1 blunt'`, with persona or objective `'mixed'`), and `switchesOf` keeps it a setting of its own.
+  `bench/mix.mjs` reads the runs of two types by one model together (`compositions`), measures a composition by type
+  (`levelOf`) and one against another by the seats that changed and the seats that stayed (`shift`); the record keeps
+  `joint`, the part of the loom two agents hold together at the end (`heldOf`). Pages: `/mix` (Composition).
+  The two sentences for cooperative and greedy, and the one for rude, are mine; the user has not seen alternatives.
 - **Flat colours** (asked for as "simplify rug designs ... flat color ... primary colors"). A third picture of a
   match, `view: 'flat'` in `engine/render.mjs` and `<id>-flat.png` in a run's thumbs: every stitch the flat colour of
   its holder; thin diagonal lines of a second colour where the stitch's pattern or colour was taken from that agent;
-  broad bands of two colours where two hold the share jointly. It is the first picture on Controls and a button on
-  Results and One match. The designs in the rules are unchanged; making them flat is a rules change and a re-run.
+  broad bands of two colours where two hold the share jointly. It was first the first picture on Controls only; asked "I thought the colors were supposed to flat now?"
+  (12 October 2026), it is now the first picture on every page (Results, One match, Composition, Peer influence, Play). The designs in the rules are unchanged; making them flat is a rules change and a re-run.
 - **The record** carries `conditions: { agents, solo?, neighbours?, area, designs?, read? }` beside `model`, `seats`
-  and `mode`, and for a chat model `requests` (HTTP requests) beside `calls` (the loom's calls a model answered);
+  and `mode`, and for a chat model `requests` (requests the host answered; one sent again after a failure is counted once) beside `calls` (the loom's calls a model answered);
   `conditionsOf(record)` is the full set, and a run's index repeats it (`conditions`). A run folder holds one setting:
   the runner refuses to add a match made under another.
 - **One switch apart** (`bench/compare.mjs`). Two runs made from the same match designs that differ in one switch, or

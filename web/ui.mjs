@@ -90,7 +90,7 @@ export function qs(name) {
   return new URLSearchParams(window.location.search).get(name) || null;
 }
 
-/** The top bar; `active` is 'results', 'controls', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
+/** The top bar; `active` is 'results', 'controls', 'mix', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
 export function topbar(active) {
   const link = (href, label, key) => h('a', {
     href,
@@ -102,7 +102,7 @@ export function topbar(active) {
       h('a', { class: 'brand', href: './' }, 'LoomBench'),
       h('span', { class: 'tag' }, 'a multi-agent benchmark')),
     h('nav', null,
-      link('./', 'Results', 'results'), link('controls', 'Controls', 'controls'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
+      link('./', 'Results', 'results'), link('controls', 'Controls', 'controls'), link('mix', 'Composition', 'mix'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
       link('design', 'Design', 'design'), link('play', 'Play', 'play'), h('a', { class: 'source', href: REPO }, 'Source')));
 }
 
@@ -149,8 +149,9 @@ export const isDecisionModel = model => String(model).startsWith('openai-decisio
 export function switchWords(c) {
   if (!c) return [];
   return [
-    c.persona === 'off' ? 'personas off' : c.persona && c.persona !== 'dealt' ? `every persona ${personality(c.persona).name.toLowerCase()}` : null,
-    c.objective === 'off' ? 'objectives off' : c.objective === 'uniform' ? 'one objective for all' : c.objective && c.objective !== 'dealt' ? `every objective ${goal(c.objective).name}` : null,
+    c.mix ? `a group of ${c.mix}` : null,
+    c.persona === 'off' ? 'personas off' : c.persona && c.persona !== 'dealt' && c.persona !== 'mixed' ? `every persona ${personality(c.persona).name.toLowerCase()}` : null,
+    c.objective === 'off' ? 'objectives off' : c.objective === 'uniform' ? 'one objective for all' : c.objective && c.objective !== 'dealt' && c.objective !== 'mixed' ? `every objective ${goal(c.objective).name}` : null,
     c.agents === 'solo' ? `solo${{ refuse: ', neighbours refuse', chance: ', neighbours by chance' }[c.neighbours] ?? ''}` : null,
     c.area === 'fixed' ? 'areas fixed' : null, c.designs === 'chosen' ? 'designs chosen by the agents' : null,
     c.peers ? 'peer communication' : null,

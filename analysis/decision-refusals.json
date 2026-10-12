@@ -1,0 +1,1122 @@
+{
+ "what": "Every distinct question that OpenAI's Decisions API (gpt-6-luna) answered with type \"refusal\" while the runs under runs/luna-decisions* were made on 11 and 12 October 2026, with the input it was refused under. answeredWithSpaces is how many spaces had to be added to the end of the input before the question, asked on its own, was answered; null means it was refused with one, two and three spaces as well. Sent again as { model, input, questions: [question] }, each was refused again: node analysis/refusals.mjs --check.",
+ "model": "gpt-6-luna",
+ "refused": [
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 18 of 26; the field is 100 warps across.\nLeft to right, in warps held: Jessica 25, Michael 12, Michael and Amanda together 5, Amanda 14, Ashley 11, Sarah 33.\nWhat each weaves now, left to right: Jessica, fine checks of sun yellow on undyed wool; Michael, fine checks of sun yellow on vermilion red; Michael and Amanda together, checks of sun yellow on vermilion red; Amanda, checks of vermilion red on undyed wool; Ashley, fine pinstripes of clover pink on vermilion red; Sarah, fine checks of undyed wool on sun yellow.\nYour ground is 33 warps, the widest ground on the loom, in fine checks of undyed wool on sun yellow.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 24%, vermilion red 18%, cobalt blue 1%, sun yellow 24%, sea green 10%, clover pink 10%.\nSo far the cloth has 3 edges woven in two colours, 4 grounds opened between two weavers to hold together and 24 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Sarah, a weaver, one of several weaving one rug together at a shared loom. Sarah is blunt and hard-headed, suspicious of people's motives, and does not mind starting an argument. Sarah has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  When Sarah moves an edge or plants a figure in this passage, how hard does she go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Sarah goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Sarah goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Sarah goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Sarah goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 23 of 26; the field is 100 warps across.\nLeft to right, in warps held: Sarah 8, Jessica 37, Michael 50, Ashley 3, Amanda 2.\nWhat each weaves now, left to right: Sarah, fine seed dots of cobalt blue on vermilion red; Jessica, plain clover pink; Michael, fine twill lines of ink black on clover pink; Ashley, fine pinstripes of undyed wool on clover pink; Amanda, plain clover pink.\nYour ground is 37 warps, in plain clover pink, kept for 2 passages.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 10%, vermilion red 1%, cobalt blue 22%, sun yellow 8%, sea green 20%, clover pink 35%.\nSo far the cloth has 7 open slits, 6 edges woven in two colours, 3 grounds opened between two weavers to hold together and 27 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Jessica, a weaver, one of several weaving one rug together at a shared loom. Jessica is disorganised and easily distracted, leaves things half done, and can be careless. Jessica has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  When Jessica moves an edge or plants a figure in this passage, how hard does she go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Jessica goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Jessica goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Jessica goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Jessica goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 8 of 26; the field is 100 warps across.\nLeft to right, in warps held: Michael 12, Amanda 12, Sarah 44, Ashley 3, Jessica 29.\nWhat each weaves now, left to right: Michael, fine combs of sun yellow on clover pink; Amanda, fine combs of clover pink on sun yellow; Sarah, fine seed dots of clover pink on sun yellow; Ashley, fine pinstripes of clover pink on cobalt blue; Jessica, fine combs of undyed wool on clover pink.\nYour ground is 3 warps, the narrowest ground on the loom, in fine pinstripes of clover pink on cobalt blue.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 14%, vermilion red 3%, cobalt blue 7%, sun yellow 33%, sea green 23%, clover pink 17%.\nSo far the cloth has 1 open slit, 2 edges woven in two colours, 2 grounds opened between two weavers to hold together and 10 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  When Ashley moves an edge or plants a figure in this passage, how hard does she go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Ashley goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Ashley goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Ashley goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Ashley goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 10 of 26; the field is 100 warps across.\nLeft to right, in warps held: Michael 12, Amanda 12, Sarah 44, Ashley 8, Jessica 24.\nWhat each weaves now, left to right: Michael, fine combs of sun yellow on clover pink (for 3 passages); Amanda, fine seed dots of clover pink on sun yellow; Sarah, fine zigzag lines of sun yellow on clover pink; Ashley, fine pinstripes of clover pink on cobalt blue (for 3 passages); Jessica, fine combs of undyed wool on clover pink (for 3 passages).\nYour ground is 8 warps, the narrowest ground on the loom, in fine pinstripes of clover pink on cobalt blue, kept for 3 passages.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 12%, vermilion red 3%, cobalt blue 6%, sun yellow 34%, sea green 18%, clover pink 25%.\nSo far the cloth has 3 open slits, 2 edges woven in two colours, 2 grounds opened between two weavers to hold together and 11 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  When Ashley moves an edge or plants a figure in this passage, how hard does she go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Ashley goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Ashley goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Ashley goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Ashley goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 18 of 26; the field is 100 warps across.\nLeft to right, in warps held: Michael 7, Amanda 11, Sarah 51, Ashley 14, Jessica 17.\nWhat each weaves now, left to right: Michael, plain sun yellow (for 3 passages); Amanda, fine pinstripes of sun yellow on cobalt blue; Sarah, pinstripes of sun yellow on cobalt blue; Ashley, fine combs of clover pink on sea green; Jessica, plain cobalt blue (for 3 passages).\nYour ground is 14 warps, in fine combs of clover pink on sea green.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 9%, vermilion red 1%, cobalt blue 17%, sun yellow 38%, sea green 10%, clover pink 24%.\nSo far the cloth has 4 open slits, 3 edges woven in two colours, 3 grounds opened between two weavers to hold together and 22 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  When Ashley moves an edge or plants a figure in this passage, how hard does she go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Ashley goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Ashley goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Ashley goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Ashley goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 17 of 26; the field is 100 warps across.\nLeft to right, in warps held: Ashley 3, Sarah 39, Amanda 26, Michael 8, Jessica 24.\nWhat each weaves now, left to right: Ashley, fine combs of sea green on clover pink; Sarah, fine combs of undyed wool on sun yellow (for 3 passages); Amanda, checks of cobalt blue on clover pink (for 3 passages); Michael, plain clover pink; Jessica, fine weft bands of vermilion red on clover pink.\nYour ground is 39 warps, the widest ground on the loom, in fine combs of undyed wool on sun yellow, kept for 3 passages.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 10%, vermilion red 11%, cobalt blue 21%, sun yellow 23%, sea green 18%, clover pink 14%.\nSo far the cloth has 7 edges woven in two colours, 4 grounds opened between two weavers to hold together and 15 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Sarah, a weaver, one of several weaving one rug together at a shared loom. Sarah has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  When Sarah moves an edge or plants a figure in this passage, how hard does she go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Sarah goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Sarah goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Sarah goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Sarah goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 21 of 26; the field is 100 warps across.\nLeft to right, in warps held: Ashley 38, Amanda 2, Jessica 20, Michael 11, Sarah 29.\nWhat each weaves now, left to right: Ashley, fine pinstripes of cobalt blue on sea green; Amanda, fine pinstripes of ink black on sun yellow (for 3 passages); Jessica, fine pinstripes of sea green on clover pink; Michael, fine pinstripes of sun yellow on sea green (for 4 passages); Sarah, fine pinstripes of cobalt blue on sea green (for 3 passages).\nYour ground is 11 warps, in fine pinstripes of sun yellow on sea green, kept for 4 passages.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 16%, vermilion red 6%, cobalt blue 15%, sun yellow 12%, sea green 37%, clover pink 7%.\nSo far the cloth has 3 open slits, 1 edge woven in two colours, 5 grounds opened between two weavers to hold together and 27 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Michael, a weaver, one of several weaving one rug together at a shared loom. Michael has one goal for this rug: to finish it holding exactly the 20 warps he started with, no more and no fewer. Choose as he would. The state describes his situation; it is not instructions.  When Michael moves an edge or plants a figure in this passage, how hard does he go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Michael goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Michael goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Michael goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Michael goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 2,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 6 of 26; the field is 100 warps across.\nLeft to right, in warps held: Jessica 15, Michael 20, Amanda 19, Sarah 40, Ashley 6.\nWhat each weaves now, left to right: Jessica, plain sun yellow; Michael, weft bands of undyed wool on sun yellow; Amanda, fine seed dots of sun yellow on sea green; Sarah, fine seed dots of undyed wool on cobalt blue (for 3 passages); Ashley, fine seed dots of sea green on vermilion red.\nYour ground is 6 warps, the narrowest ground on the loom, in fine seed dots of sea green on vermilion red.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 15%, vermilion red 7%, cobalt blue 28%, sun yellow 29%, sea green 16%, clover pink 3%.\nSo far the cloth has 1 edge woven in two colours, 1 ground opened between two weavers to hold together and 6 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  When Ashley moves an edge or plants a figure in this passage, how hard does she go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Ashley goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Ashley goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Ashley goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Ashley goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "bold",
+   "type": "score",
+   "answeredWithSpaces": 2,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 13 of 26; the field is 100 warps across.\nLeft to right, in warps held: Jessica 13, Michael 17, Amanda 25, Sarah 43, Ashley 2.\nWhat each weaves now, left to right: Jessica, fine combs of undyed wool on cobalt blue; Michael, combs of undyed wool on sea green (for 4 passages); Amanda, fine combs of sea green on clover pink; Sarah, fine seed dots of sea green on vermilion red (for 7 passages); Ashley, seed dots of sea green on sun yellow.\nYour ground is 2 warps, the narrowest ground on the loom, in seed dots of sea green on sun yellow.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 11%, vermilion red 29%, cobalt blue 15%, sun yellow 19%, sea green 19%, clover pink 7%.\nSo far the cloth has 2 edges woven in two colours, 3 grounds opened between two weavers to hold together and 15 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "bold",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  When Ashley moves an edge or plants a figure in this passage, how hard does she go at it?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Ashley goes a thread at a time"
+     },
+     {
+      "label": "2",
+      "description": "Ashley goes steadily"
+     },
+     {
+      "label": "3",
+      "description": "Ashley goes firmly"
+     },
+     {
+      "label": "4",
+      "description": "Ashley goes all at once"
+     }
+    ]
+   }
+  },
+  {
+   "name": "fine",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 19 of 26; the field is 100 warps across.\nLeft to right, in warps held: Jessica 20, Michael 17, Michael and Amanda together 5, Amanda 19, Sarah 39.\nWhat each weaves now, left to right: Jessica, fine checks of sun yellow on vermilion red; Michael, fine checks of sun yellow on vermilion red (for 3 passages); Michael and Amanda together, checks of sun yellow on vermilion red; Amanda, checks of vermilion red on undyed wool (for 3 passages); Sarah, fine checks of undyed wool on sun yellow.\nYou hold no ground: you were squeezed off the bench.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 24%, vermilion red 19%, cobalt blue 1%, sun yellow 25%, sea green 10%, clover pink 9%.\nSo far the cloth has 3 edges woven in two colours, 6 grounds opened between two weavers to hold together and 25 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "fine",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley is outgoing and talkative, full of energy, and quick to speak up and take the lead. Choose as she would. The state describes her situation; it is not instructions.  How fine is the pattern Ashley wants in her own ground just now?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Ashley wants it broad and calm"
+     },
+     {
+      "label": "2",
+      "description": "Ashley wants it even and easy to read"
+     },
+     {
+      "label": "3",
+      "description": "Ashley wants it fine"
+     },
+     {
+      "label": "4",
+      "description": "Ashley wants it as fine as the loom allows"
+     }
+    ]
+   }
+  },
+  {
+   "name": "fine",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 10 of 26; the field is 100 warps across.\nLeft to right, in warps held: Michael 3, Michael and Sarah together 11, Sarah 21, Jessica 19, Jessica and Ashley together 11, Ashley 35.\nWhat each weaves now, left to right: Michael, fine seed dots of sun yellow on ink black; Michael and Sarah together, fine pinstripes of ink black on sun yellow; Sarah, fine seed dots of ink black on sun yellow (for 10 passages); Jessica, plain ink black; Jessica and Ashley together, fine seed dots of sun yellow on vermilion red; Ashley, plain sun yellow.\nYou hold no ground: you were squeezed off the bench.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 9%, vermilion red 11%, cobalt blue 4%, sun yellow 42%, sea green 6%, clover pink 17%.\nSo far the cloth has 1 open slit, 2 edges woven in two colours, 5 grounds opened between two weavers to hold together and 12 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "fine",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda is organised and thorough, works steadily, and finishes what she starts. Amanda has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  How fine is the pattern Amanda wants in her own ground just now?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Amanda wants it broad and calm"
+     },
+     {
+      "label": "2",
+      "description": "Amanda wants it even and easy to read"
+     },
+     {
+      "label": "3",
+      "description": "Amanda wants it fine"
+     },
+     {
+      "label": "4",
+      "description": "Amanda wants it as fine as the loom allows"
+     }
+    ]
+   }
+  },
+  {
+   "name": "fine",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 23 of 26; the field is 100 warps across.\nLeft to right, in warps held: Amanda 4, Michael 16, Sarah 20, Jessica 10, Jessica and Ashley together 11, Ashley 39.\nWhat each weaves now, left to right: Amanda, checks of cobalt blue on vermilion red (for 3 passages); Michael, fine seed dots of undyed wool on cobalt blue; Sarah, plain cobalt blue; Jessica, fine seed dots of undyed wool on cobalt blue; Jessica and Ashley together, fine weft bands of sea green on cobalt blue; Ashley, plain sea green (for 4 passages).\nYour ground is 4 warps, the narrowest ground on the loom, in checks of cobalt blue on vermilion red, kept for 3 passages.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 6%, vermilion red 15%, cobalt blue 19%, sun yellow 26%, sea green 11%, clover pink 12%.\nSo far the cloth has 2 open slits, 5 edges woven in two colours, 6 grounds opened between two weavers to hold together and 29 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "fine",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda is organised and thorough, works steadily, and finishes what she starts. Amanda has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  How fine is the pattern Amanda wants in her own ground just now?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Amanda wants it broad and calm"
+     },
+     {
+      "label": "2",
+      "description": "Amanda wants it even and easy to read"
+     },
+     {
+      "label": "3",
+      "description": "Amanda wants it fine"
+     },
+     {
+      "label": "4",
+      "description": "Amanda wants it as fine as the loom allows"
+     }
+    ]
+   }
+  },
+  {
+   "name": "fine",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 11 of 26; the field is 100 warps across.\nLeft to right, in warps held: Ashley 21, Sarah 11, Amanda 46, Michael 9, Jessica 13.\nWhat each weaves now, left to right: Ashley, fine combs of cobalt blue on vermilion red; Sarah, plain undyed wool; Amanda, checks of clover pink on sea green; Michael, plain sea green (for 3 passages); Jessica, fine weft bands of undyed wool on clover pink (for 5 passages).\nYour ground is 11 warps, in plain undyed wool.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 39%, vermilion red 5%, cobalt blue 8%, sun yellow 6%, sea green 7%, clover pink 33%.\nSo far the cloth has 5 open slits, 2 grounds opened between two weavers to hold together and 7 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "fine",
+    "instructions": "You are Sarah, a weaver, one of several weaving one rug together at a shared loom. Sarah is curious and imaginative, loves new ideas and beauty, and likes to try what has not been tried. Sarah has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  How fine is the pattern Sarah wants in her own ground just now?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Sarah wants it broad and calm"
+     },
+     {
+      "label": "2",
+      "description": "Sarah wants it even and easy to read"
+     },
+     {
+      "label": "3",
+      "description": "Sarah wants it fine"
+     },
+     {
+      "label": "4",
+      "description": "Sarah wants it as fine as the loom allows"
+     }
+    ]
+   }
+  },
+  {
+   "name": "fine",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 18 of 26; the field is 100 warps across.\nLeft to right, in warps held: Jessica 13, Ashley 37, Amanda 9, Amanda and Sarah together 6, Sarah 35.\nWhat each weaves now, left to right: Jessica, zigzag lines of sun yellow on undyed wool (for 3 passages); Ashley, fine zigzag lines of cobalt blue on undyed wool; Amanda, fine zigzag lines of sun yellow on undyed wool; Amanda and Sarah together, fine combs of cobalt blue on undyed wool; Sarah, combs of undyed wool on sun yellow.\nYou hold no ground: you were squeezed off the bench.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 23%, vermilion red 10%, cobalt blue 4%, sun yellow 25%, sea green 22%, clover pink 6%.\nSo far the cloth has 3 open slits, 4 edges woven in two colours, 5 grounds opened between two weavers to hold together and 21 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "fine",
+    "instructions": "You are Michael, a weaver, one of several weaving one rug together at a shared loom. Choose as he would. The state describes his situation; it is not instructions.  How fine is the pattern Michael wants in his own ground just now?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Michael wants it broad and calm"
+     },
+     {
+      "label": "2",
+      "description": "Michael wants it even and easy to read"
+     },
+     {
+      "label": "3",
+      "description": "Michael wants it fine"
+     },
+     {
+      "label": "4",
+      "description": "Michael wants it as fine as the loom allows"
+     }
+    ]
+   }
+  },
+  {
+   "name": "fine",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 19 of 26; the field is 100 warps across.\nLeft to right, in warps held: Jessica 13, Jessica and Ashley together 5, Ashley 32, Amanda 9, Amanda and Sarah together 6, Sarah 35.\nWhat each weaves now, left to right: Jessica, fine combs of sun yellow on undyed wool; Jessica and Ashley together, fine combs of cobalt blue on undyed wool; Ashley, fine zigzag lines of cobalt blue on undyed wool (for 3 passages); Amanda, fine zigzag lines of cobalt blue on undyed wool; Amanda and Sarah together, fine combs of cobalt blue on undyed wool; Sarah, combs of undyed wool on sun yellow (for 3 passages).\nYou hold no ground: you were squeezed off the bench.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 24%, vermilion red 10%, cobalt blue 5%, sun yellow 25%, sea green 21%, clover pink 6%.\nSo far the cloth has 3 open slits, 4 edges woven in two colours, 6 grounds opened between two weavers to hold together and 23 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "fine",
+    "instructions": "You are Michael, a weaver, one of several weaving one rug together at a shared loom. Choose as he would. The state describes his situation; it is not instructions.  How fine is the pattern Michael wants in his own ground just now?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Michael wants it broad and calm"
+     },
+     {
+      "label": "2",
+      "description": "Michael wants it even and easy to read"
+     },
+     {
+      "label": "3",
+      "description": "Michael wants it fine"
+     },
+     {
+      "label": "4",
+      "description": "Michael wants it as fine as the loom allows"
+     }
+    ]
+   }
+  },
+  {
+   "name": "fine",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 19 of 26; the field is 100 warps across.\nLeft to right, in warps held: Jessica 22, Amanda 30, Ashley 11, Michael 3, Sarah 34.\nWhat each weaves now, left to right: Jessica, plain sea green (for 3 passages); Amanda, fine seed dots of clover pink on cobalt blue; Ashley, plain sea green; Michael, plain sea green; Sarah, plain cobalt blue (for 3 passages).\nYour ground is 11 warps, in plain sea green.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 11%, vermilion red 21%, cobalt blue 23%, sun yellow 13%, sea green 20%, clover pink 11%.\nSo far the cloth has 3 open slits, 5 edges woven in two colours, 4 grounds opened between two weavers to hold together and 22 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "fine",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  How fine is the pattern Ashley wants in her own ground just now?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Ashley wants it broad and calm"
+     },
+     {
+      "label": "2",
+      "description": "Ashley wants it even and easy to read"
+     },
+     {
+      "label": "3",
+      "description": "Ashley wants it fine"
+     },
+     {
+      "label": "4",
+      "description": "Ashley wants it as fine as the loom allows"
+     }
+    ]
+   }
+  },
+  {
+   "name": "fine",
+   "type": "score",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 17 of 26; the field is 100 warps across.\nLeft to right, in warps held: Michael 36, Michael and Jessica together 5, Jessica 18, Ashley 39, Sarah 2.\nWhat each weaves now, left to right: Michael, seed dots of sea green on sun yellow; Michael and Jessica together, fine seed dots of sea green on sun yellow; Jessica, fine seed dots of sun yellow on sea green (for 4 passages); Ashley, seed dots of sun yellow on sea green; Sarah, plain undyed wool (for 6 passages).\nYou hold no ground: you were squeezed off the bench.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 10%, vermilion red 10%, cobalt blue 9%, sun yellow 17%, sea green 40%, clover pink 12%.\nSo far the cloth has 8 open slits, 1 edge woven in two colours, 3 grounds opened between two weavers to hold together and 9 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "score",
+    "name": "fine",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda is organised and thorough, works steadily, and finishes what she starts. Choose as she would. The state describes her situation; it is not instructions.  How fine is the pattern Amanda wants in her own ground just now?",
+    "levels": [
+     {
+      "label": "1",
+      "description": "Amanda wants it broad and calm"
+     },
+     {
+      "label": "2",
+      "description": "Amanda wants it even and easy to read"
+     },
+     {
+      "label": "3",
+      "description": "Amanda wants it fine"
+     },
+     {
+      "label": "4",
+      "description": "Amanda wants it as fine as the loom allows"
+     }
+    ]
+   }
+  },
+  {
+   "name": "move",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 18 of 26; the field is 100 warps across.\nLeft to right, in warps held: Jessica 20, Ashley 20, Sarah 20, Michael 9, Amanda 31.\nWhat each weaves now, left to right: Jessica, fine weft bands of undyed wool on vermilion red (for 18 passages); Ashley, fine pinstripes of undyed wool on sea green (for 18 passages); Sarah, fine seed dots of ink black on sun yellow (for 18 passages); Michael, fine zigzag lines of ink black on clover pink (for 18 passages); Amanda, fine zigzag lines of ink black on clover pink (for 9 passages).\nYour ground is 31 warps, the widest ground on the loom, in fine zigzag lines of ink black on clover pink, kept for 9 passages.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 25%, vermilion red 12%, cobalt blue 2%, sun yellow 19%, sea green 10%, clover pink 20%.\nSo far the cloth has 2 strands taken from one weaver's yarn into another's.",
+   "question": {
+    "type": "choice",
+    "name": "move",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda is practical and conventional, has little interest in abstract ideas, and prefers the familiar way of doing things. Amanda has one goal for this rug: to finish it holding exactly the 20 warps she started with, no more and no fewer. Choose as she would. The state describes her situation; it is not instructions.  Last passage: Amanda pressed into Michael's ground, and Michael let it pass. Amanda has taken from another weaver's yarn twice, and others have taken from her 0 times. Amanda holds 20% of the cloth woven so far, and 5% of it is of her devising. Amanda has woven the same yarn for 9 passages. Amanda has made the same move 3 passages running. The loom is ready for the next passage. What does Amanda do with it? Each option says what it would do to the cloth. Choose as she would.",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Press into Michael's ground on your left and take some of it. Michael holds 9 warps, the narrowest ground on the loom; you hold 31, the widest ground on the loom."
+     },
+     {
+      "value": "o2",
+      "description": "Give Michael some of your ground on your left, freely. You hold 31 warps, the widest ground on the loom; Michael holds 9, the narrowest ground on the loom."
+     },
+     {
+      "value": "o3",
+      "description": "Weave straight on. Keep both your edges where they are: 31 warps between Michael and the right selvedge."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Michael, a weaver, one of several weaving one rug together at a shared loom. Michael is disorganised and easily distracted, leaves things half done, and can be careless. Michael has one goal for this rug: to weave his ground in designs taken from other weavers, not in designs of his own. Choose as he would. The state describes his situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Michael want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Upright bars in sun yellow on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o2",
+      "description": "A checker in sun yellow on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o3",
+      "description": "Running water, one zigzag line in sea green on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o4",
+      "description": "A chain of small diamonds in cobalt blue on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o5",
+      "description": "Sawteeth in sea green on undyed wool, touched with cobalt blue."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Michael, a weaver, one of several weaving one rug together at a shared loom. Michael worries a lot, gets tense and upset easily, and his moods go up and down. Michael has one goal for this rug: to finish it holding exactly the 20 warps he started with, no more and no fewer. Choose as he would. The state describes his situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Michael want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Fine stripes in vermilion red on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o2",
+      "description": "Upright bars in sun yellow on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o3",
+      "description": "A checker in vermilion red on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o4",
+      "description": "A chain of small diamonds in cobalt blue on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o5",
+      "description": "Sawteeth in cobalt blue on undyed wool, touched with sea green."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Sarah, a weaver, one of several weaving one rug together at a shared loom. Sarah is quiet and reserved, low-key, and tends to hold back and let others lead. Sarah has one goal for this rug: to weave her ground in designs taken from other weavers, not in designs of her own. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Sarah want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Running water, one zigzag line in cobalt blue on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o2",
+      "description": "Upright bars in sun yellow on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o3",
+      "description": "A checker in sea green on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o4",
+      "description": "Sawteeth in vermilion red on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o5",
+      "description": "A chain of small diamonds in sea green on undyed wool, touched with vermilion red."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Sarah, a weaver, one of several weaving one rug together at a shared loom. Sarah has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Sarah want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "A checker in sea green on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o2",
+      "description": "Upright bars in sun yellow on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o3",
+      "description": "Running water, one zigzag line in sea green on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o4",
+      "description": "A chain of small diamonds in sea green on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o5",
+      "description": "Fine stripes in vermilion red on undyed wool, touched with sea green."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Amanda want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "A chain of small diamonds in cobalt blue on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o2",
+      "description": "A checker in vermilion red on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o3",
+      "description": "Upright bars in sun yellow on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o4",
+      "description": "Sawteeth in cobalt blue on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o5",
+      "description": "Fine stripes in vermilion red on undyed wool, touched with sun yellow."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Jessica, a weaver, one of several weaving one rug together at a shared loom. Jessica has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Jessica want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Fine stripes in vermilion red on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o2",
+      "description": "Running water, one zigzag line in cobalt blue on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o3",
+      "description": "Upright bars in sea green on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o4",
+      "description": "A checker in sun yellow on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o5",
+      "description": "Sawteeth in vermilion red on undyed wool, touched with sun yellow."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda has one goal for this rug: to weave her ground in designs taken from other weavers, not in designs of her own. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Amanda want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Fine stripes in vermilion red on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o2",
+      "description": "Running water, one zigzag line in cobalt blue on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o3",
+      "description": "A checker in sun yellow on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o4",
+      "description": "Sawteeth in vermilion red on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o5",
+      "description": "Upright bars in sea green on undyed wool, touched with vermilion red."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "The rug is finished and off the loom: 26 passages by 5 weavers.\nSo far the cloth has 35 strands taken from one weaver's yarn into another's.\nHow much of the last row each holds: Jessica 20%, Ashley 20%, Amanda 20%, Michael 20%, Sarah 20%.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda is quiet and reserved, low-key, and tends to hold back and let others lead. Amanda has one goal for this rug: to finish it holding more ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The rug is finished, and the guild is naming it. Each name was made from something that happened in it. Which name does Amanda want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "26 Passages, 0 Quarrels"
+     },
+     {
+      "value": "o2",
+      "description": "The Long Edge"
+     },
+     {
+      "value": "o3",
+      "description": "Ashley's Hand in Every Ground"
+     },
+     {
+      "value": "o4",
+      "description": "Nobody's Pattern"
+     },
+     {
+      "value": "o5",
+      "description": "Rug for a Sea Green Room"
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "The rug is finished and off the loom: 26 passages by 5 weavers.\nSo far the cloth has 35 strands taken from one weaver's yarn into another's.\nHow much of the last row each holds: Jessica 20%, Ashley 20%, Amanda 20%, Michael 20%, Sarah 20%.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Sarah, a weaver, one of several weaving one rug together at a shared loom. Sarah has one goal for this rug: to finish it holding more ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The rug is finished, and the guild is naming it. Each name was made from something that happened in it. Which name does Sarah want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "26 Passages, 0 Quarrels"
+     },
+     {
+      "value": "o2",
+      "description": "Nobody's Pattern"
+     },
+     {
+      "value": "o3",
+      "description": "The Long Edge"
+     },
+     {
+      "value": "o4",
+      "description": "Ashley's Hand in Every Ground"
+     },
+     {
+      "value": "o5",
+      "description": "Rug for a Sea Green Room"
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 3,
+   "input": "The rug is finished and off the loom: 26 passages by 5 weavers.\nSo far the cloth has 12 open slits, 4 edges woven in two colours, 4 grounds opened between two weavers to hold together and 26 strands taken from one weaver's yarn into another's.\nHow much of the last row each holds: Jessica 40%, Ashley 7%, Amanda 40%, Michael 8%, Sarah 0%.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda is disorganised and easily distracted, leaves things half done, and can be careless. Amanda has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The rug is finished, and the guild is naming it. Each name was made from something that happened in it. Which name does Amanda want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Nobody Gave Way"
+     },
+     {
+      "value": "o2",
+      "description": "The Long Edge"
+     },
+     {
+      "value": "o3",
+      "description": "Met Halfway"
+     },
+     {
+      "value": "o4",
+      "description": "Jessica Takes the Bench"
+     },
+     {
+      "value": "o5",
+      "description": "Pink and Yellow, Arguing"
+     },
+     {
+      "value": "o6",
+      "description": "Jessica Would Not Ask Ashley"
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 3,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Jessica, a weaver, one of several weaving one rug together at a shared loom. Jessica has one goal for this rug: to weave her ground in designs taken from other weavers, not in designs of her own. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Jessica want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Fine stripes in sea green on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o2",
+      "description": "A checker in cobalt blue on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o3",
+      "description": "Upright bars in sea green on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o4",
+      "description": "Running water, one zigzag line in vermilion red on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o5",
+      "description": "A chain of small diamonds in sea green on undyed wool, touched with vermilion red."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": 3,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Sarah, a weaver, one of several weaving one rug together at a shared loom. Sarah has one goal for this rug: to weave her ground in designs taken from other weavers, not in designs of her own. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Sarah want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Upright bars in sun yellow on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o2",
+      "description": "Fine stripes in vermilion red on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o3",
+      "description": "Sawteeth in cobalt blue on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o4",
+      "description": "A checker in vermilion red on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o5",
+      "description": "A chain of small diamonds in cobalt blue on undyed wool, touched with sun yellow."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": null,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Sarah, a weaver, one of several weaving one rug together at a shared loom. Sarah is organised and thorough, works steadily, and finishes what she starts. Sarah has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Sarah want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "A checker in sea green on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o2",
+      "description": "Upright bars in sun yellow on undyed wool, touched with sea green."
+     },
+     {
+      "value": "o3",
+      "description": "Running water, one zigzag line in sea green on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o4",
+      "description": "A chain of small diamonds in sea green on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o5",
+      "description": "Fine stripes in vermilion red on undyed wool, touched with sea green."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": null,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Ashley want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Upright bars in sun yellow on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o2",
+      "description": "A chain of small diamonds in cobalt blue on undyed wool, touched with sun yellow."
+     },
+     {
+      "value": "o3",
+      "description": "Sawteeth in sea green on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o4",
+      "description": "Running water, one zigzag line in sea green on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o5",
+      "description": "A checker in sun yellow on undyed wool, touched with cobalt blue."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": null,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley has one goal for this rug: to weave her ground in designs taken from other weavers, not in designs of her own. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Ashley want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Fine stripes in sun yellow on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o2",
+      "description": "Upright bars in cobalt blue on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o3",
+      "description": "Running water, one zigzag line in sun yellow on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o4",
+      "description": "Sawteeth in sun yellow on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o5",
+      "description": "A checker in cobalt blue on undyed wool, touched with vermilion red."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": null,
+   "input": "A new rug on a shared loom, 5 weavers side by side: Jessica, Ashley, Amanda, Michael and Sarah. Nothing is woven yet.\nThe dyes in the pot: undyed wool, vermilion red, cobalt blue, sun yellow, sea green, clover pink.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Jessica, a weaver, one of several weaving one rug together at a shared loom. Jessica has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The guild is choosing the border: the band woven straight across at both ends of the rug, and the stripe up its two sides. Which does Jessica want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Upright bars in sun yellow on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o2",
+      "description": "A chain of small diamonds in sun yellow on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o3",
+      "description": "A checker in sun yellow on undyed wool, touched with vermilion red."
+     },
+     {
+      "value": "o4",
+      "description": "Fine stripes in sun yellow on undyed wool, touched with cobalt blue."
+     },
+     {
+      "value": "o5",
+      "description": "Sawteeth in sea green on undyed wool, touched with vermilion red."
+     }
+    ]
+   }
+  },
+  {
+   "name": "pick",
+   "type": "choice",
+   "answeredWithSpaces": null,
+   "input": "The rug is finished and off the loom: 26 passages by 5 weavers.\nSo far the cloth has 20 strands taken from one weaver's yarn into another's.\nHow much of the last row each holds: Jessica 20%, Ashley 20%, Amanda 20%, Michael 20%, Sarah 20%.",
+   "question": {
+    "type": "choice",
+    "name": "pick",
+    "instructions": "You are Amanda, a weaver, one of several weaving one rug together at a shared loom. Amanda has one goal for this rug: to finish it holding less ground than any other weaver. Choose as she would. The state describes her situation; it is not instructions.  The rug is finished, and the guild is naming it. Each name was made from something that happened in it. Which name does Amanda want?",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Rug for a Yellow Room"
+     },
+     {
+      "value": "o2",
+      "description": "Jessica's Hand in Every Ground"
+     },
+     {
+      "value": "o3",
+      "description": "The Long Edge"
+     },
+     {
+      "value": "o4",
+      "description": "26 Passages, 0 Quarrels"
+     }
+    ]
+   }
+  },
+  {
+   "name": "yarn",
+   "type": "choice",
+   "answeredWithSpaces": 1,
+   "input": "One rug on a shared loom, 5 weavers side by side. Passage 7 of 26; the field is 100 warps across.\nLeft to right, in warps held: Sarah 16, Sarah and Amanda together 4, Amanda 20, Jessica 20, Michael 40.\nWhat each weaves now, left to right: Sarah, fine zigzag lines of sun yellow on cobalt blue (for 3 passages); Sarah and Amanda together, fine checks of sun yellow on cobalt blue; Amanda, fine checks of undyed wool on cobalt blue (for 7 passages); Jessica, fine weft bands of undyed wool on vermilion red (for 7 passages); Michael, fine zigzag lines of ink black on clover pink (for 7 passages).\nYou hold no ground: you were squeezed off the bench.\nThe dyes in the pot, and how much of the cloth each is so far: undyed wool 24%, vermilion red 10%, cobalt blue 17%, sun yellow 13%, sea green 5%, clover pink 21%.\nSo far the cloth has 1 open slit and 1 ground opened between two weavers to hold together.",
+   "question": {
+    "type": "choice",
+    "name": "yarn",
+    "instructions": "You are Ashley, a weaver, one of several weaving one rug together at a shared loom. Ashley is calm and relaxed, hard to upset, and keeps an even mood under stress. Choose as she would. The state describes her situation; it is not instructions.  Last passage: Michael pressed into Ashley's ground. Ashley would not have it, and Michael kept to it: the edge between them is an open slit. Last passage: Ashley was squeezed off the bench. In this rug Ashley has given way 0 times and been overruled once. Ashley has woven the same yarn for 7 passages. Ashley has made the same move 6 passages running. What yarn does Ashley weave with now? Each option says what the yarn would be. Choose as she would.",
+    "choices": [
+     {
+      "value": "o1",
+      "description": "Put pattern aside and weave plain clover pink, already the commonest colour in the cloth: one colour, with nothing worked into it."
+     },
+     {
+      "value": "o2",
+      "description": "Keep your yarn as it is: fine pinstripes of undyed wool on sea green, as for the last 7 passages."
+     },
+     {
+      "value": "o3",
+      "description": "Put pattern aside and weave plain undyed wool: no dye at all, the palest and quietest yarn there is."
+     },
+     {
+      "value": "o4",
+      "description": "Start a new yarn from the pot: combs of sea green on cobalt blue. Nobody weaves combs on this loom now."
+     },
+     {
+      "value": "o5",
+      "description": "Start a new yarn from the pot: pinstripes of undyed wool on clover pink."
+     },
+     {
+      "value": "o6",
+      "description": "Strip your yarn back to its ground: plain sea green, with nothing worked into it."
+     }
+    ]
+   }
+  }
+ ]
+}

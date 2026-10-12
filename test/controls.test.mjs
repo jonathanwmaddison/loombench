@@ -401,6 +401,51 @@ test('a request field a model will not take is left out and the request sent aga
   assert.equal('reasoning_effort' in sent[2].body, false);
 });
 
+test('a stated reply that cannot be read is asked for again, then taken as no preference, and the call says so', async () => {
+  const say = text => ({ json: { choices: [{ message: { content: text } }], usage: { prompt_tokens: 50, completion_tokens: 12 } } });
+  const one = { state: {}, questions: { move: BODY.questions.move, bold: BODY.questions.bold } };
+  // The first reply to the action question sums to 90; the same request, sent again, is answered whole.
+  let moves = 0;
+  const once = host(body => (body.messages[1].content.includes('How hard?') ? say('{"A": 0, "B": 0, "C": 50, "D": 50}') : ++moves === 1 ? say('{"A": 40, "B": 30, "C": 20}') : say('{"A": 20, "B": 30, "C": 50}')));
+  const ask = chatAsker({ provider: 'openai', model: 'gpt-6-luna', effort: 'none', apiKey: 'k', fetchImpl: once.fetchImpl });
+  const answers = await ask(one);
+  assert.deepEqual(answers.move.probabilities, { o1: 0.2, o2: 0.3, o3: 0.5 });
+  assert.equal(answers.bold.score, 2.5);
+  assert.deepEqual([answers.requests, answers.reasked, answers.unanswered, answers.tokens], [3, 1, 0, 150]);
+  const asked = once.sent.filter(x => x.body.messages[1].content.includes('What does A do?'));
+  assert.equal(asked.length, 2);
+  assert.deepEqual(asked[1].body, asked[0].body);                                  // asked again as it was first sent
+  assert.deepEqual([ask.used().requests, ask.used().reasked, ask.used().unanswered, ask.used().failed], [3, 1, 0, 0]);
+
+  // Never readable: three more requests, then no preference, which for a score is the middle of its levels.
+  const never = host(() => say('{"A": 50, "B": 50, "C": 50}'));
+  const deaf = chatAsker({ provider: 'openai', model: 'gpt-6-luna', effort: 'none', apiKey: 'k', fetchImpl: never.fetchImpl });
+  const none = await deaf(one);
+  assert.deepEqual(none.move.probabilities, { o1: 0.3334, o2: 0.3333, o3: 0.3333 });
+  assert.equal(none.bold.score, 1.5);
+  assert.deepEqual([none.requests, none.reasked, none.unanswered], [8, 2, 2]);
+  assert.equal(never.sent.length, 8);
+
+  // The token reading is not asked again: the same request would give the same probabilities.
+  const letters = host(() => tokens([['x', 1]]));
+  const byTokens = chatAsker({ provider: 'ollama', model: 'gemma3:4b', fetchImpl: letters.fetchImpl });
+  await assert.rejects(byTokens({ state: {}, questions: { move: BODY.questions.move } }), /did not answer with an option letter/);
+  assert.equal(letters.sent.length, 1);
+
+  // A whole match in which every sixth reply is unreadable is kept, with the count in its record and no fallback.
+  let n = 0;
+  const shaky = host(body => {
+    const options = body.messages[1].content.split('\n').filter(line => /^[A-T]\. /.test(line)).length;
+    if (++n % 6 === 0) return say('{"A": 100, "B": 100}');
+    return say(JSON.stringify(Object.fromEntries(Array.from({ length: options }, (_, i) => ['ABCDEFGHIJKLMNOPQRST'[i], i === 0 ? 100 - (options - 1) : 1]))));
+  });
+  const seats = deal(1), rug = await play({ seats, seed: 1, ask: chatAsker({ provider: 'openai', model: 'gpt-6-luna', effort: 'none', apiKey: 'k', fetchImpl: shaky.fetchImpl }) });
+  const record = recordOf(rug, { id: 'm001', match: 1, seats });
+  assert.equal(record.fallbacks, 0);
+  assert.ok(record.reasked > 0);
+  assert.equal(record.requests, shaky.sent.length);
+});
+
 /* ------------------------------------------------------------------------------------- OpenAI's decision model */
 
 const decided = (over = {}) => ({ json: { answers: [
@@ -408,7 +453,7 @@ const decided = (over = {}) => ({ json: { answers: [
   { type: 'score', name: 'bold', score: 1.25, confidence: 0.5, probabilities: [] },
 ], usage: { input_tokens: 400 }, ...over } });
 
-test('a Jev body maps onto a Decisions request field for field, with nothing rephrased', () => {
+test('a Jev body is carried over to a Decisions request word for word: its state as the input, each question with its options', () => {
   assert.deepEqual(decisionRequest(BODY), { model: 'gpt-6-luna', input: 'One rug.\nLeft to right: A 20, B 20.', questions: [
     { type: 'choice', name: 'move', instructions: 'You are A. What does A do?', choices: [{ value: 'o1', description: 'Weave on.' }, { value: 'o2', description: 'Take from B.' }, { value: 'o3', description: 'Give to B.' }] },
     { type: 'score', name: 'bold', instructions: 'You are A. How hard?', levels: [{ label: '1', description: 'a thread' }, { label: '2', description: 'steadily' }, { label: '3', description: 'firmly' }, { label: '4', description: 'all at once' }] },
@@ -482,6 +527,35 @@ test('a whole match can be decided by the decision model, and its record says so
   assert.equal(record.fallbacks, 0);
   assert.equal(record.calls, ask.used().requests);
   assert.ok(record.dollars > 0 && Math.abs(record.dollars - ask.used().dollars) < 1e-9);
+  assert.ok(sameCloth(await replay(JSON.parse(JSON.stringify(record))), rug));
+});
+
+test('a question the decision model refuses is asked again with a space added, then taken as no preference, and the call says so', async () => {
+  // A fake host that refuses "bold" until the input ends in two spaces, as the API refuses some inputs and not their neighbours.
+  const fussy = spaces => host(body => ({ json: { usage: { input_tokens: 100 }, answers: body.questions.map(q => (q.name === 'bold' && !body.input.endsWith(' '.repeat(spaces))
+    ? { type: 'refusal', name: 'bold' } : decided().json.answers.find(a => a.name === q.name))) } }));
+  const { sent, fetchImpl } = fussy(2), ask = decisionsAsker({ apiKey: 'k', fetchImpl }), answers = await ask(BODY), input = decisionRequest(BODY).input;
+  assert.deepEqual(sent.map(x => [x.body.input, x.body.questions.map(q => q.name).join()]), [[input, 'move,bold'], [`${input} `, 'bold'], [`${input}  `, 'bold']]);
+  assert.deepEqual({ ...answers }, decisionAnswers(BODY, decided().json));      // the first answer to "move" stands
+  assert.deepEqual([answers.reasked, answers.tokens], [1, 300]);                // one question, asked again twice, all of it charged
+  assert.deepEqual([ask.used().requests, ask.used().reasked, ask.used().failed], [3, 1, 0]);
+  assert.equal((await ask({ ...BODY, questions: { move: BODY.questions.move } })).reasked, 0);
+  assert.equal(answers.unanswered, 0);
+  // Refused at the first asking and at three more, a question is taken as no preference: the middle of a score's
+  // levels, or every option of a choice equally likely. The call does not fail, and says how many.
+  const never = fussy(9), stuck = decisionsAsker({ apiKey: 'k', fetchImpl: never.fetchImpl }), flat = await stuck(BODY);
+  assert.deepEqual([never.sent.length, flat.reasked, flat.unanswered, stuck.used().unanswered, stuck.used().failed, DECISIONS.reasks], [4, 1, 1, 1, 0, 3]);
+  assert.deepEqual([flat.bold, flat.move.choice], [{ type: 'score', score: 1.5 }, 'o2']);
+  const refusedMove = { answers: [{ type: 'refusal', name: 'move' }, decided().json.answers[1]] };
+  assert.deepEqual(decisionAnswers(BODY, refusedMove, new Set(['move'])).move, { type: 'choice', choice: 'o1', confidence: 0.3334, probabilities: { o1: 0.3334, o2: 0.3333, o3: 0.3333 } });
+  assert.throws(() => decisionAnswers(BODY, refusedMove, new Set(['bold'])), /refused "move"/);      // only a question named as refused throughout
+  // A match with refused questions is kept as the model's own, and its record says how many were asked again.
+  const some = host((body, n) => ({ json: { answers: body.questions.map(q => (q.type === 'score' && n % 7 === 0 && !body.input.endsWith(' ') ? { type: 'refusal', name: q.name }
+    : q.type === 'score' ? { type: 'score', name: q.name, score: 1 } : { type: 'choice', name: q.name, choice: q.choices[0].value, probabilities: q.choices.map((c, i) => ({ value: c.value, probability: i === 0 ? 0.7 : i === 1 ? 0.3 : 0 })) })) } }));
+  const asker = decisionsAsker({ apiKey: 'k', fetchImpl: some.fetchImpl }), seats = deal(2), rug = await play({ seats, seed: 2, ask: asker }), record = recordOf(rug, { id: 'm002', match: 2, seats });
+  assert.ok(record.reasked > 0 && record.reasked === asker.used().reasked);
+  assert.deepEqual([record.fallbacks, record.unanswered], [0, undefined]);
+  assert.ok(asker.used().requests > record.calls);
   assert.ok(sameCloth(await replay(JSON.parse(JSON.stringify(record))), rug));
 });
 

@@ -12,9 +12,10 @@ export const SWITCH_KEYS = Object.freeze(['model', 'persona', 'objective', 'agen
 
 /** A run's switches with every missing one at its default (`conditions` of an index kept before a switch existed is null). */
 export function switchesOf(run) {
-  const c = run.conditions ?? {};
+  const c = run.conditions ?? {}, mixed = v => (v === 'mixed' ? `mixed: ${c.mix}` : v);
   return {
-    model: c.model ?? run.model ?? null, persona: c.persona ?? 'dealt', objective: c.objective ?? (run.design === 'uniform' ? 'uniform' : 'dealt'),
+    // A mixed group (two types among the five seats) is a setting of its own, named by the group.
+    model: c.model ?? run.model ?? null, persona: mixed(c.persona) ?? 'dealt', objective: mixed(c.objective) ?? (run.design === 'uniform' ? 'uniform' : 'dealt'),
     // A solo run is named with how its four other seats were scripted, so each way is its own setting.
     agents: c.agents === 'solo' ? `solo-${c.neighbours ?? 'accept'}` : 'group', area: c.area ?? 'free', designs: c.designs ?? (run.rules === 1 ? 'chosen' : 'assigned'), peers: c.peers ?? run.mode === 'peers',
   };

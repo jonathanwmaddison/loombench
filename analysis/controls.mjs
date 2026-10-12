@@ -1,7 +1,7 @@
 // Every run set against the run it differs from in one switch: `node analysis/controls.mjs [--answers]`. No key or
 // network needed. Prints what the Controls page shows, from the run indexes under runs/, and writes analysis/controls.json.
 //
-// For each baseline (a model's run at the default switches with the most matches) and each run that differs from it in
+// For each baseline (a model's run at the default switches with the most matches; of two alike, the first by name) and each run that differs from it in
 // one switch or in none: the match designs both have, and for each measure the two means and the paired difference
 // (other minus baseline) with a Student-t 95% interval over match designs. Each condition was executed once, so the
 // comparison with nothing changed (a second execution), where there is one, is the scale for all the others.
@@ -17,7 +17,7 @@ import { mean } from '../bench/stats.mjs';
 const RUNS = new URL('../runs/', import.meta.url);
 const read = path => JSON.parse(readFileSync(new URL(path, RUNS), 'utf8'));
 const runs = readdirSync(RUNS, { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== 'play')
-  .map(d => { try { return read(`${d.name}/index.json`); } catch { return null; } }).filter(Boolean);
+  .map(d => { try { return read(`${d.name}/index.json`); } catch { return null; } }).filter(Boolean).sort((a, b) => a.run.localeCompare(b.run));
 
 const bases = new Map();
 for (const r of runs.filter(isBaseline)) if (!bases.has(r.model) || r.matches.length > bases.get(r.model).matches.length) bases.set(r.model, r);

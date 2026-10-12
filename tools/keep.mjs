@@ -63,7 +63,7 @@ export async function writeIndex(dir, run) {
     // The switches the run was made under (`conditionsOf`): a run is one condition, so its first match speaks for it.
     conditions: records.length ? conditionsOf(records[0]) : null,
     updated: new Date().toISOString(), matches: records.map(summaryOf),
-    totals: { matches: records.length, calls: sum('calls'), ...(records.some(r => r.requests != null) ? { requests: sum('requests') } : {}), dollars: sum('dollars'), seconds: sum('seconds') },
+    totals: { matches: records.length, calls: sum('calls'), ...(records.some(r => r.requests != null) ? { requests: sum('requests') } : {}), ...(records.some(r => r.reasked) ? { reasked: sum('reasked') } : {}), ...(records.some(r => r.unanswered) ? { unanswered: sum('unanswered') } : {}), dollars: sum('dollars'), seconds: sum('seconds') },
   };
   await mkdir(dir, { recursive: true });
   await writeWhole(join(dir, 'index.json'), JSON.stringify(index, null, 2));

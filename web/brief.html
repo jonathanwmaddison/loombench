@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brief: LoomBench</title>
+<link rel="stylesheet" href="web/app.css">
+<style>
+  /* The Brief only: one page. A head, three figures and the findings, sized to print on one sheet. */
+  .page { max-width: 1080px; padding-bottom: 40px; }
+  .brief-head { margin: 14px 0 0; }
+  .kicker { font-size: 12.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+  .brief-head h1 { margin: 4px 0 6px; font-size: 30px; }
+  .brief-head .lede { max-width: none; font-size: 15.5px; line-height: 1.45; margin: 0 0 8px; }
+  .said { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 24px; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+  .said-item b { color: var(--ink); font-weight: 600; }
+  section { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--hairline); }
+  h2 { margin: 0 0 4px; font-size: 15.5px; }
+  .fig { margin-right: 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+  .cap { margin: 0 0 6px; font-size: 12.5px; line-height: 1.42; color: var(--ink-2); max-width: none; }
+  .muted { color: var(--muted); }
+
+  /* Figure 1: two rows of six pictures, side by side. */
+  .strips { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 32px; margin: 6px 0 0; }
+  .strip { min-width: 0; }
+  .strip h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+  .strip-of { font-weight: 400; color: var(--ink-2); }
+  .rugs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+  .rug { display: block; color: var(--ink); text-decoration: none; min-width: 0; }
+  .rug img { display: block; width: 100%; height: auto; border-radius: 4px; background: var(--hairline); }
+  .strip-row { display: flex; gap: 2px; margin-top: 5px; }
+  .sq { flex: 1 1 0; height: 8px; border-radius: 2px; box-sizing: border-box; }
+  .sq.odd { height: 12px; margin-top: -2px; border: 2px solid var(--ink); }
+  .rug-n { margin-top: 4px; font-size: 12px; font-weight: 600; line-height: 1.2; }
+  .rug-who { font-size: 11px; line-height: 1.25; color: var(--ink-2); }
+
+  /* Figures 2 and 3: small panels on one scale. */
+  .panels { display: grid; gap: 10px 14px; margin: 8px 0 0; }
+  .panels.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .panels.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .panel { min-width: 0; }
+  .panel-name { font-size: 13px; font-weight: 600; line-height: 1.3; }
+  .panel-sub { font-size: 11.5px; line-height: 1.35; color: var(--ink-2); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .panel-x { font-size: 11px; color: var(--ink-2); text-align: center; }
+  .plot { display: block; width: 100%; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 2px 0 4px; font-size: 11.5px; color: var(--ink-2); }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .dv-key { width: 10px; height: 10px; border-radius: 3px; }
+  .dv { margin: 10px 0 6px; }
+  .dv-row { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
+  .dv-name { flex: 0 0 12px; font-size: 11px; color: var(--ink-2); text-align: right; }
+  .dv-bar { flex: 1 1 auto; display: flex; gap: 2px; height: 17px; min-width: 0; }
+  .part { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; border-radius: 3px; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .part-second { background: var(--ink); color: #fff; }
+  .part-first { background: #b9b7ae; color: var(--ink); }
+  .part-joint { background: repeating-linear-gradient(45deg, #e9e8e1 0 5px, #d3d1c7 5px 7px); color: var(--ink); }
+
+  .two { display: grid; grid-template-columns: 2.4fr 1fr; gap: 28px; }
+  .findings { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.42; columns: 2; column-gap: 28px; }
+  .findings li { margin: 0 0 5px; break-inside: avoid; }
+  .method .cap { font-size: 12px; }
+  .findings b { font-weight: 600; }
+  code { font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+
+  @media screen and (max-width: 860px) {
+    .strips, .two, .said { grid-template-columns: 1fr; }
+    .findings { columns: 1; }
+    .panels.five, .panels.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  /* One A4 sheet: the page is laid out at its full width and scaled to the paper. */
+  @page { size: A4 portrait; margin: 7mm; }
+  @media print {
+    body { background: #fff; zoom: 0.675; }
+    .page { width: 1080px; max-width: none; padding: 0; margin: 0 auto; }
+    .topbar { padding-bottom: 6px; }
+    .topbar nav { display: none; }
+    .brief-head { margin-top: 8px; }
+    section, .strip, .panel { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="muted">Loading…</p>
+</main>
+<script type="module" src="web/brief.mjs"></script>
+</body>
+</html>

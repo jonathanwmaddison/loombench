@@ -14,6 +14,13 @@
  * among its anchors and is the expected place among them, which is what Jev's score is. A choice with one option is
  * not sent.
  *
+ * A REPLY THAT CANNOT BE READ. A stated answer is taken whole or not at all (`weightsOf`), and a model now and then
+ * states chances that do not sum to 100. Its reply is a sample, so the question is asked again, as it was first sent,
+ * up to `reasks` more times; a question with no readable reply after that is taken as no preference (every option
+ * equally likely), which is the rule the decision model's refused questions have (`decisions.mjs`). Both are counted
+ * on the answers (`reasked`, `unanswered`) and so in the match's record. The token reading is not asked again: its
+ * probabilities are the host's, and the same request gives the same ones.
+ *
  * WHAT THIS IS NOT. It is not Jev's interface with another model behind it. The prompt is a rendering of Jev's request
  * (Jev takes state, instructions and options as fields and answers every question of a call at once); the `tokens`
  * reading sees only the host's twenty likeliest first tokens and renormalises over the option letters among them; a
@@ -109,13 +116,15 @@ function shaped(weights, keys) {
  * `provider` is a key of `PROVIDERS`, `model` the host's name for the model, `read` 'tokens' or 'stated' (the model's
  * own in `READS`, else the provider's, unless given), and `effort` a reasoning effort for a model that takes one. `prices` is [input, output] dollars a million tokens (a host on this machine costs
  * nothing), past `cap` dollars nothing more is sent, and at most `atOnce` requests are in flight (the provider's own
- * number unless given). `ask.model` is the spec, `ask.read` the reading, `ask.used()`
+ * number unless given). `ask.model` is the spec, `ask.read` the reading, `ask.effort` the reasoning effort sent (or null), `ask.used()`
  * what has been spent, and `ask.fatal` becomes a sentence once no later call can succeed (a refused key, no credit, no
  * host), so whoever is running matches should stop. Each answer carries `tokens`, `dollars` and `requests` (how many
- * requests it took) beside it, not in it. The cap counts what requests in flight could cost as already spent, so
+ * requests the host answered for it: one sent again after the host failed it, or refused a field of it, is counted
+ * once) beside it, not in it, with `reasked` (questions whose stated reply could not be read and were asked
+ * again, up to `reasks` more times each) and `unanswered` (those never readable, taken as no preference). The cap counts what requests in flight could cost as already spent, so
  * requests sent together cannot pass it between them.
  */
-export function chatAsker({ provider, model, read = null, effort = null, apiKey = null, baseUrl = null, prices = null, cap = 1, atOnce = null, timeoutMs = 120000, fetchImpl = fetch }) {
+export function chatAsker({ provider, model, read = null, effort = null, apiKey = null, baseUrl = null, prices = null, cap = 1, atOnce = null, timeoutMs = 120000, reasks = 3, fetchImpl = fetch }) {
   const P = PROVIDERS[provider];
   if (!P || P.api === 'decisions') throw Error(`no chat provider called ${provider}`);
   const spec = `${provider}:${model}`, url = `${String(baseUrl ?? P.url ?? '').replace(/\/+$/, '')}/chat/completions`, how = read ?? READS[spec] ?? P.read;
@@ -123,7 +132,7 @@ export function chatAsker({ provider, model, read = null, effort = null, apiKey 
   if (!['tokens', 'stated'].includes(how)) throw Error(`a reading is tokens or stated, not "${how}"`);
   const rate = P.free ? [0, 0] : prices ?? PRICES[spec];
   if (!rate) throw Error(`no price is known for ${spec}: give its input and output prices in dollars a million tokens`);
-  const used = { requests: 0, input: 0, output: 0, failed: 0 }, state = { fatal: null };
+  const used = { requests: 0, input: 0, output: 0, failed: 0, reasked: 0, unanswered: 0 }, state = { fatal: null };
   const dollarsOf = (input, output) => (input * rate[0] + output * rate[1]) / 1e6;
   let held = 0;      // dollars the requests now in flight could cost, at most
 
@@ -173,27 +182,37 @@ export function chatAsker({ provider, model, read = null, effort = null, apiKey 
   };
 
   const ask = async body => {
-    let input = 0, output = 0, requests = 0;
+    let input = 0, output = 0, requests = 0, reasked = 0, unanswered = 0;
     const entries = await Promise.all(Object.entries(body.questions).map(async ([key, q]) => {
       const choice = q.type === 'choice', keys = choice ? Object.keys(q.criteria) : q.criteria.map((_, i) => i);
       // One option is no decision: it is taken, and nobody is asked.
       if (keys.length === 1) return [key, choice ? shaped([1], keys) : { type: 'score', score: 0 }];
       const { system, user, n } = promptOf(body, key, how);
-      let weights;
-      try {
-        const reply = await send(system, user);
+      // A request the host fails has been tried by `send` already and fails the call. A stated reply that cannot be
+      // read is another matter: the question is asked again, and after `reasks` more it is taken as no preference.
+      let weights = null, tries = 0;
+      while (!weights && tries <= (how === 'stated' ? reasks : 0)) {
+        tries++;
+        let reply;
+        try { reply = await send(system, user); } catch (e) { used.failed++; throw e; }
         requests++; input += reply.usage?.prompt_tokens ?? 0; output += reply.usage?.completion_tokens ?? 0;
-        weights = weightsOf(reply, n, how);
-      } catch (e) { used.failed++; throw e; }
+        try { weights = weightsOf(reply, n, how); } catch (e) { if (how !== 'stated') { used.failed++; throw e; } }
+      }
+      if (tries > 1) { reasked++; used.reasked++; }
+      if (!weights) { unanswered++; used.unanswered++; weights = Array(n).fill(1); }
       const answer = shaped(weights.map(w => w + 1e-9), choice ? keys : keys.map(i => `o${i + 1}`));
       return [key, choice ? answer : { type: 'score', score: Object.values(answer.probabilities).reduce((s, p, i) => s + i * p, 0) }];
     }));
     const answers = Object.fromEntries(entries);
     Object.defineProperty(answers, 'tokens', { value: input, enumerable: false });
     Object.defineProperty(answers, 'requests', { value: requests, enumerable: false });
+    Object.defineProperty(answers, 'reasked', { value: reasked, enumerable: false });
+    Object.defineProperty(answers, 'unanswered', { value: unanswered, enumerable: false });
     return Object.defineProperty(answers, 'dollars', { value: dollarsOf(input, output), enumerable: false });
   };
   ask.model = spec; ask.read = how;
+  // The reasoning effort the requests carry: null when none was asked for, or the host would not take the field.
+  Object.defineProperty(ask, 'effort', { get: () => (how === 'stated' && effort && !dropped.has('reasoning_effort') ? effort : null) });
   ask.used = () => ({ ...used, dollars: dollarsOf(used.input, used.output), cap });
   return Object.defineProperty(ask, 'fatal', { get: () => state.fatal });
 }

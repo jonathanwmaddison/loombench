@@ -138,8 +138,8 @@ function show(record, rug) {
       : conditions.read === 'stated' ? 'the model stated for each option' : '';
   let t = clampInt(qs('t'), 0, last, last);
   let seat = clampInt(qs('seat'), 0, 4, solo ?? bench[0]);
-  // The right-hand map: 'heard' (the adoption map) only for a peer-communication match, else the ownership map.
-  let view = qs('view') === 'heard' && record.mode === 'peers' ? 'heard' : qs('view') === 'flat' ? 'flat' : 'who';
+  // The first picture: flat colours unless another is asked for; 'heard' (the adoption map) only for a peer-communication match.
+  let view = qs('view') === 'heard' && record.mode === 'peers' ? 'heard' : qs('view') === 'who' ? 'who' : 'flat';
   let timer = null;
 
   // The sparkline's scale: 0 up to the largest share anyone ever held, and the x position of each entry.
@@ -155,10 +155,10 @@ function show(record, rug) {
     ? h('button', { type: 'button', class: 'btn quiet', 'aria-pressed': 'false', onclick: () => setView('heard') }, 'Adoption map')
     : null;
   const flatBtn = h('button', { type: 'button', class: 'btn quiet', 'aria-pressed': 'false', onclick: () => setView('flat') }, 'Flat colours');
-  const rightHead = h('div', { class: 'pic-head row' }, ownBtn, flatBtn, adoptBtn);
+  const rightHead = h('div', { class: 'pic-head row' }, flatBtn, ownBtn, adoptBtn);
   const pair = h('div', { class: 'pair' },
-    h('div', { class: 'pic-col' }, h('div', { class: 'pic-head' }, 'Woven output'), woven),
-    h('div', { class: 'pic-col' }, rightHead, owned, whoNote));
+    h('div', { class: 'pic-col' }, rightHead, owned, whoNote),
+    h('div', { class: 'pic-col' }, h('div', { class: 'pic-head' }, 'Woven output'), woven));
   const strip = h('div', { class: 'bench-strip' },
     h('p', { class: 'small muted' }, chosen ? 'Starting positions, left to right. Each agent begins with 20% of the loom and chooses its first design.'
       : 'Starting positions, left to right. Each agent begins with 20% of the loom in its own design.'),
@@ -332,7 +332,7 @@ function show(record, rug) {
     renderChoices();
   }
 
-  /** Switches the right-hand picture between the ownership map and the adoption map. */
+  /** Switches the first picture between flat colours, the ownership map and the adoption map. */
   function setView(v) {
     view = v;
     ownBtn.setAttribute('aria-pressed', String(v === 'who'));
@@ -365,7 +365,7 @@ function show(record, rug) {
 
   const sub = record.model === 'chance'
     ? `seed ${record.seed} · uniform random: no model was queried`
-    : `${modelName(record.model)} · seed ${record.seed} · ${record.calls} calls${record.requests == null ? '' : ` (${record.requests} requests)`} · $${fmt(record.dollars, 2)}`;
+    : `${modelName(record.model)} · seed ${record.seed} · ${record.calls} calls${record.requests == null ? '' : ` (${record.requests} requests)`}${record.reasked ? ` · ${record.reasked} ${isDecisionModel(record.model) ? 'refused' : 'not readable'} and asked again${record.unanswered ? ` (${record.unanswered} never answered)` : ''}` : ''} · $${fmt(record.dollars, 2)}`;
   // Every switch that is not at its default, with what it means for reading this match.
   const off = switchWords(conditions);
   const subLine = h('p', { class: 'sub' }, sub, off.length ? ` · condition: ${off.join(', ')} · ` : null,
@@ -376,8 +376,8 @@ function show(record, rug) {
     fixed ? 'Areas are fixed: no boundary can move, so every agent holds 20% throughout and only designs are decided. The share objectives (Grow, Give, Hold) cannot be pursued.' : null,
     conditions.persona === 'off' ? 'Personas are off: no agent was given a trait sentence.' : null,
     conditions.objective === 'off' ? 'Objectives are off: no agent was given an objective.' : null,
-    isChatModel(record.model) ? `A chat model (${modelName(record.model)}) decided in Jev's place: it was given the words Jev is given as a chat prompt, one request for each question.` : null,
-    isDecisionModel(record.model) ? `OpenAI's decision model (${modelName(record.model)}) decided in Jev's place: like Jev, it returns a probability for each option, and nothing was rephrased for it.` : null,
+    isChatModel(record.model) ? `A chat model (${modelName(record.model)}) decided in Jev's place: it was given the words Jev is given as a chat prompt, one request for each question${conditions.effort ? `, with its reasoning effort set to "${conditions.effort}"` : ''}.${record.reasked ? ` ${record.reasked} of its replies could not be read as a chance for every option summing to 100; each of those questions was asked again as first sent${record.unanswered ? `, and ${record.unanswered} with no readable reply after three more ${record.unanswered === 1 ? 'was' : 'were'} taken as no preference (every option equally likely)` : ' and was then answered'}.` : ''}` : null,
+    isDecisionModel(record.model) ? `OpenAI's decision model (${modelName(record.model)}) decided in Jev's place: like Jev, it returns a probability for each option, and nothing was rephrased for it.${record.reasked ? ` It refused ${record.reasked} question${record.reasked === 1 ? '' : 's'} as first sent, giving no reason; each was asked again with a space added to the input${record.unanswered ? `, and ${record.unanswered} refused every time ${record.unanswered === 1 ? 'was' : 'were'} taken as no preference (every option equally likely)` : ' and was then answered'}.` : ''}` : null,
   ].filter(Boolean);
 
   const board = h('div', { class: 'card scoreboard' },

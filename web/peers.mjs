@@ -16,7 +16,7 @@ const HEARD_NOTE = 'Each colour denotes an agent\'s share. Stripes in a second c
 const EXAMPLE_SUB = 'One match under peer communication. Each colour denotes an agent\'s share of the loom. Stripes in a second colour mark '
   + 'rounds in which that agent adopted the action advocated by the neighbour of that colour. An agent shown in one solid colour adopted none.';
 const DIVERGENCE_NOTE = 'mean absolute difference in final share per agent, percentage points';
-const VIEWS = ['cloth', 'who', 'heard'];
+const VIEWS = ['flat', 'cloth', 'who', 'heard'];
 const MIN_HEARD = 8, SCALE = 60;
 const EMPTY = { n: 0, toward: NaN, took: NaN, backfired: NaN };
 const EMPTY_TALLY = { heard: EMPTY, held: EMPTY, effect: NaN };
@@ -142,11 +142,11 @@ function wall({ peers, quiet, again }) {
   const quietOf = byNumber(quiet), againOf = byNumber(again);
   const rows = peers.matches.map(m => ({ m, q: quietOf.get(m.match) ?? null, a: againOf.get(m.match) ?? null }));
   const pics = [];
-  let view = VIEWS.includes(qs('view')) ? qs('view') : 'cloth';
+  let view = VIEWS.includes(qs('view')) ? qs('view') : 'flat';
   // The file for a view. 'heard' is the rug read by who was heeded: only the peer-communication rug has one, so a rug with
   // no communication (nobody to heed) shows its ownership map instead.
   const srcOf = (run, id, v, speaking) => {
-    const suffix = { cloth: '', who: '-who', heard: speaking ? '-heard' : '-who' }[v];
+    const suffix = { flat: '-flat', cloth: '', who: '-who', heard: speaking ? '-heard' : '-who' }[v];
     return `runs/${enc(run)}/thumbs/${enc(id)}${suffix}.png`;
   };
   const notWoven = () => h('div', { class: 'none small muted' }, 'not woven');
@@ -210,7 +210,7 @@ function wall({ peers, quiet, again }) {
     },
   }, h('option', { value: 'match' }, 'Match order'), h('option', { value: 'changed' }, 'Largest divergence first'));
   const controls = h('div', { class: 'row', style: { margin: '16px 0 0' } },
-    toggle('cloth', 'Woven output'), toggle('who', 'Ownership map'), toggle('heard', 'Adoption map'), sortSel);
+    toggle('flat', 'Flat colours'), toggle('cloth', 'Woven output'), toggle('who', 'Ownership map'), toggle('heard', 'Adoption map'), sortSel);
   return { controls, heardNote, wallEl, rows };
 }
 

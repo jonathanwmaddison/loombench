@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Composition: LoomBench</title>
+<link rel="stylesheet" href="web/app.css">
+<style>
+  /* Composition only: the two types, the grid of pictures with the bench under each, the chart, and the paired table. */
+  h2 { margin-top: 36px; }
+  .types { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--gap); margin: 16px 0 0; }
+  .type-card h3 { margin: 2px 0 8px; font-size: 18px; }
+  .type-card .said { margin: 0 0 8px; max-width: 60ch; }
+
+  .pictures { width: auto; }
+  .pictures th { white-space: nowrap; }
+  .pictures td { vertical-align: top; }
+  .pictures td:first-child { min-width: 84px; font-weight: 600; }
+  .pic { display: block; width: 116px; }
+  .pic img { display: block; width: 100%; height: auto; border-radius: 4px; background: var(--hairline); }
+  .strip { width: 116px; margin-top: 6px; }
+  .strip-row { display: flex; gap: 3px; }
+  .sq { flex: 1 1 0; height: 12px; border-radius: 2px; box-sizing: border-box; }
+  .sq.odd { height: 16px; margin-top: -2px; border: 2.5px solid var(--ink); }
+  .strip-who { margin-top: 3px; min-height: 16px; line-height: 16px; color: var(--ink-2); }
+
+  /* How the loom ends divided: one bar a composition. Ink for the type that is added, grey for the group, a hatch for joint holding. */
+  .bars-card { margin: 12px 0 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px; color: var(--ink-2); }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .key { width: 14px; height: 14px; border-radius: 3px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+  .bar-name { flex: 0 0 84px; font-size: 13px; color: var(--ink-2); text-align: right; white-space: nowrap; }
+  .bar { flex: 1 1 auto; display: flex; gap: 2px; height: 26px; min-width: 0; }
+  .part { display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; border-radius: 4px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .part-second { background: var(--ink); color: #fff; }
+  .part-first { background: #b9b7ae; color: var(--ink); }
+  .part-joint { background: repeating-linear-gradient(45deg, #e9e8e1 0 5px, #d3d1c7 5px 7px); color: var(--ink); }
+
+  .chart-card { margin: 12px 0 0; overflow-x: auto; }
+  .chart { display: block; max-width: 100%; height: auto; }
+
+  .comparison { margin: 12px 0 0; }
+  .comparison p { margin: 0 0 6px; max-width: 90ch; }
+  .compare { min-width: 760px; }
+  .compare th, .compare td { padding: 7px 12px; }
+  .compare td:first-child { font-weight: 600; white-space: nowrap; }
+  .compare td { border-bottom: 0; }
+  .compare tr.first td { border-top: 1px solid var(--hairline); }
+  .grid .num { text-align: right; white-space: nowrap; }
+  .grid th.num { text-align: right; }
+  .strong { font-weight: 600; }
+</style>
+</head>
+<body>
+<main class="page">
+  <p class="muted">Loading…</p>
+</main>
+<script type="module" src="web/mix.mjs"></script>
+</body>
+</html>

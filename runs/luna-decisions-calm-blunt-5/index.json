@@ -1,0 +1,1087 @@
+{
+  "loombench": 1,
+  "run": "luna-decisions-calm-blunt-5",
+  "model": "openai-decisions:gpt-6-luna",
+  "minds": "jev",
+  "mode": "quiet",
+  "design": "uniform",
+  "rules": 2,
+  "conditions": {
+    "model": "openai-decisions:gpt-6-luna",
+    "persona": "blunt",
+    "objective": "off",
+    "agents": "group",
+    "area": "free",
+    "designs": "assigned",
+    "peers": false
+  },
+  "updated": "2026-10-12T14:28:56.646Z",
+  "matches": [
+    {
+      "loombench": 1,
+      "id": "m001",
+      "match": 1,
+      "seed": 1,
+      "model": "openai-decisions:gpt-6-luna",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        3,
+        2,
+        4,
+        1,
+        0
+      ],
+      "name": "Nobody Gave Way",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 36,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 20,
+            "borrow": 65.4
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 7,
+            "took": 17,
+            "gave": 2,
+            "offered": 0,
+            "refused": 11,
+            "insisted": 8,
+            "backedDown": 4,
+            "pushedOut": 0,
+            "borrowed": 8
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 12,
+          "scores": {
+            "grow": 25,
+            "give": 75,
+            "hold": 60,
+            "borrow": 69.2
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 0,
+            "took": 22,
+            "gave": 1,
+            "offered": 3,
+            "refused": 27,
+            "insisted": 9,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 8
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 2,
+          "name": "Amanda",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 18,
+          "scores": {
+            "grow": 50,
+            "give": 50,
+            "hold": 90,
+            "borrow": 73.1
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": true,
+            "borrow": true
+          },
+          "did": {
+            "worked": 5,
+            "took": 16,
+            "gave": 0,
+            "offered": 2,
+            "refused": 17,
+            "insisted": 9,
+            "backedDown": 1,
+            "pushedOut": 3,
+            "borrowed": 8
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 3,
+          "name": "Michael",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 25,
+          "scores": {
+            "grow": 75,
+            "give": 25,
+            "hold": 75,
+            "borrow": 50
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 7,
+            "took": 16,
+            "gave": 1,
+            "offered": 2,
+            "refused": 15,
+            "insisted": 10,
+            "backedDown": 1,
+            "pushedOut": 0,
+            "borrowed": 6
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 4,
+          "name": "Sarah",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 9,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 45,
+            "borrow": 96.2
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 4,
+            "took": 20,
+            "gave": 0,
+            "offered": 1,
+            "refused": 17,
+            "insisted": 12,
+            "backedDown": 3,
+            "pushedOut": 1,
+            "borrowed": 11
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 275,
+      "fallbacks": 0,
+      "dollars": 0.027170100000000016,
+      "seconds": 23.413,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free"
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m002",
+      "match": 2,
+      "seed": 2,
+      "model": "openai-decisions:gpt-6-luna",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        0,
+        3,
+        2,
+        1,
+        4
+      ],
+      "name": "Nobody Gave Way",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 46,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 0,
+            "borrow": 73.1
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 5,
+            "took": 16,
+            "gave": 1,
+            "offered": 4,
+            "refused": 10,
+            "insisted": 8,
+            "backedDown": 1,
+            "pushedOut": 0,
+            "borrowed": 9
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 6,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 30,
+            "borrow": 73.1
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 9,
+            "took": 15,
+            "gave": 1,
+            "offered": 0,
+            "refused": 18,
+            "insisted": 6,
+            "backedDown": 4,
+            "pushedOut": 1,
+            "borrowed": 8
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 2,
+          "name": "Amanda",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 12,
+          "scores": {
+            "grow": 25,
+            "give": 75,
+            "hold": 60,
+            "borrow": 76.9
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 4,
+            "took": 19,
+            "gave": 2,
+            "offered": 0,
+            "refused": 21,
+            "insisted": 7,
+            "backedDown": 4,
+            "pushedOut": 1,
+            "borrowed": 8
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 3,
+          "name": "Michael",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 16,
+          "scores": {
+            "grow": 50,
+            "give": 50,
+            "hold": 80,
+            "borrow": 65.4
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 3,
+            "took": 19,
+            "gave": 3,
+            "offered": 0,
+            "refused": 18,
+            "insisted": 6,
+            "backedDown": 0,
+            "pushedOut": 1,
+            "borrowed": 9
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 4,
+          "name": "Sarah",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 20,
+          "scores": {
+            "grow": 75,
+            "give": 25,
+            "hold": 100,
+            "borrow": 69.2
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": true,
+            "borrow": true
+          },
+          "did": {
+            "worked": 6,
+            "took": 15,
+            "gave": 0,
+            "offered": 3,
+            "refused": 15,
+            "insisted": 7,
+            "backedDown": 2,
+            "pushedOut": 1,
+            "borrowed": 9
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 265,
+      "fallbacks": 0,
+      "dollars": 0.026142300000000007,
+      "seconds": 22.49,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free"
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m003",
+      "match": 3,
+      "seed": 3,
+      "model": "openai-decisions:gpt-6-luna",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        3,
+        4,
+        0,
+        2,
+        1
+      ],
+      "name": "Nobody Gave Way",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 2,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 10,
+            "borrow": 73.1
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 1,
+            "took": 22,
+            "gave": 2,
+            "offered": 1,
+            "refused": 20,
+            "insisted": 11,
+            "backedDown": 3,
+            "pushedOut": 0,
+            "borrowed": 8
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 31,
+          "scores": {
+            "grow": 75,
+            "give": 25,
+            "hold": 45,
+            "borrow": 38.5
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 11,
+            "took": 13,
+            "gave": 2,
+            "offered": 0,
+            "refused": 9,
+            "insisted": 10,
+            "backedDown": 1,
+            "pushedOut": 0,
+            "borrowed": 5
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 2,
+          "name": "Amanda",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 18,
+          "scores": {
+            "grow": 50,
+            "give": 50,
+            "hold": 90,
+            "borrow": 42.3
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": true,
+            "borrow": false
+          },
+          "did": {
+            "worked": 2,
+            "took": 16,
+            "gave": 1,
+            "offered": 1,
+            "refused": 21,
+            "insisted": 5,
+            "backedDown": 3,
+            "pushedOut": 5,
+            "borrowed": 6
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 3,
+          "name": "Michael",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 46,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 0,
+            "borrow": 69.2
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 5,
+            "took": 20,
+            "gave": 1,
+            "offered": 0,
+            "refused": 10,
+            "insisted": 10,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 7
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 4,
+          "name": "Sarah",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 3,
+          "scores": {
+            "grow": 25,
+            "give": 75,
+            "hold": 15,
+            "borrow": 80.8
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 0,
+            "took": 20,
+            "gave": 1,
+            "offered": 2,
+            "refused": 22,
+            "insisted": 6,
+            "backedDown": 1,
+            "pushedOut": 3,
+            "borrowed": 9
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 265,
+      "fallbacks": 0,
+      "dollars": 0.026236800000000005,
+      "seconds": 21.97,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free"
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m004",
+      "match": 4,
+      "seed": 4,
+      "model": "openai-decisions:gpt-6-luna",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        4,
+        2,
+        0,
+        1,
+        3
+      ],
+      "name": "Nobody Gave Way",
+      "lot": "The bright lot",
+      "joint": 0,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 8,
+          "scores": {
+            "grow": 25,
+            "give": 75,
+            "hold": 40,
+            "borrow": 69.2
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 2,
+            "took": 20,
+            "gave": 2,
+            "offered": 2,
+            "refused": 14,
+            "insisted": 6,
+            "backedDown": 5,
+            "pushedOut": 0,
+            "borrowed": 7
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 4,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 20,
+            "borrow": 73.1
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 6,
+            "took": 16,
+            "gave": 1,
+            "offered": 1,
+            "refused": 18,
+            "insisted": 7,
+            "backedDown": 1,
+            "pushedOut": 1,
+            "borrowed": 7
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 2,
+          "name": "Amanda",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 22,
+          "scores": {
+            "grow": 50,
+            "give": 50,
+            "hold": 90,
+            "borrow": 26.9
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": true,
+            "borrow": false
+          },
+          "did": {
+            "worked": 5,
+            "took": 16,
+            "gave": 1,
+            "offered": 1,
+            "refused": 15,
+            "insisted": 6,
+            "backedDown": 4,
+            "pushedOut": 3,
+            "borrowed": 3
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 3,
+          "name": "Michael",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 25,
+          "scores": {
+            "grow": 75,
+            "give": 25,
+            "hold": 75,
+            "borrow": 73.1
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 5,
+            "took": 19,
+            "gave": 1,
+            "offered": 1,
+            "refused": 16,
+            "insisted": 9,
+            "backedDown": 0,
+            "pushedOut": 0,
+            "borrowed": 8
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 4,
+          "name": "Sarah",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 41,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 0,
+            "borrow": 92.3
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 7,
+            "took": 15,
+            "gave": 3,
+            "offered": 1,
+            "refused": 10,
+            "insisted": 7,
+            "backedDown": 2,
+            "pushedOut": 0,
+            "borrowed": 10
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 261,
+      "fallbacks": 0,
+      "dollars": 0.026319000000000006,
+      "seconds": 18.633,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free"
+      }
+    },
+    {
+      "loombench": 1,
+      "id": "m005",
+      "match": 5,
+      "seed": 5,
+      "model": "openai-decisions:gpt-6-luna",
+      "minds": "jev",
+      "seats": [
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        },
+        {
+          "personality": "blunt",
+          "goal": "none"
+        }
+      ],
+      "bench": [
+        3,
+        2,
+        4,
+        0,
+        1
+      ],
+      "name": "Nobody Gave Way",
+      "lot": "The bright lot",
+      "joint": 7,
+      "results": [
+        {
+          "seat": 0,
+          "name": "Jessica",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 8,
+          "scores": {
+            "grow": 25,
+            "give": 75,
+            "hold": 40,
+            "borrow": 65.4
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 6,
+            "took": 16,
+            "gave": 0,
+            "offered": 1,
+            "refused": 24,
+            "insisted": 6,
+            "backedDown": 1,
+            "pushedOut": 2,
+            "borrowed": 7
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 1,
+          "name": "Ashley",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 7,
+          "scores": {
+            "grow": 0,
+            "give": 100,
+            "hold": 35,
+            "borrow": 80.8
+          },
+          "met": {
+            "grow": false,
+            "give": true,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 4,
+            "took": 20,
+            "gave": 0,
+            "offered": 1,
+            "refused": 20,
+            "insisted": 4,
+            "backedDown": 5,
+            "pushedOut": 1,
+            "borrowed": 9
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 2,
+          "name": "Amanda",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 29,
+          "scores": {
+            "grow": 100,
+            "give": 0,
+            "hold": 55,
+            "borrow": 96.2
+          },
+          "met": {
+            "grow": true,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 6,
+            "took": 16,
+            "gave": 0,
+            "offered": 4,
+            "refused": 17,
+            "insisted": 4,
+            "backedDown": 6,
+            "pushedOut": 0,
+            "borrowed": 7
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 3,
+          "name": "Michael",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 23,
+          "scores": {
+            "grow": 50,
+            "give": 50,
+            "hold": 85,
+            "borrow": 65.4
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": true
+          },
+          "did": {
+            "worked": 6,
+            "took": 15,
+            "gave": 4,
+            "offered": 1,
+            "refused": 8,
+            "insisted": 7,
+            "backedDown": 4,
+            "pushedOut": 0,
+            "borrowed": 6
+          },
+          "score": null,
+          "reached": null
+        },
+        {
+          "seat": 4,
+          "name": "Sarah",
+          "personality": "blunt",
+          "goal": "none",
+          "ground": 26,
+          "scores": {
+            "grow": 75,
+            "give": 25,
+            "hold": 70,
+            "borrow": 38.5
+          },
+          "met": {
+            "grow": false,
+            "give": false,
+            "hold": false,
+            "borrow": false
+          },
+          "did": {
+            "worked": 1,
+            "took": 23,
+            "gave": 1,
+            "offered": 1,
+            "refused": 21,
+            "insisted": 14,
+            "backedDown": 3,
+            "pushedOut": 0,
+            "borrowed": 4
+          },
+          "score": null,
+          "reached": null
+        }
+      ],
+      "calls": 274,
+      "fallbacks": 0,
+      "dollars": 0.027746600000000014,
+      "seconds": 17.371,
+      "mode": "quiet",
+      "rules": 2,
+      "conditions": {
+        "agents": "group",
+        "area": "free"
+      }
+    }
+  ],
+  "totals": {
+    "matches": 5,
+    "calls": 1340,
+    "dollars": 0.13361480000000006,
+    "seconds": 103.87699999999998
+  }
+}

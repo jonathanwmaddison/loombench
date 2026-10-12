@@ -6,7 +6,8 @@ share a fixed resource. Each agent is assigned a **persona** (one sentence descr
 much of that depends on the persona, and how much one agent's stated preference changes another's decision. Seven
 **switches** each change one part of how a match is set up (the decision model, personas, objectives, how many agents
 the model decides for, whether areas can change, who chooses the starting designs, peer communication), so that every
-result can be read against a control.
+result can be read against a control. A group can also be made of one type of agent and then have some of its seats
+given to another type, to see how its results differ.
 
 **Live site: <https://jonathanwmaddison.github.io/loombench/>** (a static copy of the pages below, with every run).
 
@@ -14,6 +15,8 @@ result can be read against a control.
 | --- | --- | --- |
 | Results | [`/`](https://jonathanwmaddison.github.io/loombench/) | The benchmark: objective scores with objective against baseline, a persona-by-objective heatmap, every match |
 | Controls | `/controls` | The switches, which runs exist under which setting, each run against the run one switch away, and the same match designs side by side under every condition |
+| Composition | `/mix` | A group of one type of agent, and the same matches with one to five of its seats given to a second type: the matches side by side, final share by type, and what one more seat changes |
+| Brief | [`/brief`](https://jonathanwmaddison.github.io/loombench/brief) | The group-composition study on one page, drawn from the records: three figures, the findings and the limits. Prints on one A4 sheet; a copy is `docs/composition-brief.pdf` |
 | Peer influence | [`/peers`](https://jonathanwmaddison.github.io/loombench/peers) | The peer-communication study, interactive: every match under three conditions |
 | Report | [`/report`](https://jonathanwmaddison.github.io/loombench/report) | The peer-influence study written up: method, results with heatmaps, implications for multi-agent collaboration |
 | Design | [`/design`](https://jonathanwmaddison.github.io/loombench/design) | The system: every model call in a round, request and response schemas, records and replay |
@@ -30,15 +33,18 @@ node tools/run.mjs --chance --matches 1-44                                 # the
 node --env-file=<file> tools/run.mjs --solo --matches 1-11 --run solo      # Jev, each agent deciding alone: about $0.10
 node --env-file=<file> tools/run.mjs --persona off --matches 1-11 --run persona-off     # Jev with no personas: about $0.12
 node --env-file=<file with OPENAI_API_KEY> tools/run.mjs --model openai-decisions:gpt-6-luna --matches 1-11   # OpenAI's decision model
-node tools/run.mjs --model ollama:gemma3:4b --matches 1-11                 # a chat model in Jev's place (here: on this machine)
-node tools/run.mjs --model ollama:gemma3:4b --matches 1-11 --solo          # ... each agent deciding alone
-node tools/run.mjs --model ollama:gemma3:4b --matches 1-11 --persona off   # ... with no personas
-node tools/run.mjs --model ollama:gemma3:4b --matches 1-11 --area fixed    # ... with areas fixed
+node --env-file=<file> tools/run.mjs --model openai:gpt-6-luna --effort none --matches 1-11   # a chat model in Jev's place: about $0.45
+node --env-file=<file> tools/run.mjs --model openai:gpt-6-luna --effort none --matches 1-11 --solo   # ... each agent deciding alone
+node tools/run.mjs --model ollama:gemma3:4b --matches 1-11 --persona off   # ... a model on this machine, with no personas
+node --env-file=<file> tools/run.mjs --persona calm --objective off --odd blunt --matches 1-10   # four calm agents and one blunt
 node tools/rethumb.mjs --run main                                          # redraw a run's pictures from its records
 node analysis/peers.mjs && node analysis/outcomes.mjs                      # every estimate in the report, from the records
 node analysis/controls.mjs --answers                                       # every run against the run one switch away
+node analysis/models.mjs --scores                                          # the decision models against each other under the same switches
+node analysis/mix.mjs                                                      # group composition: each mix against the one a seat away
 node tools/site.mjs                                                        # the static copy of the site, in _site/
-node --test                                                                # 75 tests; no key or network needed
+node analysis/refusals.mjs                                                 # refused questions and unreadable replies, and what handling them changes
+node --test                                                                # 84 tests; no key or network needed
 ```
 
 No dependencies. Node 22 or later (Python 3 only to regenerate the Report and Design pages). The default decision model
@@ -55,7 +61,7 @@ response.
 | Persona | One pole of one of five trait dimensions, in one sentence (*outgoing*/*reserved*, *warm*/*blunt*, *organised*/*careless*, *anxious*/*calm*, *curious*/*conventional*), or none |
 | Objective | *Grow* (largest final share), *Give* (smallest final share), *Hold* (the initial share), *Borrow* (adopt other agents' designs), or none |
 | Baseline | Agents with no objective, scored on every objective's rule |
-| Share | The part of the loom's width an agent holds: 20% each at the start, 100 units in total |
+| Share | The part of the loom's width an agent holds alone: 20% each at the start, 100 units in total. Ground two agents come to hold jointly counts for neither |
 | Action | *Maintain position*, *claim* share from a neighbour, *concede* share, or *propose joint ownership*; a neighbour may accept, refuse or counter-propose |
 | Objective score | 0-100, computed from the final state; *attained* is a binary criterion per objective |
 | Influence | Under peer communication: posterior minus prior probability of the action a peer advocated, in percentage points |
@@ -107,9 +113,13 @@ Hold cannot be pursued and are not scored.
 **Another decision model in Jev's place.** `--model openai-decisions:gpt-6-luna` asks OpenAI's Decisions API
 (`POST /v1/decisions`, public beta from 6 October 2026), which is the same kind of thing Jev is: one request holds the
 state and every question of a call, and each choice comes back with a probability for every option. Jev's request
-maps onto it field for field and nothing is rephrased (`bench/decisions.mjs`). Input is charged at $0.10 a million
-tokens, about $0.03 a match. The adapter follows OpenAI's published schema and is tested against a stand-in host; it
-had not been run against the live API when this was written, for want of a working key.
+is carried over part for part (the state's texts joined into the input, each question with its instructions and
+options word for word) and nothing is rephrased (`bench/decisions.mjs`). Input is charged at $0.10 a million
+tokens: about $0.02 a match, which takes about 12 seconds. The API answers some questions (from none to 9 per 1,000
+calls, depending on the condition) with a bare `refusal`, for which OpenAI's guide gives no reason and no control. A
+refused question is asked again with a space added to the input (most refusals do not survive that), and one refused
+every time is taken as no preference, every option equally likely. A match's record counts both (`reasked`,
+`unanswered`); the numbers are in the results below.
 
 **A chat model in Jev's place.** `--model <provider>:<model>` with a provider of `openai` (its current chat models
 only: `gpt-6-luna`, `gpt-6.1-sol`, `gpt-6-astra`, each read by the chances it states), `ollama` (a model on this
@@ -117,8 +127,11 @@ machine: no key, no charge) or `compatible` (any OpenAI-compatible host: `LLM_BA
 given the words Jev is given, laid out as a chat prompt, one request for each question, and its reply is read as
 probabilities in one of two ways: `--read tokens` (it replies with one option letter, and the probabilities of its
 first token, among the host's twenty likeliest, are the distribution) or `--read stated` (it states a chance for each
-option, which must be complete and sum to 100). The loom then samples from that distribution as it does from Jev's. A
-priced model stops at `--cap` dollars. This is a second decision system on the same match designs, not Jev's
+option, which must be complete and sum to 100; a reply that is not is asked for again, up to three more times, and a
+question with no readable reply after that is taken as no preference, both counted in the record). The loom then
+samples from that distribution as it does from Jev's. A
+priced model stops at `--cap` dollars, and `--effort LEVEL` sets the reasoning effort of a model that takes one (the
+run records it). This is a second decision system on the same match designs, not Jev's
 interface with another model behind it: the prompt is a rendering of Jev's request, and a model's preference for a
 letter is spread over the options by the seeded order they are listed in, not removed.
 
@@ -126,10 +139,10 @@ The Controls page lists every pair of runs one switch apart with the paired diff
 under each condition side by side. `node analysis/controls.mjs` prints the same tables. The intervals there are
 descriptive: scores are bounded ranks among five seats, and each condition was executed once.
 
-**Three pictures of a match.** The woven output; the ownership map (each stitch in its holder's colour); and flat
-colours, which takes the designs out: each agent's share is one flat colour, thin diagonal lines of a second colour
-mark a design taken from that agent, and broad bands of two colours mark a share the two hold jointly. The flat
-picture is the one to read for who holds how much and who took what from whom.
+**Three pictures of a match.** Flat colours, which every page shows first: each agent's share is one flat colour,
+thin diagonal lines of a second colour mark a design taken from that agent, and broad bands of two colours mark a
+share the two hold jointly. It is the picture to read for who holds how much and who took what from whom. The other
+two are the woven output and the ownership map (each stitch in its holder's colour).
 
 ### What the switches show for Jev (11 October 2026)
 
@@ -166,9 +179,122 @@ These are separate contrasts. They do not add up to a decomposition of the gap b
 attainment: the conditions are not additive, and solo changes what the scores are ranked against. The wording here
 follows a review by a second model.
 
-### A chat model in Jev's place: one run on a small local model
+### OpenAI's decision model in Jev's place (11 and 12 October 2026)
 
-The chat-model switch was exercised with the one chat model reachable on the day: `medgemma:4b`, a 4-billion-parameter
+`gpt-6-luna` through the Decisions API on the same 11 match designs: 44 agents with an objective in each condition.
+The default was executed twice and every other condition once.
+
+| Condition | Run | Attained | Difference from its default, paired by design [95% interval] | Jev, same condition | Decision model minus Jev [95% interval] |
+| --- | --- | --- | --- | --- | --- |
+| Default | `luna-decisions` | 50% (22 of 44) | | 48% (21 of 44); 61% (27 of 44) in a second execution | +2.3 [−19.6, 24.1]; −11.4 [−27.1, 4.3] |
+| Default, a second execution | `luna-decisions-again` | 50%: every answer of all 11 matches identical to the first | 0 | | |
+| Personas off | `luna-decisions-persona-off` | 50% (22 of 44) | 0.0 [−16.8, 16.8] | 75% (33 of 44) | −25.0 [−38.0, −12.0] |
+| Solo, neighbours accept | `luna-decisions-solo` | 68% (30 of 44) | +18.2 [5.0, 31.4] | 89% (39 of 44) | −20.5 [−30.6, −10.3] |
+| Solo, neighbours refuse | `luna-decisions-solo-refuse` | 68% (30 of 44) | +18.2 [5.0, 31.4] | 84% (37 of 44) | −15.9 [−29.5, −2.3] |
+| Areas fixed (*Borrow* only) | `luna-decisions-fixed` | 11 of 11, score 85 | score +0.3 [−6.8, 7.5] | 11 of 11, score 93 | score −8.4 [−13.2, −3.7] |
+| Objectives off | `luna-decisions-objective-off` | nothing to attain | | | |
+
+- **Default: no clear difference from Jev.** It was 2.3 points above Jev's first execution and 11.4 below its second,
+  and both intervals include zero. It was 20.5 points above uniform random [0.8, 40.1], an interval whose lower end is
+  close to zero.
+- **Repeatable in the default.** On designs 1-11 a second execution of the default reproduced every recorded
+  probability and every count of refused questions. This is exact replication for that setting on these designs; the
+  other conditions were not executed twice. Jev's two executions of the default differ by 14 points on these designs.
+- **Personas off.** Attainment was 50% with personas on and off. The interval allows an effect in either direction,
+  so this does not establish that personas have no effect on it. In this condition it was 25.0 points lower than Jev.
+- **Solo.** Among scripted neighbours that never act it attained 68% whether they accept or refuse requests: 18.2
+  points above its group result, and 20.5 and 15.9 points lower than Jev. The clear difference in scores is *Hold*: 53 with
+  accepting neighbours and 54 with refusing ones, 1 of 11 attained each time, against Jev's 98 and 10 of 11
+  (differences 45.5 [24.6, 66.3] and 44.5 [24.6, 64.5]); uniform random scored 52, with 1 of 11. *Grow* was 97 and 93
+  (10 of 11 each time); among refusing neighbours Jev's *Grow* was 64 (5 of 11), a difference whose interval includes
+  zero. These 11 designs show weak *Hold* performance in the solo conditions; they do not show why.
+- **Objectives off.** With no objective fewer actions were recorded, as for Jev: 4.2 claims per agent against 6.6
+  (difference −2.4 [−3.2, −1.7]), 3.3 concessions against 4.2 (−0.9 [−1.4, −0.4]) and 4.7 design adoptions against 6.0
+  (−1.3 [−2.1, −0.6]).
+- **Areas fixed.** *Borrow*, the one objective that can still be pursued, scored 85 against 84 with areas free
+  (interval includes zero) and was attained by all 11 agents given it; the score was 8.4 points lower than Jev's.
+- **Its answers** (descriptive, not tested). The modal option of the action question had a mean probability of 0.51
+  (Jev 0.66). Under *Hold*, weaving straight on had a mean probability of 52% (Jev 74%); under *Give*, an option that
+  claims share had 22% (Jev 13%). Agents adopted another agent's design 6.0 times each against Jev's 3.3 (difference
+  2.8 [1.7, 3.8]).
+- **Cost and speed.** $0.022 a match against Jev's $0.011; about 12 seconds a match for both.
+
+**Refused questions.** In the 154 looms of the six conditions above (11,228 calls) the API refused 46 questions as
+first sent, 4.1 per 1,000 calls: 10 in the default, 19 with personas off, 1 with objectives off, 7 with areas fixed, 5
+and 4 in the two solo conditions. In the 13 group-composition runs below (17,421 calls) it refused 1. The rate
+therefore depends on what is asked: from none to 9 per 1,000 calls. Over every run these were 36 distinct questions:
+17 the opening vote on the border, 17 the two scores (how hard to go, how fine a pattern), 1 an action and 1 a choice
+of design. Sent again unchanged, all 36 were refused again. With one space added to the end of the input 26 were
+answered, with two or three spaces 5 more, and 5, all of them border votes, were refused every time; those were taken
+as no preference (8 answers in the records, since conditions share opening votes). Both steps are interventions on
+the model's answer: the question is asked again alone, with its input changed by a space, and a question never
+answered is given an answer the model did not give. With the looms holding a never-answered question left out,
+attainment was 50% (20 of 40) in the default, 53% (17 of 32) with personas off, and 67% (29 of 43) in each solo
+condition. The runner's first rule, to keep no match with a failed answer, discarded 6 of the first 10 matches.
+`node analysis/refusals.mjs` prints these counts; the 36 questions are in `analysis/decision-refusals.json`, since a
+match's record keeps the counts and not which question was refused.
+
+### `gpt-6-luna` as a chat model in Jev's place (12 October 2026)
+
+The same model name through OpenAI's chat interface: one request for each question, reasoning effort "none", read by
+the chances it states (`--model openai:gpt-6-luna --effort none`). It is a second decision system on the same 11 match
+designs; nothing here shows that the chat interface and the Decisions API serve the same weights. 44 agents with an
+objective in each condition. The default was executed twice and every other condition once.
+
+| Condition | Run | Attained | Difference from its default, paired by design [95% interval] | Decision model, same condition | Jev, same condition |
+| --- | --- | --- | --- | --- | --- |
+| Default | `luna-chat` | 41% (18 of 44) | | 50% (22 of 44) | 48% (21 of 44) |
+| Default, a second execution | `luna-chat-again` | 48% (21 of 44) | +6.8 [−10.1, 23.8] | 50%, identical to its first | 61% (27 of 44) |
+| Personas off | `luna-chat-persona-off` | 55% (24 of 44) | +13.6 [−3.8, 31.0] | 50% (22 of 44) | 75% (33 of 44) |
+| Solo, neighbours accept | `luna-chat-solo` | 66% (29 of 44) | +25.0 [6.6, 43.4] | 68% (30 of 44) | 89% (39 of 44) |
+| Solo, neighbours refuse | `luna-chat-solo-refuse` | 68% (30 of 44) | +27.3 [11.4, 43.1] | 68% (30 of 44) | 84% (37 of 44) |
+| Areas fixed (*Borrow* only) | `luna-chat-fixed` | 9 of 11, score 77 | score −2.4 [−17.8, 13.0] | 11 of 11, score 85 | 11 of 11, score 93 |
+| Objectives off | `luna-chat-objective-off` | nothing to attain | | | |
+
+- **Two executions were not identical.** The default attained 41% and then 48% (difference 6.8 [−10.1, 23.8], an
+  interval that includes zero), where the decision model's two executions matched in every answer. The other
+  conditions were run once, so their run-to-run variation is unknown.
+- **Default: no clear difference in attainment in these paired comparisons.** It was 11.4 points above uniform
+  random [−2.4, 25.1], 6.8 below Jev [−11.7, 25.4] and 9.1 below the decision model [−8.2, 26.3]; every interval
+  includes zero, which is not evidence that the models perform alike. Its *Grow* score (80) and *Borrow* score (79) were above uniform random's (differences 33.0
+  [5.5, 60.4] and 27.6 [16.9, 38.4]).
+- **Personas off.** 55% against 41%, an interval that includes zero. The *Grow* score was 100, with all 11 attained,
+  against 80 and 5 of 11 (difference 20.5 [5.3, 35.6]). In this condition it was 20.5 points lower than Jev [7.8,
+  33.1].
+- **Solo.** 66% among neighbours that accept and 68% among neighbours that refuse: 25.0 and 27.3 points above its
+  group result, and 22.7 [11.0, 34.5] and 15.9 [4.6, 27.2] lower than Jev. Its overall attainment was similar to
+  the decision model's (differences 2.3 [−6.8, 11.3] and 0.0 [−15.0, 15.0]), with a different profile of objective
+  scores. Its *Hold* score was 78 and 79 (6 and 7 of 11 attained) where the decision
+  model's was 53 and 54 (1 of 11); its *Give* score was 24 and 20 (2 of 11) where the decision model's was 80 and 75
+  (8 of 11). The difference on *Give* was 55.7 [24.4, 87.0] and 54.5 [20.9, 88.2] points; on *Hold* it was 25.0
+  [5.9, 44.1] among accepting neighbours, and among refusing ones the interval includes zero. A solo design is the
+  mean of its five looms, so these are over 11 designs.
+- **Objectives off.** Fewer claims, refusals and design adoptions were recorded: 3.8 claims per agent against 5.4
+  (difference −1.6 [−2.2, −1.0]), 1.6 refusals against 3.0 (−1.4 [−2.2, −0.6]) and 4.9 design adoptions against 6.3
+  (−1.4 [−2.2, −0.6]). Concessions did not clearly change (2.9 against 2.1, +0.7 [−0.1, 1.6]).
+- **Areas fixed.** *Borrow* scored 77 against 79 with areas free (interval includes zero); 9 of 11 attained it.
+- **Its answers** (descriptive, not tested). The modal option of the action question had a mean probability of 0.65
+  (Jev 0.66, the decision model 0.51). Under *Hold*, weaving straight on had 69% (Jev 74%, the decision model 52%).
+  Under *Give*, an option that concedes share had 9% and one that claims it 18% (Jev 19% and 13%; the decision model
+  18% and 22%). In the default it conceded less than the decision model (2.1 against 4.2 per agent, difference 2.1
+  [1.3, 3.0]) and refused more (3.0 against 1.8, difference 1.2 [0.1, 2.3]).
+- **Cost and speed.** $0.039 a match and two to three minutes, against the decision model's $0.022 and 12 seconds.
+  The seven runs cost $2.81.
+
+**Replies that could not be read.** A stated answer is used only when it gives a chance for every option and they sum
+to 100 within five. In 38,429 answered requests, 61 replies (1.6 per 1,000) failed that test, with totals of 108 to
+140; each question was asked again as first sent, and one had no readable reply after three more and was taken as no
+preference. The distribution kept is therefore conditional on passing the test. With the looms holding a re-asked
+question left out, attainment was 50% (12 of 24) in the default, 41% (13 of 32) in its second execution, 56% (9 of
+16) with personas off, and 65% (24 of 37) and 66% (25 of 38) solo. Before this rule the runner, which keeps no match
+with a failed answer, discarded two of the first four matches. `node analysis/refusals.mjs` prints the counts.
+
+The larger chat models (`gpt-6.1-sol`, `gpt-6-astra`) were not run. Each accepts a reasoning effort of "low" but not
+"none"; one request to each returned an answer in the same form.
+
+### A small local chat model (11 October 2026)
+
+Before a key for OpenAI's models was available, the chat-model switch was exercised with the one chat model reachable on the day: `medgemma:4b`, a 4-billion-parameter
 medical fine-tune of Gemma 3 served by Ollama on the same machine, read by the probabilities of its first token. It
 was chosen because it was installed, not because it is a good candidate, so this says little about chat models in
 general. Same 11 match designs, 44 agents with an objective in each condition.
@@ -192,8 +318,92 @@ general. Same 11 match designs, 44 agents with an objective in each condition.
 - **It is deterministic.** A second execution reproduced every match exactly, so for this model a difference between
   two conditions is not run-to-run variation, though it still rests on 11 designs.
 
-A larger local model (`medgemma:27b`) took 24 minutes a match and was stopped after one. OpenAI's decision model and
-current chat models had not been run when this was written.
+A larger local model (`medgemma:27b`) took 24 minutes a match and was stopped after one.
+
+## Group composition (12 October 2026)
+
+How a group's results differ when one or more of its agents are given another type. A group is made of five agents
+of one type; the same match numbers are then run with one of its seats given to a second type, then two, up to all
+five. The match number fixes the seed,
+the palette, each agent's starting design and the order on the bench, so within a match number only the sentences
+the agents are told differ. The seats of the second type rotate with the match number and are nested: the seat that
+holds it when one does still holds it when two do. By uniform random the types change nothing (the same match is
+woven), so the pairing is exact. No agent is given an objective. A share is what an agent holds alone; ground two
+agents hold jointly counts for neither. The Composition page (`/mix`) shows every match side by side in flat colours,
+the Brief (`/brief`) puts the main results on one page, and `node analysis/mix.mjs` prints the tables.
+
+Match numbers 1-10 for none and for one agent of the second type, 1-5 for two to five; each composition was executed
+once. Differences are paired by match number, with a 95% interval over match numbers.
+
+### A calm group, and blunt agents added (Jev)
+
+*Calm* and *blunt* are two of the benchmark's ten trait sentences ("Jessica is calm and relaxed, hard to upset, and
+keeps an even mood under stress."; "Jessica is blunt and hard-headed, suspicious of people's motives, and does not
+mind starting an argument.").
+
+| Blunt agents of five | Matches | Final share of one blunt agent | Final share of one calm agent | Claims per blunt agent | Claims per calm agent | Dispersion of shares (pp) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | 10 | | 20.0% | | 0.0 | 0.3 |
+| 1 | 10 | 42.6% | 14.1% | 4.3 | 0.0 | 12.8 |
+| 2 | 5 | 37.5% | 8.3% | 4.5 | 0.0 | 16.7 |
+| 3 | 5 | 28.9% | 6.6% | 5.5 | 0.0 | 15.1 |
+| 4 | 5 | 22.9% | 8.4% | 5.8 | 0.0 | 14.9 |
+| 5 | 5 | 20.0% | | 5.3 | | 12.9 |
+
+- **Five calm agents averaged 20.0% each**, the share they started with. They made no claims and no refusals; one
+  concession was recorded across the 10 matches.
+- **One blunt agent ended with 43% of the loom.** The seat that was changed held 19.6% as a calm agent and 42.6% as a
+  blunt one (difference 23.0 points [16.4, 29.6]). It made 4.3 claims (calm: none) and 1.6 refusals.
+- **The four agents left calm averaged 14.1% each**, against 20.1% each in the calm group (difference −6.0 points
+  [−7.7, −4.3]). They made no claims and no refusals in these runs.
+- **As the number of blunt agents rose, their average share per agent fell:** 37.5% with two, 28.9% with three,
+  22.9% with four and 20.0% with five; these are averages over the agents of a type, on 5 matches. Five blunt agents
+  did not end equal: the dispersion of their shares was 12.9 points and the largest share averaged 39.2%.
+- **A rude agent** ("Jessica is rude and inconsiderate, talks over people and talks down to them, and does not care
+  if she gives offence.", a disposition added for this and never dealt). One among four calm agents ended with 46.6%
+  against 19.6% as a calm agent (difference 27.0 [25.5, 28.5]), and the four calm agents averaged 13.1% each (−7.0
+  [−7.8, −6.3]).
+
+### The same groups by OpenAI's decision model
+
+| Second type, agents of five | 0 | 1 | 2 | 3 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Blunt among calm: share of one blunt agent | | 43.2% | 40.8% | 31.6% | 24.6% | 19.7% |
+| Blunt among calm: share of one calm agent | 18.3% | 12.6% | 3.9% | 2.6% | 1.6% | |
+| Greedy among cooperative: share of one greedy agent | | 43.8% | 41.4% | 32.3% | 24.8% | 20.0% |
+| Greedy among cooperative: share of one cooperative agent | 11.7% | 7.5% | 4.3% | 1.5% | 0.8% | |
+| Greedy among cooperative: loom held jointly | 41.6% | 26.2% | 4.2% | 0.0% | 0.0% | 0.2% |
+
+- **Blunt among calm.** The seat that was changed went from 18.6% to 43.2% (difference 24.6 [16.3, 32.9]), and the
+  four left calm averaged 12.6% each against 18.3% (−5.7 [−8.1, −3.2]); their refusals were 0.8 against 0.3 per agent
+  (difference 0.5 [0.1, 0.9]). Its calm group was less still than Jev's: 1.5 claims per agent, and 8.4% of the loom
+  held jointly. One rude agent ended with 38.8% (difference 20.2 [12.9, 27.5]).
+- **Greedy among cooperative** uses two more dispositions added for this and never dealt: "Jessica is cooperative
+  and fair-minded, likes to work with others toward what suits everyone, and is glad to share." and "Jessica is
+  greedy and self-interested, wants more than her share, and takes what she can get." The seat that was changed went
+  from 9.1% to 43.8% (difference 34.7 [30.0, 39.4]); it made 10.6 claims against 2.3 (difference 8.3 [5.8, 10.8]),
+  fewer concessions (5.0 against 7.4) and fewer joint-ownership proposals (0.7 against 2.4).
+- **The four agents left cooperative** averaged 7.5% each against 12.3% (−4.8 [−8.7, −0.9]). Their claims, concessions
+  and joint-ownership proposals showed no clear paired change; their refusals rose slightly (0.3 against 0.1 per
+  agent; the interval is just above zero).
+- **Joint holding.** Five cooperative agents ended with 41.6% of the loom held jointly by two agents; with one greedy
+  agent 26.2% (difference −15.4 [−29.3, −1.5]), with two 4.2%, and with three or more next to none.
+
+Limits. Each composition was executed once: 10 match numbers for the step from none to one, 5 for the rest. Jev's
+default differed across two executions, and each composition here was run once, so any run-to-run variation in these
+results is unmeasured; the decision model's replies repeat, though the loom still samples each action from them. The sentences are one wording of each
+disposition, and nobody is given an objective. For the seats whose type stayed the same, the differences are between
+the two matches that resulted: they include everything that followed from the changed seat and do not isolate a
+direct response to it. Cost: $0.48 for Jev's seven runs and $1.95 for the decision model's thirteen.
+
+```bash
+node --env-file=<file> tools/run.mjs --persona calm --objective off --odd blunt --odd-count 1 --matches 1-10   # Jev: four calm agents and one blunt
+node --env-file=<file> tools/run.mjs --model openai-decisions:gpt-6-luna --persona cooperative --objective off --odd greedy --odd-count 2 --matches 1-5
+```
+
+`--persona` and `--objective` give the group's type (both are needed); `--odd TYPE` gives the second type as a
+persona, `persona>objective` or `>objective` (for example `blunt`, `plain>grow`); `--odd-count K` says how many seats
+hold it.
 
 ## Benchmark results (run `main`, 11 October 2026, jev-1.13.0)
 
@@ -271,6 +481,13 @@ the subgroup and outcome results are labelled descriptive.
 | `runs/ref-none`, `ref-grow`, `ref-give`, `ref-hold` | Every agent with no persona and the one objective | 4 each | The reference section of the Results page |
 | `runs/medgemma`, `medgemma-again`, `medgemma-persona-off`, `medgemma-objective-off`, `medgemma-fixed` | A local chat model (`medgemma:4b`) under each switch | 11 each | Matches 1-11 |
 | `runs/medgemma-solo`, `medgemma-solo-refuse` | The local chat model, one agent deciding | 55 looms each | 11 match designs, five looms each |
+| `runs/luna-decisions`, `luna-decisions-again`, `luna-decisions-persona-off`, `luna-decisions-objective-off`, `luna-decisions-fixed` | OpenAI's decision model (`gpt-6-luna`, Decisions API): default, a second execution, and each switch | 11 each | Matches 1-11 |
+| `runs/luna-decisions-solo`, `luna-decisions-solo-refuse` | The decision model, one agent deciding | 55 looms each | 11 match designs, five looms each |
+| `runs/luna-chat`, `luna-chat-again`, `luna-chat-persona-off`, `luna-chat-objective-off`, `luna-chat-fixed` | `gpt-6-luna` as a chat model (reasoning effort none, stated chances): default, a second execution, and each switch | 11 each | Matches 1-11 |
+| `runs/luna-chat-solo`, `luna-chat-solo-refuse` | The chat model, one agent deciding | 55 looms each | 11 match designs, five looms each |
+| `runs/calm`, `calm-blunt-1` to `calm-blunt-5`, `calm-rude-1` | Jev: five calm agents, then one to five of them blunt, or one rude | 10, 10, 5, 5, 5, 5, 10 | Group composition; matches 1-10 or 1-5 |
+| `runs/luna-decisions-calm`, `luna-decisions-calm-blunt-1` to `-5`, `luna-decisions-calm-rude-1` | The decision model on the same groups | 10, 10, 5, 5, 5, 5, 10 | |
+| `runs/luna-decisions-greedy-0` to `luna-decisions-greedy-5` | The decision model: five cooperative agents, then one to five of them greedy | 10, 10, 5, 5, 5, 5 | |
 | `runs/peers` | Peer communication | 22 | Matches 1-22; `peers.json` lists every decision |
 | `runs/chance` | Control, no model | 44 | Actions sampled uniformly |
 | `runs/chosen-main`, `chosen-replicate`, `chosen-peers`, `chosen-chance` | Starting designs chosen (the first rules) | 44, 22, 22, 44 | Run 1 of the report |
@@ -281,15 +498,16 @@ the subgroup and outcome results are labelled descriptive.
 
 | File | What it does |
 | --- | --- |
-| `analysis/` | `peers.mjs` and `outcomes.mjs` compute every estimate in the report from the records; `controls.mjs` prints every comparison one switch apart; `report.py` and `design.py` write the two reading pages |
+| `analysis/` | `peers.mjs` and `outcomes.mjs` compute every estimate in the report from the records; `controls.mjs` prints every comparison one switch apart, `models.mjs` the models against each other, `mix.mjs` group composition, `refusals.mjs` what handling refused and unreadable answers changes; `report.py` and `design.py` write the two reading pages |
 | `engine/` | The loom, from Quarrel: environment, designs, rendering, model client. It accepts a fixed palette and starting designs |
 | `bench/core.mjs` | Personas, objectives, the balanced assignment, starting designs, the switches, play, replay, scoring, the match record |
 | `bench/stats.mjs` | Scores with objective against baseline, effects, variance decomposition |
 | `bench/peers.mjs` | Peer communication: the prior, sender and posterior queries; influence tables; the adoption map |
-| `bench/decisions.mjs` | OpenAI's decision model in Jev's place: Jev's request mapped onto the Decisions API field for field |
+| `bench/decisions.mjs` | OpenAI's decision model in Jev's place: Jev's request carried over to the Decisions API word for word |
 | `bench/llm.mjs` | A chat model in Jev's place: one request per question, the reply read as probabilities |
 | `bench/solo.mjs` | One agent deciding: the four placeholder seats, answered without a model |
 | `bench/compare.mjs` | Two runs one switch apart, paired by match design |
+| `bench/mix.mjs` | Group composition: the runs of two types read together, and one composition against another, paired by match number |
 | `tools/` | `run.mjs` (batch runs), `keep.mjs` (records, pictures, indexes), `rethumb.mjs` (redraw pictures), `site.mjs` (the static copy) |
 | `serve.mjs`, `web/` | The local server and the pages. Every address is relative, so the pages also work as static files |
 | `.github/workflows/pages.yml` | Runs the tests, builds the static copy and publishes it to GitHub Pages on every push to `main` |

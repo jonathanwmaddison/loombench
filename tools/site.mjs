@@ -19,7 +19,7 @@ import { JEV } from '../engine/jev.mjs';
 import { runList } from './keep.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
-const PAGES = ['index', 'match', 'peers', 'play', 'report', 'design', 'controls'];
+const PAGES = ['index', 'match', 'peers', 'play', 'report', 'design', 'controls', 'mix', 'brief'];
 const args = process.argv.slice(2), at = args.indexOf('--out');
 if (args.some((a, i) => a !== '--out' && i !== at + 1) || (at >= 0 && !args[at + 1])) {
   console.error('usage: node tools/site.mjs [--out DIR]');

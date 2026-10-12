@@ -1,7 +1,7 @@
 // The Play page: set the switches of a match (who decides, what the agents are told, who acts, whether areas can change), give each
 // of the five agents a persona and an objective, then run it on the server and go to it.
 import { h, getJSON, fmt, topbar, startSwatch, seatMark, choseDesigns, mark, switchWords, modelName, isChatModel, REPO } from './ui.mjs';
-import { NAMES, PERSONALITIES, GOALS, personality, goal, deal, sentenceOf, startWords, conditionsOf } from '../bench/core.mjs';
+import { NAMES, PERSONALITIES, DISPOSITIONS, GOALS, personality, goal, deal, sentenceOf, startWords, conditionsOf } from '../bench/core.mjs';
 
 const SEED_MIN = 1, SEED_MAX = 999999;
 const SEED_MESSAGE = 'Seed must be an integer from 1 to 999999.';
@@ -51,7 +51,7 @@ function seatCard(seat) {
   const ui = {
     personality: h('select', {
       'aria-label': `${name}'s persona`, onchange: () => refreshSeat(seat),
-    }, PERSONALITIES.map(p => h('option', { value: p.key }, p.name))),
+    }, [...PERSONALITIES, ...DISPOSITIONS].map(p => h('option', { value: p.key }, p.name))),
     goal: h('select', {
       'aria-label': `${name}'s objective`, onchange: () => refreshSeat(seat),
     }, GOALS.map(g => h('option', { value: g.key }, g.name))),
@@ -284,7 +284,7 @@ function thumb(m) {
   const order = m.bench ?? m.results.map(r => r.seat);
   const live = order.map(seat => m.results.find(r => r.seat === seat)).filter(r => r && !r.placeholder);
   return h('a', { class: 'thumb', href: `match?run=play&id=${id}` },
-    h('img', { src: `runs/play/thumbs/${id}.png`, loading: 'lazy', width: 232, height: 384, alt: `Woven output, ${m.name}` }),
+    h('img', { src: `runs/play/thumbs/${id}-flat.png`, loading: 'lazy', width: 232, height: 384, alt: `Flat colours, ${m.name}` }),
     h('div', { class: 'caption' }, m.name),
     h('div', { class: 'small muted', style: { margin: '0 2px 6px' } }, [modelName(m.model), ...switchWords(c)].join(' · ')),
     live.map(r => h('div', { class: 'line' },

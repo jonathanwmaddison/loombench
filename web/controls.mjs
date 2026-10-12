@@ -56,6 +56,7 @@ const count = r => `${r.matches} ${switchesOf(r).agents === 'group' ? 'matches' 
 /** A setting of a switch in words. */
 function setting(key, value) {
   if (key === 'model') return modelName(value);
+  if (String(value).startsWith('mixed: ')) return String(value).slice(7);
   if (key === 'persona') return value === 'dealt' ? 'dealt' : value === 'off' ? 'off' : `all ${personality(value).name.toLowerCase()}`;
   if (key === 'objective') return value === 'dealt' ? 'dealt' : value === 'off' ? 'off' : value === 'uniform' ? 'one for all' : `all ${goal(value).name}`;
   if (key === 'agents') return { group: 'all five', 'solo-accept': 'one, neighbours accept (solo)', 'solo-refuse': 'one, neighbours refuse (solo)', 'solo-chance': 'one, neighbours by chance (solo)' }[value] ?? value;
@@ -84,12 +85,12 @@ function kindOf(run, base) {
   return d[0];
 }
 
-/** The baseline of each model: its default-condition run with the most matches. A model with none has no baseline. */
+/** The baseline of each model: its default-condition run with the most matches (of two alike, the first by name). A model with none has no baseline. */
 function baselines(runs) {
   const out = new Map();
   for (const r of runs.filter(isBaseline)) {
     const best = out.get(r.model);
-    if (!best || r.matches > best.matches) out.set(r.model, r);
+    if (!best || r.matches > best.matches || (r.matches === best.matches && r.run.localeCompare(best.run) < 0)) out.set(r.model, r);
   }
   return out;
 }

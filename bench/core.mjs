@@ -68,6 +68,17 @@ export const PERSONALITIES = Object.freeze([
   ...TYPES.map(t => ({ key: t.key, name: cap(t.key), text: t.text })),
 ].map(p => Object.freeze(p)));
 
+/**
+ * Three more dispositions, for a group made of one kind of agent and for the agent that is unlike the rest (`oddSeats`).
+ * They are never dealt, so the balanced deal and every run made from it are as they were. Each is one sentence written
+ * as the trait sentences are: nothing in it is about the loom.
+ */
+export const DISPOSITIONS = Object.freeze([
+  { key: 'cooperative', name: 'Cooperative', text: '{N} is cooperative and fair-minded, likes to work with others toward what suits everyone, and is glad to share.' },
+  { key: 'greedy', name: 'Greedy', text: '{N} is greedy and self-interested, wants more than {P} share, and takes what {S} can get.' },
+  { key: 'rude', name: 'Rude', text: '{N} is rude and inconsiderate, talks over people and talks down to them, and does not care if {S} gives offence.' },
+].map(p => Object.freeze(p)));
+
 /** Every goal, each { key, name, line, text, measure, reached }. `none` is told nothing. */
 export const GOALS = Object.freeze([
   { key: 'none', name: 'No objective', line: 'Baseline: no objective assigned', text: null, measure: null, reached: null },
@@ -104,7 +115,7 @@ export const SHARE_GOALS = Object.freeze(['grow', 'give', 'hold']);
 
 /** The personality with this key, or throws. */
 export function personality(key) {
-  const p = PERSONALITIES.find(x => x.key === key);
+  const p = PERSONALITIES.find(x => x.key === key) ?? DISPOSITIONS.find(x => x.key === key);
   if (!p) throw Error(`No personality called ${key}`);
   return p;
 }
@@ -126,10 +137,33 @@ export function deal(match) {
   return seats;
 }
 
+/**
+ * A MIXED GROUP. The seats that hold the other type when `count` of the five do, in match `match`. The sets are nested
+ * (the seat that is odd when one is stays odd when two are) and rotate with the match, so over any five consecutive
+ * matches each seat is the single odd one once. Where a seat sits on the bench is the seed's shuffle, so who an odd
+ * agent sits beside varies from match to match.
+ */
+export function oddSeats(match, count) {
+  if (!(Number.isInteger(count) && count >= 0 && count <= SEATS)) throw Error(`odd seats: a count from 0 to ${SEATS}`);
+  return [0, 2, 4, 1, 3].slice(0, count).map(s => (s + match - 1) % SEATS);
+}
+
+/** A seat's type in words: its persona's key, then `>objective` when it has one ('no persona' for plain). */
+export const typeOf = s => `${s.personality === 'plain' ? 'no persona' : s.personality}${s.goal === 'none' ? '' : `>${s.goal}`}`;
+
+/** The seats as a mix of two types, as '4 cooperative + 1 greedy' (types in alphabetical order); null unless they hold exactly two types. */
+export function mixOf(seats) {
+  const kinds = new Map();
+  for (const s of seats) kinds.set(typeOf(s), (kinds.get(typeOf(s)) ?? 0) + 1);
+  return kinds.size === 2 ? [...kinds].sort((a, b) => a[0].localeCompare(b[0])).map(([type, n]) => `${n} ${type}`).join(' + ') : null;
+}
+
 /** The five engine weavers for these seats: each typed with its personality, and its goal's sentence before "Choose as". */
 export function castOf(seats) {
   return BASE.map((w, i) => {
-    const t = typed(w, seats[i].personality), g = goal(seats[i].goal);
+    const extra = DISPOSITIONS.find(x => x.key === seats[i].personality), plain = typed(w, extra ? 'plain' : seats[i].personality);
+    // A disposition's sentence stands where a trait sentence stands: after the opening, before "Choose as".
+    const t = extra ? { ...plain, who: plain.who.replace(' Choose as', ` ${said(w, extra.text)} Choose as`) } : plain, g = goal(seats[i].goal);
     return { ...t, temperature: 0.7, who: g.text ? t.who.replace(' Choose as', ` ${said(w, g.text)} Choose as`) : t.who };
   });
 }
@@ -158,13 +192,17 @@ export async function play({ seats, seed, ask = null, onPass, peers = false, sol
   if (solo !== null && designs === 'chosen') throw Error('a solo match needs assigned designs: a placeholder chooses nothing');
   if (peers && solo !== null) throw Error('peer communication needs neighbours that decide, so it cannot be run solo');
   if (peers && area === 'fixed') throw Error('peer communication is about the action, and with fixed areas there is one action');
-  const cast = castOf(seats), log = [], speaking = Boolean(peers && ask), count = { scripted: 0 }, cost = { dollars: null, requests: null };
+  const cast = castOf(seats), log = [], speaking = Boolean(peers && ask), count = { scripted: 0 }, cost = { dollars: null, requests: null, reasked: 0, unanswered: 0 };
   // What a chat model charges, and how many requests an answer took, are carried beside each of its answers; Jev's
-  // cost is the loom's own count of tokens, and a Jev call is one request.
+  // cost is the loom's own count of tokens, and a Jev call is one request. OpenAI's decision model also says how many
+  // questions of a call it refused and was asked again, and how many it never answered (bench/decisions.mjs); a chat
+  // model read by stated chances says the same of replies that could not be read (bench/llm.mjs).
   const metered = ask && (async (body, put) => {
     const answers = await ask(body, put);
     if (answers.dollars != null) cost.dollars = (cost.dollars ?? 0) + answers.dollars;
     if (answers.requests != null) cost.requests = (cost.requests ?? 0) + answers.requests;
+    if (answers.reasked) cost.reasked += answers.reasked;
+    if (answers.unanswered) cost.unanswered += answers.unanswered;
     return answers;
   });
   let asker = speaking ? peerAsker(metered, { cast, seed, log }) : metered;
@@ -174,10 +212,12 @@ export async function play({ seats, seed, ask = null, onPass, peers = false, sol
     simple: true, loom: { stepBacks: [], ...(area === 'fixed' ? { fixed: true } : {}) }, onPass, ...(designs === 'assigned' ? given() : {}),
   });
   if (speaking) rug.peers = log;
-  rug.conditions = { agents: solo === null ? 'group' : 'solo', ...(solo === null ? {} : { solo, neighbours }), area, ...(designs === 'chosen' ? { designs } : {}), ...(ask?.read ? { read: ask.read } : {}) };
+  rug.conditions = { agents: solo === null ? 'group' : 'solo', ...(solo === null ? {} : { solo, neighbours }), area, ...(designs === 'chosen' ? { designs } : {}), ...(ask?.read ? { read: ask.read } : {}), ...(ask?.effort ? { effort: ask.effort } : {}) };
   rug.scripted = count.scripted;
   rug.cost = ask ? cost.dollars ?? rug.stats.dollars : 0;
   rug.requests = cost.requests;
+  rug.reasked = cost.reasked;
+  rug.unanswered = cost.unanswered;
   return rug;
 }
 
@@ -212,18 +252,29 @@ export function scoresOf(rug) {
 }
 
 /**
+ * How a finished rug's loom is held beyond the agents' own shares, in percent of its width: `joint`, the ground two
+ * agents hold together, and `bare`, warp nobody weaves. An agent's share (`ground`) is what it holds alone.
+ */
+export function heldOf(rug) {
+  const bench = rug.history.at(-1)?.bench ?? [], wide = bench.reduce((s, g) => s + g.wide, 0) || 1;
+  const part = test => round1(100 * bench.filter(test).reduce((s, g) => s + g.wide, 0) / wide);
+  return { joint: part(g => Boolean(g.pair)), bare: part(g => g.who < 0 && !g.pair) };
+}
+
+/**
  * What is kept on disk for one match: the seats, each agent's result, the switches it was run under, the costs, and
  * the tape and loom that replay it. In a solo match the four scripted neighbours' results are marked `placeholder`,
  * and the tables leave them out (`stats.mjs`). With areas fixed, an agent whose objective is about share has no
- * `score`.
+ * `score`. `joint` is the part of the loom two agents hold together at the end, and `bare`, when there is any, the
+ * part nobody weaves (`heldOf`); a record kept before these were added has neither.
  */
 export function recordOf(rug, { id, match = null, seats }) {
-  const conditions = rug.conditions ?? { agents: 'group', area: 'free' }, chance = rug.minds === 'chance' || rug.model === 'chance';
+  const conditions = rug.conditions ?? { agents: 'group', area: 'free' }, chance = rug.minds === 'chance' || rug.model === 'chance', held = heldOf(rug);
   return {
     // A rug woven by chance asked no model, whatever the engine's default model is called.
     loombench: 1, id, match, seed: rug.seed, model: chance ? 'chance' : rug.model, minds: chance ? 'chance' : rug.minds, seats,
     bench: rug.bench, name: rug.name,
-    lot: rug.lot.name,
+    lot: rug.lot.name, joint: held.joint, ...(held.bare ? { bare: held.bare } : {}),
     results: scoresOf(rug).map(s => {
       // No score for an agent with no objective, for one whose objective is about share when no share can change, or
       // for a placeholder, which was told nothing.
@@ -238,8 +289,10 @@ export function recordOf(rug, { id, match = null, seats }) {
     }),
     // `calls` are the loom's calls that a model answered: one for each time an agent is asked, whatever number of
     // questions it holds. Calls answered for a placeholder, or by chance, asked no model and are not counted. A chat
-    // model takes one request for each question, so its record also says how many `requests` were sent.
-    calls: rug.stats.calls.jev - (rug.scripted ?? 0), ...(rug.requests == null ? {} : { requests: rug.requests }),
+    // model takes one request for each question, so its record also says how many `requests` the host answered; and a match
+    // in which OpenAI's decision model refused questions says how many were asked again (`reasked`) and how many of
+    // those it never answered, which were taken as no preference (`unanswered`).
+    calls: rug.stats.calls.jev - (rug.scripted ?? 0), ...(rug.requests == null ? {} : { requests: rug.requests }), ...(rug.reasked ? { reasked: rug.reasked } : {}), ...(rug.unanswered ? { unanswered: rug.unanswered } : {}),
     fallbacks: rug.stats.calls.script, dollars: rug.cost ?? rug.stats.dollars, seconds: rug.stats.ms / 1000,
     loom: rug.loom, tape: rug.tape,
     mode: rug.peers ? 'peers' : 'quiet', ...(rug.peers?.length ? { peers: rug.peers } : {}), rules: RULES, conditions,
@@ -248,21 +301,24 @@ export function recordOf(rug, { id, match = null, seats }) {
 
 /**
  * The switches a record was run under, in full: its model, whether personas and objectives were assigned ('dealt' when
- * they differ between agents, 'off' when nobody has one, or the one key everybody has), who decides, whether areas can
+ * they differ between agents, 'off' when nobody has one, or the one key everybody has; 'mixed' when the seats hold
+ * two types that differ in it, with `mix` naming the group, as '4 cooperative + 1 greedy'), who decides, whether areas can
  * change, whether starting designs were assigned, and whether agents hear a neighbour. A record kept before a switch
  * existed reads as its default.
  */
 export function conditionsOf(record) {
   // In a solo match the placeholders keep the persona and objective their seat was dealt, though nothing is asked as them.
-  const one = (pick, off) => { const keys = [...new Set(record.seats.map(pick))]; return keys.length > 1 ? 'dealt' : keys[0] === off ? 'off' : keys[0]; };
+  const mix = mixOf(record.seats);
+  const one = (pick, off) => { const keys = [...new Set(record.seats.map(pick))]; return keys.length > 1 ? (mix ? 'mixed' : 'dealt') : keys[0] === off ? 'off' : keys[0]; };
   return {
-    model: record.model, persona: one(s => s.personality, 'plain'), objective: one(s => s.goal, 'none'),
+    model: record.model, persona: one(s => s.personality, 'plain'), objective: one(s => s.goal, 'none'), ...(mix ? { mix } : {}),
     agents: record.conditions?.agents ?? 'group',
     ...(record.conditions?.agents === 'solo' ? { neighbours: record.conditions.neighbours ?? 'accept' } : {}),
     area: record.conditions?.area ?? 'free',
     // Under the first rules (a record with no `rules`) the agents always chose.
     designs: record.rules >= 2 ? record.conditions?.designs ?? 'assigned' : 'chosen', peers: record.mode === 'peers',
     ...(record.conditions?.read ? { read: record.conditions.read } : {}),
+    ...(record.conditions?.effort ? { effort: record.conditions.effort } : {}),
   };
 }
 

@@ -30,7 +30,7 @@ import { askerFor, keepMatch, runList, writeIndex } from './tools/keep.mjs';
 const PORT = Number(process.env.PORT ?? 4330), HOST = '127.0.0.1', ROOT = fileURLToPath(new URL('./', import.meta.url));
 const PAGES = {
   '/': 'web/index.html', '/match': 'web/match.html', '/peers': 'web/peers.html', '/play': 'web/play.html',
-  '/report': 'web/report.html', '/design': 'web/design.html', '/controls': 'web/controls.html',
+  '/report': 'web/report.html', '/design': 'web/design.html', '/controls': 'web/controls.html', '/mix': 'web/mix.html', '/brief': 'web/brief.html',
 };
 const TREES = ['web', 'engine', 'bench', 'runs'];
 const TYPES = {
@@ -39,10 +39,14 @@ const TYPES = {
 };
 const BODY_LIMIT = 20000, RUNS = join(ROOT, 'runs');
 
-/** One asker for each model a play has named, made when first wanted and kept, so its spending cap is the server's. */
+/**
+ * One asker for each model a play has named, made when first wanted and kept, so its spending cap is the server's.
+ * An OpenAI chat model is run with its reasoning off, as the benchmark's run of it was: with it on, five agents cost
+ * about $0.14 and take several times as long.
+ */
 const askers = new Map();
 function askerOf(spec) {
-  if (!askers.has(spec)) askers.set(spec, askerFor(spec, { cap: 1 }));
+  if (!askers.has(spec)) askers.set(spec, askerFor(spec, { cap: 1, ...(spec.startsWith('openai:') ? { effort: 'none' } : {}) }));
   return askers.get(spec);
 }
 // The server's own Jev asker is made at once, so the status can say whether there is a key.
@@ -57,8 +61,8 @@ async function modelsOffered() {
   for (const spec of await modelsAt('ollama', { baseUrl: process.env.OLLAMA_BASE_URL ?? null })) add(spec, `${spec.slice('ollama:'.length)} (Ollama, this machine)`, 'a chat model on this machine: no charge, several minutes for five agents');
   // OpenAI's current models only: its decision model, and its smaller current chat model. The larger ones cost dollars a match and are run from the command line, under a cap.
   if (process.env.OPENAI_API_KEY) {
-    add(`openai-decisions:${DECISIONS.model}`, `${DECISIONS.model} (OpenAI Decisions API)`, 'OpenAI\'s decision model: like Jev, it returns a probability for each option. About $0.03 for five agents, charged to the OpenAI key');
-    add('openai:gpt-6-luna', 'gpt-6-luna (OpenAI, chat)', 'a chat model, read by the chances it states; about $0.04 for five agents, charged to the OpenAI key');
+    add(`openai-decisions:${DECISIONS.model}`, `${DECISIONS.model} (OpenAI Decisions API)`, 'OpenAI\'s decision model: like Jev, it returns a probability for each option. About $0.02 and 10-15 s for five agents, charged to the OpenAI key');
+    add('openai:gpt-6-luna', 'gpt-6-luna (OpenAI, chat)', 'a chat model with its reasoning off, read by the chances it states; about $0.04 and three minutes for five agents, charged to the OpenAI key');
   }
   for (const spec of (process.env.LOOMBENCH_MODELS ?? '').split(',').map(x => x.trim()).filter(Boolean)) {
     try { const { provider, model } = parseModel(spec); add(spec, `${model} (${PROVIDERS[provider].name})`, 'a chat model named in LOOMBENCH_MODELS'); } catch { /* not a spec: not offered */ }
