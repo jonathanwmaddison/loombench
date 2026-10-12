@@ -856,7 +856,11 @@ palette, for 26 rounds, under the same cap on share.
   (`mix: '4 calm + 1 blunt'`, with persona or objective `'mixed'`), and `switchesOf` keeps it a setting of its own.
   `bench/mix.mjs` reads the runs of two types by one model together (`compositions`), measures a composition by type
   (`levelOf`) and one against another by the seats that changed and the seats that stayed (`shift`); the record keeps
-  `joint`, the part of the loom two agents hold together at the end (`heldOf`). Pages: `/mix` (Composition).
+  `joint`, the part of the loom two agents hold together at the end (`heldOf`). `between` sets two models against each
+  other on the same step, paired by match number. Pages: `/mix` (Composition) and `/brief`, the study on one page for a
+  reader new to the benchmark (asked for as "a report with some interesting visualizations 1 pager", then "intermodel
+  differences would be interesting ... make this readable by an academic"): it says "focal agent" for the seat that is
+  changed, "other agents" for the four that are not, "seed" for a match number and k for the count.
   The two sentences for cooperative and greedy, and the one for rude, are mine; the user has not seen alternatives.
 - **Flat colours** (asked for as "simplify rug designs ... flat color ... primary colors"). A third picture of a
   match, `view: 'flat'` in `engine/render.mjs` and `<id>-flat.png` in a run's thumbs: every stitch the flat colour of

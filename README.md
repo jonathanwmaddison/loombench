@@ -16,7 +16,7 @@ given to another type, to see how its results differ.
 | Results | [`/`](https://jonathanwmaddison.github.io/loombench/) | The benchmark: objective scores with objective against baseline, a persona-by-objective heatmap, every match |
 | Controls | `/controls` | The switches, which runs exist under which setting, each run against the run one switch away, and the same match designs side by side under every condition |
 | Composition | `/mix` | A group of one type of agent, and the same matches with one to five of its seats given to a second type: the matches side by side, final share by type, and what one more seat changes |
-| Brief | [`/brief`](https://jonathanwmaddison.github.io/loombench/brief) | The group-composition study on one page, drawn from the records: three figures, the findings and the limits. Prints on one A4 sheet; a copy is `docs/composition-brief.pdf` |
+| Brief | [`/brief`](https://jonathanwmaddison.github.io/loombench/brief) | The group-composition study on one page for a reader new to the benchmark, drawn from the records: question, design and result; one seed pictured at every composition; every seed before and after one substitution; the decision systems set against each other; findings and limitations. Prints on one A4 sheet; a copy is `docs/composition-brief.pdf` |
 | Peer influence | [`/peers`](https://jonathanwmaddison.github.io/loombench/peers) | The peer-communication study, interactive: every match under three conditions |
 | Report | [`/report`](https://jonathanwmaddison.github.io/loombench/report) | The peer-influence study written up: method, results with heatmaps, implications for multi-agent collaboration |
 | Design | [`/design`](https://jonathanwmaddison.github.io/loombench/design) | The system: every model call in a round, request and response schemas, records and replay |
@@ -44,7 +44,7 @@ node analysis/models.mjs --scores                                          # the
 node analysis/mix.mjs                                                      # group composition: each mix against the one a seat away
 node tools/site.mjs                                                        # the static copy of the site, in _site/
 node analysis/refusals.mjs                                                 # refused questions and unreadable replies, and what handling them changes
-node --test                                                                # 84 tests; no key or network needed
+node --test                                                                # 85 tests; no key or network needed
 ```
 
 No dependencies. Node 22 or later (Python 3 only to regenerate the Report and Design pages). The default decision model
@@ -282,9 +282,10 @@ objective in each condition. The default was executed twice and every other cond
   The seven runs cost $2.81.
 
 **Replies that could not be read.** A stated answer is used only when it gives a chance for every option and they sum
-to 100 within five. In 38,429 answered requests, 61 replies (1.6 per 1,000) failed that test, with totals of 108 to
-140; each question was asked again as first sent, and one had no readable reply after three more and was taken as no
-preference. The distribution kept is therefore conditional on passing the test. With the looms holding a re-asked
+to 100 within five. In the 38,429 answered requests of the seven runs above, 61 replies (1.6 per 1,000) failed that
+test, with totals of 108 to 140; each question was asked again as first sent, and one had no readable reply after
+three more and was taken as no preference. (The two group-composition runs below had 36 such replies in 10,331
+requests, all answered on being asked again.) The distribution kept is therefore conditional on passing the test. With the looms holding a re-asked
 question left out, attainment was 50% (12 of 24) in the default, 41% (13 of 32) in its second execution, 56% (9 of
 16) with personas off, and 65% (24 of 37) and 66% (25 of 38) solo. Before this rule the runner, which keeps no match
 with a failed answer, discarded two of the first four matches. `node analysis/refusals.mjs` prints the counts.
@@ -389,12 +390,39 @@ mind starting an argument.").
 - **Joint holding.** Five cooperative agents ended with 41.6% of the loom held jointly by two agents; with one greedy
   agent 26.2% (difference −15.4 [−29.3, −1.5]), with two 4.2%, and with three or more next to none.
 
+### Between decision systems: a calm group with one blunt agent
+
+Three decision systems were run on this step with the same 10 match numbers: Jev, OpenAI's decision model, and
+`gpt-6-luna` as a chat model (reasoning effort "none", read by the chances it states; `runs/luna-chat-calm`,
+`luna-chat-calm-blunt-1`). Differences between systems are paired by match number (`between` in `bench/mix.mjs`).
+
+| Measure | Jev | GPT (Decisions) | GPT (chat) | GPT (Decisions) − Jev | GPT (chat) − Jev |
+| --- | --- | --- | --- | --- | --- |
+| Change in the changed seat's final share (pp) | +23.0 [16.4, 29.6] | +24.6 [16.3, 32.9] | +27.4 [18.2, 36.6] | +1.6 [−10.8, 14.0] | +4.4 [−4.5, 13.3] |
+| Change in the other four seats' mean final share (pp) | −6.0 [−7.7, −4.3] | −5.7 [−8.1, −3.2] | −5.3 [−7.4, −3.1] | +0.4 [−2.9, 3.6] | +0.8 [−1.4, 2.9] |
+| Claims by the blunt agent, per match | 4.3 | 10.3 | 7.5 | +6.0 [3.9, 8.1] | +3.2 [1.5, 4.9] |
+| Refusals per calm agent, per match, with one blunt agent | 0.0 | 0.8 | 0.6 | +0.8 [0.5, 1.2] | +0.6 [0.3, 0.8] |
+| Claims per agent, per match, in the all-calm group | 0.0 | 1.5 | 1.1 | +1.5 [1.1, 1.9] | +1.1 [0.8, 1.5] |
+| Loom held jointly in the all-calm group | 0.0% | 8.4% | 13.6% | +8.4 [3.6, 13.2] | +13.6 [6.4, 20.8] |
+
+- **The paired change in the changed seat's share was not clearly different between systems:** both differences from
+  Jev have intervals that include zero.
+- **What was recorded differed.** Under both GPT systems the blunt agent made more claims and the calm agents refused
+  more than under Jev, and the all-calm group was not still: it made claims and held part of the loom jointly, where
+  Jev's made none.
+- **For the rude agent** the change was smaller under OpenAI's decision model than under Jev (−6.8 points [−13.3,
+  −0.3], 10 match numbers).
+
+A comparison between systems compares a model together with its interface and the way its probabilities are read,
+not models alone.
+
 Limits. Each composition was executed once: 10 match numbers for the step from none to one, 5 for the rest. Jev's
 default differed across two executions, and each composition here was run once, so any run-to-run variation in these
 results is unmeasured; the decision model's replies repeat, though the loom still samples each action from them. The sentences are one wording of each
 disposition, and nobody is given an objective. For the seats whose type stayed the same, the differences are between
 the two matches that resulted: they include everything that followed from the changed seat and do not isolate a
-direct response to it. Cost: $0.48 for Jev's seven runs and $1.95 for the decision model's thirteen.
+direct response to it. The results concern this task and these systems. Cost: $0.48 for Jev's seven runs, $1.95 for
+the decision model's thirteen and $0.75 for the chat model's two.
 
 ```bash
 node --env-file=<file> tools/run.mjs --persona calm --objective off --odd blunt --odd-count 1 --matches 1-10   # Jev: four calm agents and one blunt
@@ -488,6 +516,7 @@ the subgroup and outcome results are labelled descriptive.
 | `runs/calm`, `calm-blunt-1` to `calm-blunt-5`, `calm-rude-1` | Jev: five calm agents, then one to five of them blunt, or one rude | 10, 10, 5, 5, 5, 5, 10 | Group composition; matches 1-10 or 1-5 |
 | `runs/luna-decisions-calm`, `luna-decisions-calm-blunt-1` to `-5`, `luna-decisions-calm-rude-1` | The decision model on the same groups | 10, 10, 5, 5, 5, 5, 10 | |
 | `runs/luna-decisions-greedy-0` to `luna-decisions-greedy-5` | The decision model: five cooperative agents, then one to five of them greedy | 10, 10, 5, 5, 5, 5 | |
+| `runs/luna-chat-calm`, `luna-chat-calm-blunt-1` | The chat model: five calm agents, then one of them blunt | 10 each | Matches 1-10 |
 | `runs/peers` | Peer communication | 22 | Matches 1-22; `peers.json` lists every decision |
 | `runs/chance` | Control, no model | 44 | Actions sampled uniformly |
 | `runs/chosen-main`, `chosen-replicate`, `chosen-peers`, `chosen-chance` | Starting designs chosen (the first rules) | 44, 22, 22, 44 | Run 1 of the report |

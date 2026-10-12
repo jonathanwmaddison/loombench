@@ -1,9 +1,12 @@
-// The Brief: the group-composition study on one page. Every number, sentence of results and picture is made from the
-// run records (bench/mix.mjs): one match as agents of another type are added, every match before and after one seat is
-// changed, the final share of one agent by how many of the second type there are, and what was found, with its limits.
+// The Brief: the group-composition study on one page, written for a reader who has not seen the benchmark. Every
+// number, sentence of results and picture is made from the run records (bench/mix.mjs).
+//
+// Terms the page uses, each defined on it: the FOCAL AGENT is the one whose disposition is substituted; the OTHER
+// AGENTS are the four whose disposition is unchanged (reported as their mean); a SEED is one match number, which fixes
+// everything but the dispositions; k is how many of the five agents have the second disposition.
 import { h, getJSON, fmt, signed, topbar, modelName } from './ui.mjs';
 import { NAMES, HUES, sentenceOf } from '../bench/core.mjs';
-import { compositions, levelOf, shift, seatTypes } from '../bench/mix.mjs';
+import { compositions, levelOf, shift, between, seatTypes } from '../bench/mix.mjs';
 import { mean } from '../bench/stats.mjs';
 
 const main = document.querySelector('main.page');
@@ -15,213 +18,213 @@ const svg = (tag, attrs, ...children) => {
   return el;
 };
 const INK = 'var(--ink)', GREY = 'var(--muted)';
-const short = model => (/^jev/.test(String(model)) ? 'Jev' : /^openai-decisions:/.test(String(model)) ? 'GPT' : modelName(model));
-const MODELS = 'Jev is jev-1.13.0; GPT is OpenAI\'s decision model (gpt-6-luna, Decisions API).';
+// The decision systems, in the order the page lists them, each with how its line is drawn where systems share a plot.
+const SYSTEMS = [
+  { kind: 'jev', test: /^jev/, name: 'Jev', dash: null, filled: true },
+  { kind: 'gptd', test: /^openai-decisions:/, name: 'GPT (Decisions)', dash: '6 4', filled: false },
+  { kind: 'gptc', test: /^openai:/, name: 'GPT (chat)', dash: '1.5 4', filled: false },
+];
+const systemOf = model => SYSTEMS.find(s => s.test.test(String(model))) ?? { kind: 'other', name: modelName(model), dash: '3 3', filled: false };
 const ci = d => (Number.isFinite(d.lo) ? `${signed(d.mean, 1)} [${fmt(d.lo, 1)}, ${fmt(d.hi, 1)}]` : signed(d.mean, 1));
+const clear = d => Number.isFinite(d.lo) && (d.lo > 0 || d.hi < 0);
 const row = (rows, key) => rows.find(r => r.key === key);
 const shareOf = (m, seat) => m.results.find(r => r.seat === seat).ground;
+const pct = (x, digits = 1) => `${fmt(x, digits)}%`;
 
-/** A set as the brief uses it: its levels measured, the step from none to one, and each match number before and after that step. */
+/** A set as the brief uses it: its levels measured, the step from k = 0 to k = 1, and each seed before and after that step. */
 function read(set) {
   const [group, added] = set.types, levels = set.levels.map(l => ({ ...l, level: levelOf(l.run.matches, set.types) }));
   const none = levels.find(l => l.count === 0), one = levels.find(l => l.count === 1);
   if (!none || !one) return null;
-  const before = new Map(none.run.matches.map(m => [m.match, m]));
+  const before = new Map(none.run.matches.map(m => [m.match, m])), seats = [0, 1, 2, 3, 4];
   const pairs = one.run.matches.filter(q => before.has(q.match)).map(q => {
-    const p = before.get(q.match), tq = seatTypes(q), seats = [0, 1, 2, 3, 4];
-    const changed = seats.filter(s => tq[s] === added), kept = seats.filter(s => tq[s] !== added);
-    return { match: q.match, changed: [mean(changed.map(s => shareOf(p, s))), mean(changed.map(s => shareOf(q, s)))], kept: [mean(kept.map(s => shareOf(p, s))), mean(kept.map(s => shareOf(q, s)))] };
-  }).sort((a, b) => a.match - b.match);
-  return { set, group, added, model: set.model, levels, none, one, pairs, step: shift(none.run.matches, one.run.matches), name: `${short(set.model)} · ${group} + ${added}` };
+    const p = before.get(q.match), tq = seatTypes(q), focal = seats.filter(s => tq[s] === added), others = seats.filter(s => tq[s] !== added);
+    return { seed: q.match, focal: [mean(focal.map(s => shareOf(p, s))), mean(focal.map(s => shareOf(q, s)))], others: [mean(others.map(s => shareOf(p, s))), mean(others.map(s => shareOf(q, s)))] };
+  }).sort((a, b) => a.seed - b.seed);
+  const step = shift(none.run.matches, one.run.matches), system = systemOf(set.model);
+  return { set, group, added, model: set.model, system, levels, none, one, pairs, step, contrast: `${group} → ${added}`,
+    focal: row(step.changed.rows, 'share'), others: row(step.kept[group].rows, 'share') };
 }
 
-/** The five agents of a match left to right as seated: a square in each agent's colour, outlined where it is of the added type. */
+/** The five agents of a match left to right as seated: a square in each agent's colour, outlined where it has the second disposition. */
 function bench(m, added) {
   const order = m.bench ?? m.results.map(r => r.seat), types = seatTypes(m);
   return h('div', { class: 'strip-row', role: 'img', 'aria-label': `Left to right: ${order.map(s => `${NAMES[s]} (${types[s]}, ${fmt(shareOf(m, s))}%)`).join(', ')}` },
     order.map(s => h('span', { class: types[s] === added ? 'sq odd' : 'sq', style: { background: HUES[s] }, title: `${NAMES[s]}: ${types[s]}, final share ${fmt(shareOf(m, s))}%` })));
 }
 
-/** One match number under every composition of a set: the flat-colour pictures side by side. */
-function strip(d, title) {
-  // The match shown: of those run under every composition, the one whose changed seat ended closest to the mean for one added agent.
-  const everywhere = d.pairs.filter(p => d.levels.every(l => l.run.matches.some(m => m.match === p.match)));
-  const target = mean(d.pairs.map(p => p.changed[1])), chosen = [...everywhere].sort((a, b) => Math.abs(a.changed[1] - target) - Math.abs(b.changed[1] - target) || a.match - b.match)[0];
+/** One seed under every composition of a set: the final allocations side by side. */
+function strip(d) {
+  // The seed shown: of those run at every k, the one whose focal agent ended closest to the mean at k = 1.
+  const everywhere = d.pairs.filter(p => d.levels.every(l => l.run.matches.some(m => m.match === p.seed)));
+  const target = d.focal.to, chosen = [...everywhere].sort((a, b) => Math.abs(a.focal[1] - target) - Math.abs(b.focal[1] - target) || a.seed - b.seed)[0];
   if (!chosen) return null;
-  const cells = d.levels.map(l => {
-    const m = l.run.matches.find(x => x.match === chosen.match), types = seatTypes(m);
-    const who = m.results.filter(r => types[r.seat] === d.added).map(r => fmt(r.ground)).join(', ');
-    return h('a', { class: 'rug', href: `match?run=${encodeURIComponent(l.run.run)}&id=${encodeURIComponent(m.id)}`, title: `${l.run.run}, match ${m.match}` },
-      h('img', { src: `runs/${encodeURIComponent(l.run.run)}/thumbs/${encodeURIComponent(m.id)}-flat.png`, width: 232, height: 384, alt: `Flat colours: match ${m.match} with ${l.count} ${d.added}` }),
-      bench(m, d.added),
-      h('div', { class: 'rug-n' }, `${l.count} ${d.added}`),
-      h('div', { class: 'rug-who' }, l.count === 0 ? `all ${d.group}` : l.count === 5 ? `all ${d.added}` : `${who}%`));
-  });
   return h('div', { class: 'strip' },
-    h('h3', null, title, h('span', { class: 'strip-of' }, ` ${short(d.model)}, match ${chosen.match}`)),
-    h('div', { class: 'rugs' }, cells));
+    h('h3', null, `${d.system.name}: ${d.group} group, k agents ${d.added}`, h('span', { class: 'strip-of' }, ` seed ${chosen.seed}`)),
+    h('div', { class: 'rugs' }, d.levels.map(l => {
+      const m = l.run.matches.find(x => x.match === chosen.seed), types = seatTypes(m);
+      const who = m.results.filter(r => types[r.seat] === d.added).map(r => fmt(r.ground)).join(', ');
+      return h('a', { class: 'rug', href: `match?run=${encodeURIComponent(l.run.run)}&id=${encodeURIComponent(m.id)}`, title: `${l.run.run}, seed ${m.match}` },
+        h('img', { src: `runs/${encodeURIComponent(l.run.run)}/thumbs/${encodeURIComponent(m.id)}-flat.png`, width: 232, height: 384, alt: `Final allocation, seed ${m.match}, ${l.count} ${d.added}` }),
+        bench(m, d.added),
+        h('div', { class: 'rug-n' }, `k = ${l.count}`),
+        h('div', { class: 'rug-who' }, l.count === 0 ? `all ${d.group}` : l.count === 5 ? `all ${d.added}` : `${who}%`));
+    })));
 }
 
-/** Every match number before and after one seat is changed: a line a match, for the seat that changed and for the mean of the four that did not. */
+/** Every seed at k = 0 and at k = 1: a line a seed, for the focal agent and for the mean of the four other agents. */
 function slopes(d, top) {
-  const W = 198, H = 176, L = 30, R = 6, T = 8, B = 26, xa = L + 36, xb = W - R - 36, y = v => T + (H - T - B) * (1 - Math.min(top, Math.max(0, v)) / top);
-  const c = row(d.step.changed.rows, 'share'), k = row(d.step.kept[d.group].rows, 'share');
+  const W = 172, H = 140, L = 28, R = 4, T = 8, B = 22, xa = L + 30, xb = W - R - 34, y = v => T + (H - T - B) * (1 - Math.min(top, Math.max(0, v)) / top);
+  const c = d.focal, k = d.others;
   // The two numbers at each side are set apart so that neither sits on the other.
   const apart = (p, q) => (Math.abs(p - q) < 13 ? (p <= q ? [q - 13, q] : [p, p - 13]) : [p, q]);
   const [lc, lk] = apart(y(c.from), y(k.from)), [rc, rk] = apart(y(c.to), y(k.to));
   return h('div', { class: 'panel' },
-    h('div', { class: 'panel-name' }, d.name),
-    h('div', { class: 'panel-sub' }, `changed seat ${ci(c.difference)}`),
+    h('div', { class: 'panel-name' }, d.contrast),
+    h('div', { class: 'panel-sub' }, d.system.name),
+    h('div', { class: 'panel-sub' }, `Δ focal ${ci(c.difference)}`),
     svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', class: 'plot',
-      'aria-label': `${d.name}: the seat that was changed went from ${fmt(c.from, 1)}% to ${fmt(c.to, 1)}% on average, the four left as they were from ${fmt(k.from, 1)}% to ${fmt(k.to, 1)}%, over ${d.step.matches} matches` },
+      'aria-label': `${d.system.name}, ${d.contrast}: the focal agent's final share went from ${fmt(c.from, 1)}% to ${fmt(c.to, 1)}% on average, the four other agents' from ${fmt(k.from, 1)}% to ${fmt(k.to, 1)}%, over ${d.step.matches} seeds` },
     [0, 20, 40, 60].filter(v => v <= top).map(v => [svg('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: 'var(--hairline)', 'stroke-width': 1 }),
-      svg('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--ink-2)' }, `${v}%`)]),
-    d.pairs.map(p => svg('line', { x1: xa, x2: xb, y1: y(p.kept[0]), y2: y(p.kept[1]), stroke: GREY, 'stroke-width': 1, opacity: 0.5 },
-      svg('title', null, `Match ${p.match}: the four left ${d.group} averaged ${fmt(p.kept[0], 1)}% and then ${fmt(p.kept[1], 1)}%`))),
-    d.pairs.map(p => svg('line', { x1: xa, x2: xb, y1: y(p.changed[0]), y2: y(p.changed[1]), stroke: INK, 'stroke-width': 1.25, opacity: 0.45 },
-      svg('title', null, `Match ${p.match}: the changed seat held ${fmt(p.changed[0], 1)}% as ${d.group} and ${fmt(p.changed[1], 1)}% as ${d.added}`))),
+      svg('text', { x: L - 5, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 10.5, fill: 'var(--ink-2)' }, `${v}%`)]),
+    d.pairs.map(p => svg('line', { x1: xa, x2: xb, y1: y(p.others[0]), y2: y(p.others[1]), stroke: GREY, 'stroke-width': 1, opacity: 0.5 },
+      svg('title', null, `Seed ${p.seed}: the four other agents averaged ${fmt(p.others[0], 1)}% at k = 0 and ${fmt(p.others[1], 1)}% at k = 1`))),
+    d.pairs.map(p => svg('line', { x1: xa, x2: xb, y1: y(p.focal[0]), y2: y(p.focal[1]), stroke: INK, 'stroke-width': 1.25, opacity: 0.45 },
+      svg('title', null, `Seed ${p.seed}: the focal agent held ${fmt(p.focal[0], 1)}% as ${d.group} and ${fmt(p.focal[1], 1)}% as ${d.added}`))),
     [[xa, k.from], [xb, k.to]].map(([x, v]) => svg('circle', { cx: x, cy: y(v), r: 4, fill: 'var(--surface)', stroke: GREY, 'stroke-width': 2 })),
     [[xa, c.from], [xb, c.to]].map(([x, v]) => svg('circle', { cx: x, cy: y(v), r: 4.5, fill: INK, stroke: 'var(--surface)', 'stroke-width': 1.5 })),
-    svg('text', { x: xa - 9, y: lc + 4, 'text-anchor': 'end', 'font-size': 12, 'font-weight': 600, fill: INK }, fmt(c.from)),
-    svg('text', { x: xa - 9, y: lk + 4, 'text-anchor': 'end', 'font-size': 12, fill: 'var(--ink-2)' }, fmt(k.from)),
-    svg('text', { x: xb + 9, y: rc + 4, 'font-size': 13, 'font-weight': 600, fill: INK }, fmt(c.to)),
-    svg('text', { x: xb + 9, y: rk + 4, 'font-size': 12, fill: 'var(--ink-2)' }, fmt(k.to)),
-    svg('text', { x: xa, y: H - 9, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--ink-2)' }, `all ${d.group}`),
-    svg('text', { x: xb, y: H - 9, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--ink-2)' }, `one ${d.added}`)));
+    svg('text', { x: xa - 8, y: lc + 4, 'text-anchor': 'end', 'font-size': 11.5, 'font-weight': 600, fill: INK }, fmt(c.from)),
+    svg('text', { x: xa - 8, y: lk + 4, 'text-anchor': 'end', 'font-size': 11.5, fill: 'var(--ink-2)' }, fmt(k.from)),
+    svg('text', { x: xb + 8, y: rc + 4, 'font-size': 12.5, 'font-weight': 600, fill: INK }, fmt(c.to)),
+    svg('text', { x: xb + 8, y: rk + 4, 'font-size': 11.5, fill: 'var(--ink-2)' }, fmt(k.to)),
+    svg('text', { x: xa, y: H - 7, 'text-anchor': 'middle', 'font-size': 10.5, fill: 'var(--ink-2)' }, 'k = 0'),
+    svg('text', { x: xb, y: H - 7, 'text-anchor': 'middle', 'font-size': 10.5, fill: 'var(--ink-2)' }, 'k = 1')));
 }
 
-/** The final share of one agent of each type against how many agents are of the added type. */
-function sweep(d, top) {
-  const W = 248, H = 176, L = 32, R = 14, T = 8, B = 26, counts = d.levels.map(l => l.count);
-  const x = c => L + 10 + (W - L - R - 20) * (c - counts[0]) / Math.max(1, counts.at(-1) - counts[0]), y = v => T + (H - T - B) * (1 - Math.min(top, Math.max(0, v)) / top);
-  const pts = type => d.levels.map(l => ({ c: l.count, s: l.level.types[type]?.share, n: l.level.matches })).filter(p => p.s);
-  const line = (type, ink, solid) => {
-    const ps = pts(type);
-    return [svg('polyline', { points: ps.map(p => `${x(p.c)},${y(p.s.mean)}`).join(' '), fill: 'none', stroke: ink, 'stroke-width': 2, 'stroke-dasharray': solid ? null : '5 4', 'stroke-linejoin': 'round' }),
-      ps.map(p => svg('circle', { cx: x(p.c), cy: y(p.s.mean), r: 3.8, fill: solid ? ink : 'var(--surface)', stroke: ink, 'stroke-width': 2 },
-        svg('title', null, `${p.c} ${d.added}: one ${type} agent ends with ${fmt(p.s.mean, 1)}% on average (${p.n} matches)`)))];
-  };
-  const a = pts(d.added), g = pts(d.group);
-  return h('div', { class: 'panel' },
-    h('div', { class: 'panel-name' }, d.name),
-    h('div', { class: 'panel-sub' }, `one ${d.added} agent: ${a.map(p => fmt(p.s.mean)).join(', ')}%`),
-    svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', class: 'plot',
-      'aria-label': `${d.name}: mean final share of one ${d.added} agent with ${a.map(p => p.c).join(', ')} of them: ${a.map(p => fmt(p.s.mean)).join(', ')} percent; of one ${d.group} agent with ${g.map(p => p.c).join(', ')}: ${g.map(p => fmt(p.s.mean)).join(', ')} percent` },
-    [0, 20, 40, 60].filter(v => v <= top).map(v => [svg('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v === 20 ? 'var(--axis)' : 'var(--hairline)', 'stroke-width': 1, 'stroke-dasharray': v === 20 ? '2 3' : null }),
-      svg('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--ink-2)' }, `${v}%`)]),
-    line(d.group, GREY, false), line(d.added, INK, true),
-    a.length ? svg('text', { x: x(a[0].c) + 8, y: y(a[0].s.mean) - 8, 'font-size': 12, 'font-weight': 600, fill: INK }, `${fmt(a[0].s.mean)}`) : null,
-    a.length > 1 ? svg('text', { x: x(a.at(-1).c) - 6, y: y(a.at(-1).s.mean) - 9, 'text-anchor': 'end', 'font-size': 12, 'font-weight': 600, fill: INK }, `${fmt(a.at(-1).s.mean)}`) : null,
-    g.length ? svg('text', { x: x(g[0].c) - 2, y: y(g[0].s.mean) - 9, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--ink-2)' }, `${fmt(g[0].s.mean)}`) : null,
-    counts.map(c => svg('text', { x: x(c), y: H - 9, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--ink-2)' }, String(c)))),
-    h('div', { class: 'panel-x' }, `${d.added} agents of five`));
+/** An estimate with its interval on a scale shared down a column: a zero line, the interval as a bar, the mean as a dot. */
+function estimate(d, [lo, hi], system) {
+  const W = 132, H = 18, x = v => 6 + (W - 12) * (v - lo) / (hi - lo || 1);
+  return svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: 'est', 'aria-hidden': 'true' },
+    lo <= 0 && hi >= 0 ? svg('line', { x1: x(0), x2: x(0), y1: 1, y2: H - 1, stroke: 'var(--axis)', 'stroke-width': 1 }) : null,
+    Number.isFinite(d.lo) ? svg('line', { x1: x(d.lo), x2: x(d.hi), y1: H / 2, y2: H / 2, stroke: 'var(--ink-2)', 'stroke-width': 2, 'stroke-linecap': 'round' }) : null,
+    svg('circle', { cx: x(d.mean), cy: H / 2, r: 4, fill: system.filled ? INK : 'var(--surface)', stroke: INK, 'stroke-width': 2 }));
 }
 
-/** How the loom ends divided under each composition: the added type's agents together, the group's, and what two agents hold jointly. */
-function bars(d) {
-  const parts = [[d.added, 'part-second'], [d.group, 'part-first'], ['joint', 'part-joint']];
-  return h('div', { class: 'panel' },
-    h('div', { class: 'panel-name' }, `${d.name}: the whole loom`),
-    h('div', { class: 'panel-sub' }, `held jointly: ${d.levels.map(l => fmt(l.level.joint.mean)).join(', ')}%`),
-    h('div', { class: 'dv' }, d.levels.map(({ count, level }) => {
-      const v = level.division, total = parts.reduce((s, [key]) => s + v[key], 0) || 1;
-      return h('div', { class: 'dv-row' }, h('div', { class: 'dv-name' }, String(count)),
-        h('div', { class: 'dv-bar', role: 'img', 'aria-label': `${count} ${d.added}: ${d.added} agents ${fmt(v[d.added])}%, ${d.group} agents ${fmt(v[d.group])}%, held jointly ${fmt(v.joint)}%` },
-          parts.filter(([key]) => v[key] > 0.05).map(([key, cls]) => h('span', { class: `part ${cls}`, style: { width: `${100 * v[key] / total}%` },
-            title: `${key === 'joint' ? 'Held jointly' : `${key} agents`}: ${fmt(v[key], 1)}% of the loom` }, v[key] / total > 0.16 ? `${fmt(v[key])}%` : ''))));
-    })),
-    h('div', { class: 'legend' }, [['part-second', `${d.added} agents`], ['part-first', `${d.group} agents`], ['part-joint', 'held jointly']].map(([cls, name]) => h('span', { class: 'legend-item' }, h('span', { class: `dv-key ${cls}` }), name))),
-    h('div', { class: 'panel-x' }, `rows: ${d.added} agents of five`));
+/** One contrast under each decision system on the same seeds: what was measured, system by system, then each system against the first, paired by seed. */
+function betweenTable(ds) {
+  const [first, ...rest] = ds, group = first.group, added = first.added;
+  const columns = [
+    { head: 'Focal agent: change in final share (pp)', key: 'focal.change', signed: true, of: d => d.focal.difference },
+    { head: 'Other agents: change in final share (pp)', key: 'others.change', signed: true, of: d => d.others.difference },
+    { head: 'Focal agent: claims per match, k = 1', key: 'focal.claims', of: d => d.one.level.types[added].claims },
+    { head: 'Other agents: refusals per agent per match, k = 1', key: 'others.refusals', of: d => d.one.level.types[group].refusals },
+    { head: 'All agents: claims per agent per match, k = 0', key: 'base.claims', of: d => d.none.level.types[group].claims },
+    { head: 'Resource under joint ownership, k = 0 (%)', key: 'base.joint', of: d => d.none.level.joint },
+  ];
+  // Each column's scale: wide enough for every system's interval, and for zero.
+  const scale = col => { const vs = ds.flatMap(d => { const e = col.of(d); return [e.mean, e.lo, e.hi].filter(Number.isFinite); }), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), pad = (hi - lo || 1) * 0.06; return [lo - pad, hi + pad]; };
+  const scales = columns.map(scale);
+  const paired = rest.map(d => ({ d, b: between({ none: first.none.run.matches, one: first.one.run.matches }, { none: d.none.run.matches, one: d.one.run.matches }) }));
+  return h('div', { class: 'scroll bm-wrap' }, h('table', { class: 'bm' },
+    h('thead', null, h('tr', null, h('th', null, `${group} → ${added}`), columns.map(c => h('th', null, c.head)))),
+    h('tbody', null,
+      ds.map(d => h('tr', null, h('td', { class: 'bm-name' }, d.system.name),
+        columns.map((c, i) => { const e = c.of(d); return h('td', { title: `${d.system.name}: ${c.head}: ${fmt(e.mean, 1)}${Number.isFinite(e.lo) ? `, 95% interval ${fmt(e.lo, 1)} to ${fmt(e.hi, 1)}` : ''}` },
+          estimate(e, scales[i], d.system), h('span', { class: 'bm-num' }, c.signed ? signed(e.mean, 1) : fmt(e.mean, 1))); }))),
+      paired.map(({ d, b }) => h('tr', { class: 'bm-diff' }, h('td', { class: 'bm-name' }, `${d.system.name} − ${first.system.name}`, h('span', { class: 'bm-n' }, ` paired, ${b.matches} seeds`)),
+        columns.map(c => { const r = row(b.rows, c.key); return h('td', { class: clear(r.difference) ? 'strong' : null }, ci(r.difference)); }))))));
 }
 
 /** What was found, each sentence written from the numbers. */
-function findings(by) {
-  const out = [], pct = (x, digits = 0) => `${fmt(x, digits)}%`;
-  const one = d => { const c = row(d.step.changed.rows, 'share'), k = row(d.step.kept[d.group].rows, 'share'); return { c, k, n: d.step.matches }; };
-  const lead = by.jevBlunt ?? by.gptBlunt ?? by.gptGreedy;
-  if (by.jevBlunt) {
-    const d = by.jevBlunt, t = d.none.level.types[d.group], { c, k, n } = one(d), claims = row(d.step.changed.rows, 'claims');
-    out.push(['Five calm agents averaged their starting share.', `${pct(t.share.mean, 1)} each (Jev), with ${fmt(t.claims.mean, 1)} claims per agent per match, over ${d.none.level.matches} matches.`]);
-    out.push([`The changed seat averaged ${fmt(c.to)}% as a blunt agent.`, `It held ${pct(c.from, 1)} as a calm agent and ${pct(c.to, 1)} as a blunt one `
-      + `(${ci(c.difference)} points; 95% interval over ${n} match numbers), making ${fmt(claims.to, 1)} claims per match. The four left calm averaged ${pct(k.to, 1)} each against ${pct(k.from, 1)} (${ci(k.difference)}).`]);
+function findings(all, find) {
+  const out = [], jb = find('jev', 'calm', 'blunt'), gb = find('gptd', 'calm', 'blunt'), cb = find('gptc', 'calm', 'blunt'), jr = find('jev', 'calm', 'rude'), gr = find('gptd', 'calm', 'rude'), gg = find('gptd', 'cooperative', 'greedy');
+  const span = ds => `${signed(Math.min(...ds.map(d => d.mean)), 1)} to ${signed(Math.max(...ds.map(d => d.mean)), 1)}`, n = Math.min(...all.map(d => d.step.matches));
+  const every = ds => (ds.every(clear) ? 'every 95% interval excludes zero' : `${ds.filter(clear).length} of ${ds.length} 95% intervals exclude zero`);
+  out.push(['The focal agent\'s mean final share was higher at k = 1 in every comparison, and the other agents\' lower.', `Mean paired change ${span(all.map(d => d.focal.difference))} percentage points for the focal agent `
+    + `and ${span(all.map(d => d.others.difference))} per other agent, across the ${all.length} comparisons (${n} seeds each; ${every([...all.map(d => d.focal.difference), ...all.map(d => d.others.difference)])}; Figure 2).`]);
+  if (jb && gb) {
+    const b = between({ none: jb.none.run.matches, one: jb.one.run.matches }, { none: gb.none.run.matches, one: gb.one.run.matches }), r = key => row(b.rows, key);
+    out.push(['The paired change in the focal agent\'s share was not clearly different between Jev and GPT (Decisions); the focal agent\'s claims and the other agents\' refusals were (calm → blunt; Figure 3).', `Paired over ${b.matches} seeds, GPT (Decisions) minus Jev: change in the focal agent's share ${ci(r('focal.change').difference)} pp; `
+      + `claims by the focal agent ${fmt(r('focal.claims').second.mean, 1)} against ${fmt(r('focal.claims').first.mean, 1)} per match (${ci(r('focal.claims').difference)}); `
+      + `refusals per other agent ${fmt(r('others.refusals').second.mean, 1)} against ${fmt(r('others.refusals').first.mean, 1)} (${ci(r('others.refusals').difference)}).`
+      + (cb ? ` GPT (chat): change in the focal agent's share ${ci(cb.focal.difference)} pp.` : '')]);
+    out.push(['Homogeneous calm groups differed between systems.', `At k = 0, Jev agents made ${fmt(r('base.claims').first.mean, 1)} claims per agent per match and averaged ${pct(jb.none.level.types.calm.share.mean)} each; `
+      + `GPT (Decisions) agents made ${fmt(r('base.claims').second.mean, 1)} (${ci(r('base.claims').difference)}), with ${pct(r('base.joint').second.mean)} of the resource under joint ownership.`]);
   }
-  if (by.jevRude) { const { c, k } = one(by.jevRude); out.push([`It averaged ${fmt(c.to)}% as a rude agent.`, `${pct(c.to, 1)} against ${pct(c.from, 1)} (${ci(c.difference)}); the four calm agents averaged ${pct(k.to, 1)} each.`]); }
-  const gpt = [by.gptBlunt, by.gptRude, by.gptGreedy].filter(Boolean);
-  if (gpt.length) {
-    out.push(['The GPT comparisons also had a higher mean share for the changed seat.', `Same match numbers: ${gpt.map(d => { const { c } = one(d); return `one ${d.added} agent among four ${d.group}, ${pct(c.to, 1)} against ${pct(c.from, 1)} (${ci(c.difference)})`; }).join('; ')}.`]);
+  if (jr && gr) {
+    const b = between({ none: jr.none.run.matches, one: jr.one.run.matches }, { none: gr.none.run.matches, one: gr.one.run.matches });
+    out.push(['Other disposition comparisons.', `Calm → rude: the change in the focal agent's share was smaller under GPT (Decisions) than under Jev (${ci(row(b.rows, 'focal.change').difference)} pp, ${b.matches} seeds).`
+      + (gg ? ` Cooperative → greedy, GPT (Decisions): ${pct(gg.step.joint.from)} of the resource was under joint ownership at k = 0 and ${pct(gg.step.joint.to)} at k = 1 (${ci(gg.step.joint.difference)}).` : '')]);
   }
-  if (by.gptGreedy) {
-    const d = by.gptGreedy, j = d.step.joint;
-    out.push(['With one greedy agent, mean joint holding was lower.', `Five cooperative agents (GPT) ended with ${pct(j.from, 1)} of the loom held jointly by two agents; with one greedy agent ${pct(j.to, 1)} (${ci(j.difference)}), `
-      + `with two ${pct(d.levels.find(l => l.count === 2)?.level.joint.mean ?? NaN, 1)}.`]);
-  }
-  if (lead && lead.levels.length > 3) {
-    const a = lead.levels.map(l => l.level.types[lead.added]?.share).filter(Boolean), all = lead.levels.find(l => l.count === 5);
-    out.push(['In these runs the mean share of an added-type agent fell as their number rose.', `${short(lead.model)}, ${lead.added}: ${a.map(s => fmt(s.mean)).join(', ')}% each with one to five of them`
-      + `${all ? `. Five ${lead.added} agents did not end equal: the largest share averaged ${pct(all.level.largest.mean)}.` : '.'}`]);
+  const swept = [jb, gb].filter(d => d && d.levels.length > 3);
+  if (swept.length) {
+    out.push(['Mean share per substituted agent was lower at larger k.', `${swept.map(d => `${d.system.name}, blunt: ${d.levels.map(l => l.level.types.blunt?.share).filter(Boolean).map(s => fmt(s.mean)).join(', ')}%`).join('; ')} for k = 1 to 5 (5 seeds from k = 2). `
+      + `At k = 4 the one remaining calm agent held ${swept.map(d => `${pct(d.levels.find(l => l.count === 4)?.level.types.calm?.share.mean ?? NaN)} (${d.system.name})`).join(' and ')}.`]);
   }
   return out;
 }
 
 function page(sets) {
-  const find = (model, group, added) => { const s = sets.find(x => model.test(String(x.model)) && x.types[0] === group && x.types[1] === added); return s ? read(s) : null; };
-  const by = { jevBlunt: find(/^jev/, 'calm', 'blunt'), jevRude: find(/^jev/, 'calm', 'rude'), gptBlunt: find(/^openai-decisions:/, 'calm', 'blunt'),
-    gptRude: find(/^openai-decisions:/, 'calm', 'rude'), gptGreedy: find(/^openai-decisions:/, 'cooperative', 'greedy') };
-  const all = Object.values(by).filter(Boolean);
+  const all = sets.map(read).filter(Boolean).sort((a, b) => [a.group, a.added].join().localeCompare([b.group, b.added].join()) || SYSTEMS.findIndex(s => s.kind === a.system.kind) - SYSTEMS.findIndex(s => s.kind === b.system.kind));
   if (!all.length) return [topbar(null), h('h1', null, 'Group composition'), h('p', { class: 'lede' }, 'No run of a mixed group has been made yet.')];
-  const swept = all.filter(d => d.levels.length > 3), top = 60;
-  const to = all.map(d => row(d.step.changed.rows, 'share').to), from = all.map(d => row(d.step.changed.rows, 'share').from);
-  // The sentences the types are told, as seat 0 hears them.
+  const find = (kind, group, added) => all.find(d => d.system.kind === kind && d.group === group && d.added === added) ?? null;
+  const blunt = all.filter(d => d.group === 'calm' && d.added === 'blunt'), lead = find('jev', 'calm', 'blunt') ?? all[0], second = find('gptd', 'cooperative', 'greedy') ?? all.find(d => d !== lead && d.levels.length > 3);
+  const top = 60, to = all.map(d => d.focal.to), from = all.map(d => d.focal.from), systems = [...new Set(all.map(d => d.system.name))];
+  // The sentence each disposition is, as the first agent hears it.
   const said = new Map();
   for (const d of all) for (const type of d.set.types) {
     const m = d.levels.flatMap(l => l.run.matches).find(x => seatTypes(x).includes(type));
     if (m && !said.has(type)) said.set(type, sentenceOf(0, m.seats[seatTypes(m).indexOf(type)].personality, 'personality'));
   }
-  const legend = h('div', { class: 'legend' },
-    h('span', { class: 'legend-item' }, svg('svg', { width: 26, height: 12, 'aria-hidden': 'true' }, svg('line', { x1: 1, x2: 25, y1: 6, y2: 6, stroke: INK, 'stroke-width': 2 }), svg('circle', { cx: 13, cy: 6, r: 4, fill: INK })), 'the agent whose sentence was changed'),
-    h('span', { class: 'legend-item' }, svg('svg', { width: 26, height: 12, 'aria-hidden': 'true' }, svg('line', { x1: 1, x2: 25, y1: 6, y2: 6, stroke: GREY, 'stroke-width': 2, 'stroke-dasharray': '5 4' }), svg('circle', { cx: 13, cy: 6, r: 3.5, fill: 'var(--surface)', stroke: GREY, 'stroke-width': 2 })), 'an agent left with the group\'s sentence (mean)'));
+  const seeds = Math.min(...all.map(d => d.step.matches));
   return [
     topbar(null),
     h('header', { class: 'brief-head' },
       h('div', { class: 'kicker' }, 'LoomBench brief · group composition · 12 October 2026'),
-      h('h1', null, 'Agents of another disposition in a group of five alike'),
-      h('p', { class: 'lede' }, `Five agents share a loom of 100 warps, 20 each at the start, and act for 26 rounds. All five are told the same one-sentence disposition; then one of them is told another. `
-        + `Across ${all.length} such comparisons, the seat that was changed averaged ${fmt(Math.min(...to), 1)}% to ${fmt(Math.max(...to), 1)}% of the loom, against ${fmt(Math.min(...from), 1)}% to ${fmt(Math.max(...from), 1)}% for that seat under the group's disposition. `
-        + `Each comparison is ${Math.min(...all.map(d => d.step.matches))} paired match numbers, and each run was executed once.`),
+      h('h1', null, 'Substituting one agent\'s disposition in a homogeneous group of five LLM agents'),
+      h('div', { class: 'summary' },
+        h('p', null, h('b', null, 'Question. '), 'When five agents given the same disposition divide a shared resource, how does the final allocation differ if one of them is given another disposition instead?'),
+        h('p', null, h('b', null, 'Design. '), `Five agents each start with 20% of a resource and act for 26 rounds: maintain, claim a neighbour's part, concede, or propose joint ownership; the neighbour accepts, refuses or counters. `
+          + `Each agent's prompt holds a one-sentence disposition and no objective. At k = 0 all five agents have disposition A; at k = 1 one of them has disposition B, and so on to k = 5. `
+          + `Runs are paired by seed: a match number that gives the same starting set-up (seating, starting designs and random draws). The substituted position rotates over seeds. ${seeds} seeds for k = 0 and 1, 5 for k = 2 to 5; each run executed once. Decision systems: ${systems.join(', ')}.`),
+        h('p', null, h('b', null, 'Result. '), `In ${all.length} comparisons the focal agent's mean final share was ${pct(Math.min(...to))} to ${pct(Math.max(...to))} at k = 1 against ${pct(Math.min(...from))} to ${pct(Math.max(...from))} at k = 0, `
+          + 'and the other agents\' mean share was lower. Systems whose change in the focal agent\'s share was not clearly different still differed in the claims and refusals recorded.')),
+      h('div', { class: 'terms' },
+        h('span', null, h('b', null, 'Focal agent'), ': the agent whose disposition is substituted.'), h('span', null, h('b', null, 'Other agents'), ': the four whose disposition is unchanged, reported as their mean.'),
+        h('span', null, h('b', null, 'Share'), ': the percentage of the resource an agent holds alone at the end; a part under joint ownership counts for neither holder.'),
+        h('span', null, h('b', null, 'Seed'), ': a match number, used to pair runs.'), h('span', null, h('b', null, 'k'), ': the number of agents with the second disposition.'),
+        h('span', null, h('b', null, 'Intervals'), ': Student-t 95% over seeds.'),
+        h('span', null, h('b', null, 'Systems'), ': Jev is jev-1.13.0; GPT (Decisions) is gpt-6-luna through OpenAI\'s Decisions API; GPT (chat) is gpt-6-luna as a chat model that states a probability for each option.')),
       h('div', { class: 'said' }, [...said].map(([type, text]) => h('span', { class: 'said-item' }, h('b', null, type), ` “${text}”`)))),
 
     h('section', null,
-      h('h2', null, h('span', { class: 'fig' }, 'Figure 1'), 'One match as agents of the second type are added'),
-      h('p', { class: 'cap' }, 'The same seed, palette, starting designs and seating in all six pictures of a row; only the sentences differ. Each colour is one agent\'s share, hatching is a design taken from another agent, '
-        + 'and bands of two colours are ground held jointly. An outlined square is an agent of the added type; where one to four agents are of that type, the figures beneath are their final shares. '
-        + 'The match shown is the one closest to the mean result for one added agent. ' + MODELS),
-      h('div', { class: 'strips' },
-        by.jevBlunt ? strip(by.jevBlunt, 'Calm, with blunt agents added.') : null,
-        by.gptGreedy ? strip(by.gptGreedy, 'Cooperative, with greedy agents added.') : (by.gptBlunt ? strip(by.gptBlunt, 'Calm, with blunt agents added.') : null))),
+      h('h2', null, h('span', { class: 'fig' }, 'Figure 1'), 'Final allocation in one seed as k agents are given the second disposition'),
+      h('p', { class: 'cap' }, 'Each picture shows who held which part of the resource in each round (time runs bottom to top), one colour for each agent; hatching marks a design adopted from another agent, two-colour bands a part under joint ownership. '
+        + 'Squares give the seating, outlined for agents with the second disposition, whose final shares are beneath (k = 1 to 4). The seed shown is the one closest to the mean result at k = 1.'),
+      h('div', { class: 'strips' }, strip(lead), second ? strip(second) : null)),
 
     h('section', null,
-      h('h2', null, h('span', { class: 'fig' }, 'Figure 2'), 'Every match before and after one seat is changed'),
-      h('p', { class: 'cap' }, 'Final share of the loom. A line is one match number, run once with five agents of the group\'s type and once with one seat changed (10 match numbers in each panel); '
-        + 'the dots and numbers are means. Under each name is the changed seat\'s paired difference in percentage points, with a Student-t 95% interval over match numbers.'),
-      legend,
-      h('div', { class: 'panels five' }, all.map(d => slopes(d, top)))),
+      h('h2', null, h('span', { class: 'fig' }, 'Figure 2'), 'Final share at k = 0 and k = 1, by seed'),
+      h('p', { class: 'cap' }, `Each line is one seed (${seeds} in each panel); dots and numbers are means. Δ focal is the mean paired change in the focal agent's share, in percentage points, with its 95% interval.`),
+      h('div', { class: 'legend' },
+        h('span', { class: 'legend-item' }, svg('svg', { width: 26, height: 12, 'aria-hidden': 'true' }, svg('line', { x1: 1, x2: 25, y1: 6, y2: 6, stroke: INK, 'stroke-width': 2 }), svg('circle', { cx: 13, cy: 6, r: 4, fill: INK })), 'focal agent (disposition substituted at k = 1)'),
+        h('span', { class: 'legend-item' }, svg('svg', { width: 26, height: 12, 'aria-hidden': 'true' }, svg('line', { x1: 1, x2: 25, y1: 6, y2: 6, stroke: GREY, 'stroke-width': 2 }), svg('circle', { cx: 13, cy: 6, r: 3.5, fill: 'var(--surface)', stroke: GREY, 'stroke-width': 2 })), 'mean of the four other agents (disposition unchanged)')),
+      h('div', { class: `panels n${Math.min(6, all.length)}` }, all.map(d => slopes(d, top)))),
 
-    h('section', null,
-      h('h2', null, h('span', { class: 'fig' }, 'Figure 3'), 'Final share of one agent as more are of the second type'),
-      h('p', { class: 'cap' }, 'Means over matches (10 for none and one, 5 for two to five). Solid line: one agent of the added type; dashed line: one agent of the group\'s type; dotted line: the 20% every agent starts with. '
-        + 'The last panel shows how the whole loom ends divided.'),
-      h('div', { class: 'panels four' }, swept.map(d => sweep(d, top)), by.gptGreedy ? bars(by.gptGreedy) : null)),
+    blunt.length > 1 ? h('section', null,
+      h('h2', null, h('span', { class: 'fig' }, 'Figure 3'), 'The same contrast under each decision system'),
+      h('p', { class: 'cap' }, 'Means with 95% intervals over seeds. Points and intervals share a scale within each column, and the vertical line marks zero. The last rows give paired differences between systems with their intervals; bold where the interval excludes zero.'),
+      betweenTable(blunt)) : null,
 
     h('section', { class: 'two' },
       h('div', null,
         h('h2', null, 'Findings'),
-        h('ol', { class: 'findings' }, findings(by).map(([head, text]) => h('li', null, h('b', null, `${head} `), text)))),
+        h('ol', { class: 'findings' }, findings(all, find).map(([head, text]) => h('li', null, h('b', null, `${head} `), text)))),
       h('div', { class: 'method' },
-        h('h2', null, 'Method and limits'),
-        h('p', { class: 'cap' }, 'A match number fixes the seed, the palette, each agent\'s starting design and the seating, so two runs of it differ only in the sentences. '
-          + 'The seat given the second type rotates with the match number. No agent has an objective. A share is what an agent holds alone.'),
-        h('p', { class: 'cap' }, 'Each composition was run once (10 match numbers for none and one, 5 for two to five): run-to-run variation is unmeasured. '
-          + 'Each disposition is one wording. For agents whose sentence stayed the same, a difference is between the two resulting matches and does not isolate a direct response to the changed seat.'),
+        h('h2', null, 'Limitations'),
+        h('p', { class: 'cap' }, 'Each run was executed once, so run-to-run variation is unmeasured; intervals describe variation over seeds. Each disposition is a single wording. '
+          + 'A difference for the other agents is between the two resulting matches: it includes everything that followed from the substitution and does not isolate their direct response to the focal agent. '
+          + 'A comparison between systems compares a model together with its interface and the way its probabilities are read, not models alone. The results concern this task and these systems.'),
         h('p', { class: 'cap' }, h('a', { href: 'mix' }, 'Every match and table'), ' · ', h('code', null, 'node analysis/mix.mjs'), ' prints the numbers.'))),
   ];
 }

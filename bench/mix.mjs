@@ -135,3 +135,35 @@ export function shift(from, to) {
   }
   return out;
 }
+
+/** What `between` compares: { key, name }. `focal` is the seat whose type was changed; `others`, the mean of the four that were not. */
+export const BETWEEN = Object.freeze([
+  { key: 'focal.before', name: 'Final share of the focal seat, group of one type (%)' },
+  { key: 'focal.after', name: 'Final share of the focal seat, after the change (%)' },
+  { key: 'focal.change', name: 'Change in the focal seat\'s final share (pp)' },
+  { key: 'others.change', name: 'Change in the other four seats\' mean final share (pp)' },
+  { key: 'focal.claims', name: 'Claims by the focal seat, after the change' },
+  { key: 'others.refusals', name: 'Refusals per other seat, after the change' },
+  { key: 'base.claims', name: 'Claims per agent, group of one type' },
+  { key: 'base.joint', name: 'Held jointly, group of one type (%)' },
+]);
+
+/**
+ * Two models on the same step: `a` and `b` are each { none, one }, the match summaries of a group of one type and of
+ * the same match numbers with one seat changed. Over the match numbers all four runs have, each of `BETWEEN` as the
+ * first model's mean and the second's (with their intervals over match numbers) and the paired difference, second
+ * minus first. Returns { matches, rows: [{ key, name, first, second, difference }] }.
+ */
+export function between(a, b) {
+  const by = runs => new Map(runs.map(m => [m.match, m])), A0 = by(a.none), A1 = by(a.one), B0 = by(b.none), B1 = by(b.one);
+  const numbers = [...A1.keys()].filter(n => A0.has(n) && B0.has(n) && B1.has(n)).sort((x, y) => x - y), seats = [0, 1, 2, 3, 4];
+  const of = (m0, m1) => {
+    const t0 = seatTypes(m0), t1 = seatTypes(m1), focal = seats.filter(s => t0[s] !== t1[s]), others = seats.filter(s => t0[s] === t1[s]);
+    const avg = (m, which, f) => mean(which.map(s => f(m.results.find(r => r.seat === s))));
+    const out = { 'focal.before': avg(m0, focal, r => r.ground), 'focal.after': avg(m1, focal, r => r.ground), 'others.before': avg(m0, others, r => r.ground), 'others.after': avg(m1, others, r => r.ground),
+      'focal.claims': avg(m1, focal, r => r.did.took), 'others.refusals': avg(m1, others, r => r.did.refused), 'base.claims': avg(m0, seats, r => r.did.took), 'base.joint': joint(m0) };
+    return { ...out, 'focal.change': out['focal.after'] - out['focal.before'], 'others.change': out['others.after'] - out['others.before'] };
+  };
+  const pairs = numbers.map(n => [of(A0.get(n), A1.get(n)), of(B0.get(n), B1.get(n))]);
+  return { matches: numbers.length, rows: BETWEEN.map(({ key, name }) => ({ key, name, first: interval(pairs.map(p => p[0][key])), second: interval(pairs.map(p => p[1][key])), difference: interval(pairs.map(p => p[1][key] - p[0][key])) })) };
+}

@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DISPOSITIONS, PERSONALITIES, SEATS, castOf, conditionsOf, deal, heldOf, mixOf, oddSeats, personality, play, recordOf, replay, typeOf } from '../bench/core.mjs';
 import { switchesOf, differsIn } from '../bench/compare.mjs';
-import { compositions, dispersion, joint, levelOf, seatTypes, shift } from '../bench/mix.mjs';
+import { between, compositions, dispersion, joint, levelOf, seatTypes, shift } from '../bench/mix.mjs';
 
 const group = (n, count, base = { personality: 'cooperative', goal: 'none' }, odd = { personality: 'greedy', goal: 'none' }) => {
   const seats = Array.from({ length: SEATS }, () => ({ ...base }));
@@ -144,4 +144,25 @@ test('a composition is measured by type, and a step by the seats that changed an
   assert.equal(s.dispersion.from, (0 + dispersion(before[1])) / 2);
   // A match number in one run only is left out.
   assert.equal(shift(before, [after[0], made(9, group(9, 1), [20, 20, 20, 20, 20], [0, 0, 0, 0, 0])]).matches, 1);
+});
+
+test('two models are set against each other on the same step, paired by match number, second minus first', () => {
+  // Model A: the focal seat goes 20 -> 40 with 9 claims in match 1, and 30 -> 50 with 7 in match 2 (seat 1 there).
+  const a = { none: [made(1, group(1, 0), [20, 20, 20, 20, 20], [2, 2, 2, 2, 2]), made(2, group(2, 0), [10, 30, 20, 20, 20], [1, 3, 2, 2, 2])],
+    one: [made(1, group(1, 1), [40, 15, 15, 15, 15], [9, 1, 1, 1, 1]), made(2, group(2, 1), [10, 50, 12, 14, 14], [1, 7, 4, 2, 2])] };
+  // Model B: nothing moves in match 1; in match 2 the focal seat goes 20 -> 30 with 4 claims. Match 3 is in B only.
+  const b = { none: [made(1, group(1, 0), [20, 20, 20, 20, 20], [0, 0, 0, 0, 0]), made(2, group(2, 0), [20, 20, 20, 20, 20], [0, 0, 0, 0, 0]), made(3, group(3, 0), [20, 20, 20, 20, 20], [0, 0, 0, 0, 0])],
+    one: [made(1, group(1, 1), [20, 20, 20, 20, 20], [0, 0, 0, 0, 0]), made(2, group(2, 1), [15, 30, 15, 15, 15], [0, 4, 0, 0, 0]), made(3, group(3, 1), [20, 20, 20, 20, 20], [0, 0, 0, 0, 0])] };
+  const out = between(a, b), row = key => out.rows.find(r => r.key === key);
+  assert.equal(out.matches, 2);
+  assert.deepEqual([row('focal.change').first.mean, row('focal.change').second.mean, row('focal.change').difference.mean], [20, 5, -15]);
+  assert.deepEqual([row('focal.before').first.mean, row('focal.after').first.mean], [25, 45]);
+  // The four others: A falls 20 -> 15 and 17.5 -> 12.5; B stays, then falls 20 -> 15.
+  assert.deepEqual([row('others.change').first.mean, row('others.change').second.mean], [-5, -2.5]);
+  assert.deepEqual([row('focal.claims').first.mean, row('focal.claims').second.mean, row('focal.claims').difference.mean], [8, 2, -6]);
+  assert.deepEqual([row('base.claims').first.mean, row('base.claims').second.mean], [2, 0]);
+  assert.equal(row('base.joint').first.mean, 0);
+  assert.equal(row('focal.change').difference.k, 2);
+  // The same model against itself differs in nothing.
+  assert.ok(between(a, a).rows.every(r => r.difference.mean === 0));
 });
