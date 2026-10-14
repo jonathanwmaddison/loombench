@@ -13,7 +13,7 @@
  */
 import { NAMES, HUES, PERSONALITIES, SCORED, personality, goal, sentenceOf, replay } from './core.mjs';
 import { rowsOf, table, mean } from './stats.mjs';
-import { compare, interval } from './compare.mjs';
+import { compare, interval, measuresOf } from './compare.mjs';
 import { compositions, levelOf, shift, between, seatTypes } from './mix.mjs';
 import { towardOf } from './peers.mjs';
 
@@ -80,7 +80,8 @@ function benchmarkOf(index) {
   return {
     run: index.run, matches: t.matches.length, agents: rows.length, withObjective: tally(t.overall.told), baseline: tally(t.overall.untold),
     objectives: SCORED.map(g => ({ key: g, name: goal(g).name, line: goal(g).line, baseline: num(t.goals[g].untold.mean), score: num(t.goals[g].told.mean),
-      effect: num(t.goals[g].lift), attained: t.goals[g].told.reached, n: t.goals[g].told.n })),
+      effect: num(t.goals[g].lift), attained: t.goals[g].told.reached, n: t.goals[g].told.n,
+      split: t.goals[g].split ? { objective: num(100 * t.goals[g].split.goal), persona: num(100 * t.goals[g].split.personality), both: num(100 * t.goals[g].split.both), residual: num(100 * t.goals[g].split.rest) } : null })),
     personas: PERSONALITIES.filter(p => t.personalities[p.key]).map(p => ({ key: p.key, name: p.name, sentence: p.text ? sentenceOf(0, p.key, 'personality') : null,
       none: share(p.key, 'none'), grow: share(p.key, 'grow'), give: share(p.key, 'give') })),
   };
@@ -186,8 +187,9 @@ function systemsOf(steps, sets, find, group, added) {
 function switchesOf(indexes) {
   const CONDITIONS = [['default', 'Default', ''], ['again', 'Default, a second execution', '-again'], ['personaOff', 'Personas off', '-persona-off'],
     ['solo', 'Solo, neighbours accept', '-solo'], ['soloRefuse', 'Solo, neighbours refuse', '-solo-refuse']];
-  const BASES = { jev: ['main', { again: 'replicate', personaOff: 'persona-off', solo: 'solo', soloRefuse: 'solo-refuse' }], gptd: ['luna-decisions', {}], gptc: ['luna-chat', {}],
-    local: ['medgemma', {}], chance: ['chance', { solo: 'chance-solo', again: null, personaOff: null, soloRefuse: null }] };
+  const BASES = { jev: ['main', { again: 'replicate', personaOff: 'persona-off', solo: 'solo', soloRefuse: 'solo-refuse', objectiveOff: 'objective-off' }],
+    gptd: ['luna-decisions', {}], gptc: ['luna-chat', {}], local: ['medgemma', {}],
+    chance: ['chance', { solo: 'chance-solo', again: null, personaOff: null, soloRefuse: null, objectiveOff: null }] };
   const designs = 11, upTo = index => index.matches.filter(m => m.match <= designs);
   const systems = SYSTEMS.map(s => {
     const [base, named] = BASES[s.key], plain = indexes.get(base);
@@ -197,9 +199,16 @@ function switchesOf(indexes) {
       if (!index) return null;
       const told = upTo(index).flatMap(m => m.results.filter(r => !r.placeholder && r.score !== null)), attained = told.filter(r => r.reached).length;
       const paired = key === 'default' ? null : row(compare(upTo(plain), upTo(index)).rows, 'attainment');
-      return { key, name, run, attained, n: told.length, rate: num(100 * attained / told.length), difference: paired ? est(paired.difference) : null };
+      const scores = Object.fromEntries(SCORED.map(g => {
+        const gs = told.filter(r => r.goal === g);
+        return [g, gs.length ? { score: num(mean(gs.map(r => r.score))), attained: gs.filter(r => r.reached).length, n: gs.length } : null];
+      }));
+      return { key, name, run, attained, n: told.length, rate: num(100 * attained / told.length), difference: paired ? est(paired.difference) : null, scores };
     }).filter(Boolean);
-    return { system: s.key, name: s.name, about: s.about, cells };
+    const offRun = 'objectiveOff' in named ? named.objectiveOff : `${base}-objective-off`, offIdx = offRun ? indexes.get(offRun) : null;
+    const offMeas = offIdx ? measuresOf(upTo(offIdx)) : s.key === 'chance' ? measuresOf(upTo(plain)) : null;
+    const objectiveOff = offMeas ? { run: offIdx ? offRun : base, claims: num(offMeas.claims), concessions: num(offMeas.concessions), refusals: num(offMeas.refusals), adoptions: num(offMeas.adoptions) } : null;
+    return { system: s.key, name: s.name, about: s.about, cells, objectiveOff };
   }).filter(Boolean);
   return systems.length ? { designs, conditions: CONDITIONS.map(([key, name]) => ({ key, name })), systems } : null;
 }

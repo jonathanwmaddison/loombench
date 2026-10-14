@@ -24,7 +24,11 @@ test('the benchmark\'s figures are the Results page\'s', async () => {
   assert.equal(d.benchmark.withObjective.attained, t.overall.told.reached);
   assert.equal(d.benchmark.withObjective.n, t.overall.told.n);
   assert.equal(d.benchmark.baseline.attained, t.overall.untold.reached);
-  for (const o of d.benchmark.objectives) near(o.score, t.goals[o.key].told.mean);
+  for (const o of d.benchmark.objectives) {
+    near(o.score, t.goals[o.key].told.mean);
+    assert.ok(o.split, `no split for ${o.key}`);
+    near(o.split.objective + o.split.persona + o.split.both + o.split.residual, 100, 0.3);
+  }
 });
 
 test('a replayed match is whole: every round divides the loom, and the last round is the result', async () => {
@@ -64,10 +68,19 @@ test('the claim threshold: the rule by group size, and both runs of each match n
 test('attainment under each switch counts the agents given an objective on the same match designs', async () => {
   const { switches } = await overview;
   for (const system of switches.systems) {
+    assert.ok(system.objectiveOff && system.objectiveOff.claims >= 0, `no objectiveOff for ${system.name}`);
     for (const cell of system.cells) {
       assert.equal(cell.n, 4 * switches.designs, `${system.name}, ${cell.name}`);
       near(cell.rate, 100 * cell.attained / cell.n);
       assert.equal(cell.difference === null, cell.key === 'default');
+      for (const g of ['grow', 'give', 'hold', 'borrow']) {
+        assert.equal(cell.scores[g].n, switches.designs, `${system.name}, ${cell.name}, ${g}`);
+      }
+      assert.equal(
+        ['grow', 'give', 'hold', 'borrow'].reduce((s, g) => s + cell.scores[g].attained, 0),
+        cell.attained,
+        `${system.name}, ${cell.name} per-objective attained sum`
+      );
     }
   }
 });

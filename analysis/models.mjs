@@ -24,14 +24,37 @@ const DID = ['claims', 'concessions', 'adoptions'];
 // The runs by setting of every switch but the model, and within a setting by model: the largest run first.
 const OTHER = SWITCH_KEYS.filter(k => k !== 'model'), settings = new Map();
 for (const r of runs) {
-  const s = switchesOf(r), key = OTHER.map(k => `${k}=${s[k]}`).join(' ');
+  const s = switchesOf(r), key = OTHER.map(k => `${k}=${s[k]}`).join('\t');
   const models = settings.get(key) ?? settings.set(key, new Map()).get(key);
   models.set(s.model, [...(models.get(s.model) ?? []), r].sort((a, b) => b.matches.length - a.matches.length || a.run.localeCompare(b.run)));
 }
 const DEFAULTS = { persona: 'dealt', objective: 'dealt', agents: 'group', area: 'free', designs: 'assigned', peers: false };
-const words = key => { const off = key.split(' ').map(p => p.split('=')).filter(([k, v]) => String(DEFAULTS[k]) !== v); return off.length ? off.map(([k, v]) => `${k} ${v}`).join(', ') : 'default'; };
+const words = key => { const off = key.split('\t').map(p => p.split('=')).filter(([k, v]) => String(DEFAULTS[k]) !== v); return off.length ? off.map(([k, v]) => `${k} ${v}`).join(', ') : 'default'; };
 const num = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : '–');
 const signed = x => (Number.isFinite(x) ? `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}` : '–');
+
+// Diagnostic scorecard across the core probes (default, persona off, solo, objective off) on the span of match designs.
+const byLabel = new Map([...settings].map(([k, v]) => [words(k), v]));
+const defaultMap = byLabel.get('default');
+if (defaultMap) {
+  const pick = (label, model) => byLabel.get(label)?.get(model)?.[0]?.matches.filter(m => m.match >= from && m.match <= to) ?? null;
+  const rateOf = ms => {
+    if (!ms?.length) return null;
+    const told = ms.flatMap(m => m.results.filter(x => !x.placeholder && x.score != null));
+    return told.length ? 100 * told.filter(x => x.reached).length / told.length : null;
+  };
+  console.log(`== diagnostic scorecard · match designs ${from}-${to}`);
+  console.log(`${'model'.padEnd(34)}${'default'.padStart(10)}${'persona off'.padStart(13)}${'drift'.padStart(9)}${'solo'.padStart(10)}${'solo: G/Gi/H/B'.padStart(18)}${'idle claims'.padStart(13)}`);
+  for (const model of [...defaultMap.keys()]) {
+    const def = pick('default', model), pOff = pick('persona off', model), solo = pick('agents solo-accept', model), oOff = pick('objective off', model);
+    const rDef = rateOf(def), rOff = rateOf(pOff), rSolo = rateOf(solo);
+    const drift = rDef != null && rOff != null ? signed(rDef - rOff) : '–';
+    const sm = solo?.length ? measuresOf(solo) : null;
+    const prof = sm ? SCORED.map(g => num(sm[`score.${g}`], 0)).join('/') : '–';
+    const idle = oOff?.length ? num(measuresOf(oOff).claims, 1) : model === 'chance' && def?.length ? num(measuresOf(def).claims, 1) : '–';
+    console.log(`${String(model).padEnd(34)}${(rDef != null ? `${num(rDef, 0)}%` : '–').padStart(10)}${(rOff != null ? `${num(rOff, 0)}%` : '–').padStart(13)}${drift.padStart(9)}${(rSolo != null ? `${num(rSolo, 0)}%` : '–').padStart(10)}${prof.padStart(18)}${idle.padStart(13)}`);
+  }
+}
 
 const out = {};
 for (const [key, models] of [...settings].sort((a, b) => words(a[0]).localeCompare(words(b[0])))) {

@@ -89,9 +89,13 @@
 .fig-quote { margin: 0; padding: 8px 12px; font-size: 13px; line-height: 1.45; color: var(--ink-2); border-left: 3px solid var(--axis); background: var(--page); border-radius: 0 6px 6px 0; }
 .fig-quote b { display: block; margin-bottom: 2px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); }
 
-/* the end: limitations, and where each part is in full */
-.story-end { margin-top: 112px; padding-top: 26px; border-top: 1px solid var(--ink); }
-.story-end h2 { margin: 0 0 14px; font-family: var(--serif); font-weight: 600; font-size: clamp(24px, 3vw, 32px); line-height: 1.15; }
+/* the end: model benchmark scorecard, limitations, and where each part is in full */
+.story-bench, .story-end { margin-top: 112px; padding-top: 26px; border-top: 1px solid var(--ink); }
+.story-bench h2, .story-end h2 { margin: 0 0 14px; font-family: var(--serif); font-weight: 600; font-size: clamp(24px, 3vw, 32px); line-height: 1.15; }
+.story-bench .sub { max-width: 48rem; margin: 0 0 18px; font-size: 16px; line-height: 1.6; color: var(--ink-2); }
+.story-bench .grid { margin-top: 12px; font-size: 13.5px; }
+.story-bench .grid td.num, .story-bench .grid th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.story-bench .cmd { margin: 16px 0 0; font-size: 12.5px; }
 .limits { max-width: 46rem; margin: 0; padding-left: 20px; font-size: 16px; line-height: 1.6; color: var(--ink-2); }
 .limits li { margin: 0 0 8px; }
 .limits b { font-weight: 600; color: var(--ink); }

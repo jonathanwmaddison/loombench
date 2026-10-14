@@ -114,6 +114,61 @@ function runsTable(runs, bases) {
     rest.map((r, i) => [i ? '; ' : '', h('a', { href: runHref(r.run) }, r.run), ` (${[count(r), ...switchWords(r.conditions)].join(', ')})`]), '.') : null];
 }
 
+/** Diagnostic scorecard comparing models across the core switches on match designs 1–11. */
+function modelScorecard(runs, bases, indexes) {
+  const models = [...bases.keys()].sort((a, b) => (a === 'chance') - (b === 'chance') || (bases.get(b)?.matches ?? 0) - (bases.get(a)?.matches ?? 0));
+  const upTo = idx => (idx ? idx.matches.filter(m => m.match <= 11) : []);
+  const findKind = (model, kind, filter = () => true) => {
+    const base = bases.get(model);
+    if (!base) return null;
+    if (kind === 'default') return indexes.get(base.run);
+    const found = runs.find(r => r.model === model && kindOf(r, base) === kind && filter(r));
+    return found ? indexes.get(found.run) : null;
+  };
+  const rateOf = ms => {
+    const told = ms.flatMap(m => m.results.filter(r => !r.placeholder && r.score != null));
+    return told.length ? { rate: 100 * told.filter(r => r.reached).length / told.length, attained: told.filter(r => r.reached).length, n: told.length } : null;
+  };
+  const scoreOf = (ms, g) => {
+    const gs = ms.flatMap(m => m.results.filter(r => !r.placeholder && r.goal === g && r.score != null));
+    return gs.length ? `${fmt(gs.reduce((s, r) => s + r.score, 0) / gs.length, 0)} (${gs.filter(r => r.reached).length}/${gs.length})` : '–';
+  };
+  const claimsOf = ms => {
+    const rs = ms.flatMap(m => m.results.filter(r => !r.placeholder));
+    return rs.length ? fmt(rs.reduce((s, r) => s + (r.did?.took ?? 0), 0) / rs.length, 1) : '–';
+  };
+  return h('div', { class: 'scroll' }, h('table', { class: 'grid compare' },
+    h('thead', null, h('tr', null,
+      h('th', null, 'Decision model'),
+      h('th', { class: 'num' }, 'Default (5 agents)'),
+      h('th', { class: 'num' }, 'Personas off'),
+      h('th', { class: 'num' }, 'Persona drift'),
+      h('th', { class: 'num' }, 'Solo (accept)'),
+      h('th', { class: 'num' }, 'Solo Grow'),
+      h('th', { class: 'num' }, 'Solo Give'),
+      h('th', { class: 'num' }, 'Solo Hold'),
+      h('th', { class: 'num' }, 'Solo Borrow'),
+      h('th', { class: 'num' }, 'Objectives off: claims/agent'))),
+    h('tbody', null, models.map(model => {
+      const def = upTo(findKind(model, 'default')), pOff = upTo(findKind(model, 'persona'));
+      const solo = upTo(findKind(model, 'agents', r => switchesOf(r).agents === 'solo-accept'));
+      const oOff = upTo(findKind(model, 'objective'));
+      const rDef = rateOf(def), rOff = rateOf(pOff), rSolo = rateOf(solo);
+      const drift = rDef && rOff ? `${signed(rDef.rate - rOff.rate, 0)} pp` : '–';
+      return h('tr', null,
+        h('td', null, modelName(model)),
+        h('td', { class: 'num' }, rDef ? `${fmt(rDef.rate, 0)}% (${rDef.attained}/${rDef.n})` : '–'),
+        h('td', { class: 'num' }, rOff ? `${fmt(rOff.rate, 0)}% (${rOff.attained}/${rOff.n})` : '–'),
+        h('td', { class: 'num' }, drift),
+        h('td', { class: 'num' }, rSolo ? `${fmt(rSolo.rate, 0)}% (${rSolo.attained}/${rSolo.n})` : '–'),
+        h('td', { class: 'num' }, scoreOf(solo, 'grow')),
+        h('td', { class: 'num' }, scoreOf(solo, 'give')),
+        h('td', { class: 'num' }, scoreOf(solo, 'hold')),
+        h('td', { class: 'num' }, scoreOf(solo, 'borrow')),
+        h('td', { class: 'num' }, oOff.length ? claimsOf(oOff) : model === 'chance' ? claimsOf(def) : '–'));
+    }))));
+}
+
 /** A paired difference on an axis centred on zero: the interval as a bar, the mean as a dot. `top` is the axis's half-width. */
 function plot(d, top) {
   const at = v => `${50 + 50 * Math.max(-1, Math.min(1, v / top))}%`;
@@ -236,6 +291,10 @@ function page(runs, bases, indexes, chosen) {
     h('h2', null, 'The switches'),
     switchTable(),
     h('p', { class: 'small muted' }, 'The same switches are on the ', h('a', { href: 'play' }, 'Play'), ' page. Every run records the setting of each, and a run folder holds one setting.'),
+    h('h2', null, 'Model diagnostic scorecard (match designs 1–11)'),
+    h('p', { class: 'sub' }, 'How each decision system performs across the core diagnostic switches on the same 11 match designs (44 agents with an objective per condition; 11 per objective). '
+      + 'Default attainment alone (~41–50%) hides opposite model profiles exposed by Personas off, Solo, and Objectives off.'),
+    modelScorecard(runs, bases, indexes),
     h('h2', null, 'Runs under each setting'),
     h('p', { class: 'sub' }, 'Each row is a decision model, each column a condition. A dash is a condition that has not been run for that model.'),
     ...runsTable(runs, bases),

@@ -60,7 +60,9 @@ export default function mount(stage, data, kit) {
       const origin = vis === 0 ? x(0) : s.system === 'jev' ? x(j.rate) : final;
       const m = mark(shape, { fill: hue, r: 5.5, opacity: 0 });
       m.prepend(svg('circle', { r: 9, fill: 'transparent' }));
-      hint(m, `${s.name}, ${condName(c.key)}: ${fmt(c.rate)}% (${c.attained} of ${c.n})`);
+      const detail = c.scores ? [['grow', 'Grow'], ['give', 'Give'], ['hold', 'Hold'], ['borrow', 'Borrow']]
+        .map(([k, lbl]) => c.scores[k] ? `${lbl} ${fmt(c.scores[k].score)} (${c.scores[k].attained}/${c.scores[k].n})` : null).filter(Boolean).join(', ') : '';
+      hint(m, `${s.name}, ${condName(c.key)}: ${fmt(c.rate)}% (${c.attained} of ${c.n})${detail ? ` · ${detail}` : ''}`);
       place(m, origin, y);
       plot.append(m);
       let label = null;
