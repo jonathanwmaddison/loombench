@@ -468,6 +468,125 @@ function clothGallery(runs) {
     box);
 }
 
+/** Section 6: Cross-wording and cross-model robustness of 1-in-5 group substitutions (from d.steps and d.threshold). */
+function generalizationSection(d) {
+  if (!d.steps?.length) return null;
+  const rows = d.steps;
+  const tFive = new Map((d.threshold?.contrasts ?? []).filter(c => c.size === 5).map(c => [`${c.group} → ${c.added}`, c]));
+  return h('section', { id: 'generalization' },
+    h('h2', null, '6. Robustness across wordings and decision systems (1-in-5 substitutions)'),
+    h('p', { class: 'sub' },
+      'To verify that group vulnerability is not an artifact of a single wording ("blunt") or a single decision system (Jev), we ran paired 1-in-5 substitutions across three distinct disposition wordings (Calm → Blunt, Calm → Rude, Cooperative → Greedy) and three unpersonied objective contrasts (No objective → Grow, No objective → Give, Hold → Grow) across Jev, OpenAI Decisions, and OpenAI Chat.'),
+    h('div', { class: 'scroll' }, h('table', { class: 'grid' },
+      h('thead', null, h('tr', null,
+        h('th', null, '1-in-5 substitution contrast'),
+        h('th', null, 'Decision system'),
+        h('th', { class: 'num' }, 'Focal share (k=0 → k=1)'),
+        h('th', { class: 'num' }, 'Paired focal shift (95% CI)'),
+        h('th', { class: 'num' }, 'Each neighbour shift'),
+        h('th', { class: 'num' }, 'Focal claims'),
+        h('th', { class: 'num' }, 'Neighbour refusals'),
+        h('th', { class: 'num' }, 'At 90% threshold (Jev)'))),
+      h('tbody', null, rows.map(s => {
+        const t90 = s.system === 'jev' ? tFive.get(s.contrast) : null;
+        return h('tr', null,
+          h('td', { class: 'strong' }, s.contrast),
+          h('td', null, s.systemName),
+          h('td', { class: 'num' }, `${pc1(s.focal.from)} → ${pc1(s.focal.to)}`),
+          h('td', { class: 'num' }, ci(s.focal.change, ' pp')),
+          h('td', { class: 'num' }, ci(s.others.change, ' pp')),
+          h('td', { class: 'num' }, n1(s.claims.focal)),
+          h('td', { class: 'num' }, n1(s.refusals.others)),
+          h('td', { class: 'num' }, t90 ? `${pc1(t90.raised.mean)} (${signed(t90.difference.mean, 1)} pp vs 46%)` : '–'));
+      })))));
+}
+
+/** Section 7: Positioning in the multi-agent literature & practical takeaways for system builders. */
+function literatureSection(d) {
+  const b = d.benchmark, k = d.knowledge;
+  const growS = b?.objectives.find(o => o.key === 'grow')?.split, giveS = b?.objectives.find(o => o.key === 'give')?.split;
+  const pLo = growS && giveS ? fmt(Math.min(growS.persona, giveS.persona), 0) : '52', pHi = growS && giveS ? fmt(Math.max(growS.persona, giveS.persona), 0) : '60';
+  const oLo = growS && giveS ? fmt(Math.min(growS.objective, giveS.objective), 0) : '15', oHi = growS && giveS ? fmt(Math.max(growS.objective, giveS.objective), 0) : '26';
+  const cb46 = k?.adversarial.find(a => a.key === 'calmBlunt46');
+  const tBlunt = d.threshold?.contrasts.find(c => c.size === 5 && c.added === 'Blunt'), tRude = d.threshold?.contrasts.find(c => c.size === 5 && c.added === 'Rude');
+
+  const paradigms = [
+    [
+      'Open-ended social role-play',
+      'Sotopia (Zhou et al., ICLR 2024); Concordia (Vezhnevets et al., 2023–2024)',
+      'Free-form natural language dialogue',
+      'LLM-as-a-judge (0–10 rubric)',
+      'Rich open-ended dialogue, but assertive prose can confound LLM-judge goal scores; no exact option probability readout.',
+    ],
+    [
+      'Repeated 2×2 matrix games',
+      'Akata et al. (Nature Human Behaviour, 2025); Homo Silicus (Horton, 2023)',
+      'Binary/scalar matrix choice (C/D)',
+      'Exact payoff matrix',
+      'Clean game-theoretic payoffs, but no spatial topology, no choice of which neighbour to target, and no concurrent collaborative vs. zero-sum goals.',
+    ],
+    [
+      'Macro commons & negotiation',
+      'GovSim (Piatti et al., NeurIPS 2024); Abdelnabi et al. (NeurIPS 2024)',
+      'Free-form chat + extraction/deal',
+      'Survival / utility thresholds',
+      'Tests commons collapse and malicious stakeholders, but does not cross orthogonal affective personas against explicit goals or run within-match persuasion RCTs.',
+    ],
+    [
+      'LoomBench (this work)',
+      '102 runs · 5 agents · 26 rounds · 7 controlled switches',
+      'Code-enumerated legal options + full probability distribution',
+      'Deterministic 0–100 rank/share/design state (no LLM judge)',
+      'Isolates persona vs. objective variance, k = 0..5 contagion, within-match peer persuasion RCT (5,436 decisions), rule caps (46% vs 90%), and common knowledge (--know).',
+    ],
+  ];
+
+  const takeaways = [
+    [
+      '1. Separate style personas from decision-making prompts',
+      `In contested multi-agent settings, one-sentence affective personas explain ${pLo}–${pHi}% of score variance vs. ${oLo}–${oHi}% for explicit task instructions. If an agent needs a conversational voice, apply it in a formatting pass after the action is chosen rather than inside the decision prompt.`,
+    ],
+    [
+      '2. Audit environmental caps before declaring an agent safe',
+      tBlunt && tRude
+        ? `Under the default 46% rule cap, a blunt agent (${pc1(tBlunt.rules.mean)}) and a rude agent (${pc1(tRude.rules.mean)}) look indistinguishable. Lifting the cap to 90% separates them by ${signed(d.threshold.gap.raised.mean, 1)} pp (${pc1(tBlunt.raised.mean)} vs. ${pc1(tRude.raised.mean)}). Environment guardrails often mask severe disposition-driven extraction.`
+        : 'Environment caps can mask large differences between moderately assertive and hyper-extractive agent dispositions.',
+    ],
+    [
+      '3. Prompt transparency (--know) is used opportunistically, not defensively',
+      cb46
+        ? `Disclosing peer objectives redirects claims from Hold to Give, and cuts wasted claims when personas are off. Yet disclosing that a neighbour is blunt (${pc1(cb46.private.focal.to)} → ${pc1(cb46.known.focal.to)}, ${n1(cb46.known.refusals.others)} calm refusals) or Grow never triggers defensive refusal from cooperative peers. Protecting a group requires explicit refusal rules or sanction mechanisms.`
+        : 'Disclosing peer traits and goals redirects claims toward willing givers but does not cause cooperative agents to refuse an aggressor.',
+    ],
+    [
+      '4. Evaluate models across orthogonal switches, not a single group score',
+      'Models that tie near 41–50% in the default 5-agent group fail for opposite reasons when switches are flipped: Jev suffers persona hijack (−30 pp vs personas off) despite 93% solo agency, whereas GPT Decisions is immune to persona drift (0 pp) but exhibits high uninstructed restlessness (5.0 claims/agent when calm) and fails Hold.',
+    ],
+  ];
+
+  return h('section', { id: 'literature' },
+    h('h2', null, '7. Positioning in the multi-agent literature & engineering takeaways'),
+    h('p', { class: 'sub' },
+      'LoomBench bridges the gap between open-ended role-play sandboxes (which rely on LLM judges over free text) and 2×2 matrix games (which lack spatial targeting and mixed-motive goals). By having code own the state and enumerate legal actions while reading the model\'s probability distribution over options, every score is deterministic and every behavioural mechanism can be isolated one switch at a time.'),
+    h('div', { class: 'scroll' }, h('table', { class: 'grid' },
+      h('thead', null, h('tr', null,
+        h('th', null, 'Evaluation paradigm'),
+        h('th', null, 'Representative works'),
+        h('th', null, 'Action interface'),
+        h('th', null, 'Scoring mechanism'),
+        h('th', null, 'What it captures vs. leaves open'))),
+      h('tbody', null, paradigms.map(([p, ref, act, sc, note]) => h('tr', null,
+        h('td', { class: 'strong' }, p),
+        h('td', null, ref),
+        h('td', null, act),
+        h('td', null, sc),
+        h('td', null, note)))))),
+    h('h3', { style: { marginTop: '24px' } }, 'Four practical takeaways for multi-agent system builders'),
+    h('div', { class: 'findings-grid' }, takeaways.map(([title, body]) => h('div', { class: 'finding-card' },
+      h('div', { class: 'finding-title' }, title),
+      h('p', { class: 'finding-body' }, body)))));
+}
+
 async function start() {
   const page = document.getElementById('page');
   const [d, runs] = await Promise.all([getJSON('api/overview.json'), getJSON('api/runs.json')]);
@@ -510,6 +629,8 @@ async function start() {
         'A natural hypothesis is that cooperative or defensive agents are exploited only because they do not know their neighbour is blunt or instructed to Grow. Across all three paired experiments, disclosing dispositions or objectives fails to trigger defensive refusals.'),
       adversarialSection(k),
       clothGallery(runs),
+      generalizationSection(d),
+      literatureSection(d),
     ) : null,
     h('p', { class: 'small muted', style: { marginTop: '36px' } },
       'Every number on this page is computed live from the run records in ', h('code', null, 'runs/'), '. See ',

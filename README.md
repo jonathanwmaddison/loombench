@@ -202,6 +202,24 @@ In the default benchmark, each agent's persona and objective are private. Disclo
 
 ---
 
+## Positioning in the Multi-Agent Literature & Engineering Takeaways
+
+Existing multi-agent LLM benchmarks largely divide into open-ended social role-play sandboxes, repeated $2 \times 2$ matrix games, and macro-level commons/negotiation simulations. LoomBench is designed to bridge the methodological gap between them:
+
+| Evaluation paradigm | Representative works | Action & state interface | Scoring mechanism | What LoomBench adds |
+| --- | --- | --- | --- | --- |
+| **Open-ended social role-play** | *Sotopia* (Zhou et al., ICLR 2024); *Concordia* (Vezhnevets et al., 2023–2024) | Free-form natural language dialogue | LLM-as-a-judge rubric (0–10) | **Deterministic state scoring** (assertive prose cannot inflate an LLM judge's score) and exact option probability distributions. |
+| **Repeated $2 \times 2$ matrix games** | Akata et al. (*Nature Human Behaviour*, 2025); *Homo Silicus* (Horton, 2023) | Binary or scalar matrix choice (`C`/`D`) | Exact payoff matrix | **Spatial 5-agent bench** where agents choose *which* neighbour to target (`Hold` vs `Give` vs `Grow`) and balance zero-sum territorial goals with non-zero-sum design sharing (*Borrow*). |
+| **Macro commons & negotiation** | *GovSim* (Piatti et al., NeurIPS 2024); Abdelnabi et al. (NeurIPS 2024) | Free-form chat + resource extraction or multi-issue deal | Survival or utility thresholds | **Orthogonal Latin-square design** crossing 10 affective personas $\times$ 4 explicit goals, plus a within-match **75%/25% peer-persuasion RCT** ($5{,}436$ decisions) and common knowledge (`--know`). |
+
+### Four Practical Takeaways for Multi-Agent System Builders
+1. **Decouple style personas from decision-making prompts:** One-sentence affective personas account for **66–67%** of contested share variance vs. **16–19%** for explicit task instructions. If an agent needs a conversational tone, apply it in a formatting layer *after* action selection rather than inside the decision prompt.
+2. **Audit environmental caps before declaring an agent safe:** Under the default 46% rule cap, *blunt* (42.6%) and *rude* (46.6%) look nearly identical; lifting the cap to 90% separates them by **+25.1 pp** (`64.1%` vs. `89.2%`). Environment guardrails can mask severe disposition-driven extraction.
+3. **Prompt transparency (`--know`) is used opportunistically, not defensively:** Disclosing peer objectives redirects claims from *Hold* to *Give*, and cuts wasted claims when personas are off. Yet disclosing that a neighbour is *blunt* or *Grow* never triggers defensive refusal from cooperative peers (`0.0` calm refusals). Protecting a group requires explicit refusal rules or sanction mechanisms.
+4. **Evaluate models across orthogonal switches, not a single group leaderboard score:** Models that tie near 41–50% in the default 5-agent group fail for opposite reasons when switches are flipped: Jev suffers persona hijack (−27 pp vs. personas off) despite 89% solo agency, whereas GPT Decisions is immune to persona drift (0 pp) but exhibits high uninstructed restlessness (5.0 claims/agent when calm) and fails *Hold*.
+
+---
+
 ## Environment, Switches & Technical Reference
 
 ### Terms

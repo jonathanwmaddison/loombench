@@ -288,8 +288,11 @@ and the assignment). Each switch is implemented at one point, so the rest of the
 <tr><td>Areas</td><td>can change · fixed</td><td>engine setting <code>loom.fixed</code></td><td>The action question has one option (maintain position), so there are no response or reply calls. The design question is unchanged.</td></tr>
 <tr><td>Starting designs</td><td>assigned · chosen</td><td>whether <code>lot</code>, <code>pot</code> and <code>starts</code> are given to <code>weave</code></td><td>Chosen: one more group decision (the palette, 5 to 10 calls), and the design question is asked in the first round too.</td></tr>
 <tr><td>Peer communication</td><td>off · on</td><td><code>peerAsker</code> around <code>ask</code></td><td>Two further calls per action call (section 8).</td></tr>
+<tr><td>Common knowledge</td><td>none (private) · persona · objective · both</td><td><code>castOf(seats, know)</code></td><td>Injects <code>At the same loom: &lt;other seats' disposition and/or objective sentences&gt; Choose as &lt;Name&gt; would.</code> into each agent's prompt prefix.</td></tr>
+<tr><td>Composition &amp; group size</td><td>balanced deal · <i>N</i> − <i>k</i> of one type + <i>k</i> of another (2 to 5 seats)</td><td><code>seats</code> and <code>oddSeats(match, count, size)</code></td><td>Replaces <i>k</i> seats on identical seeds so one-agent and <i>k</i>-agent substitutions are paired match by match.</td></tr>
+<tr><td>Claim threshold</td><td>46% (rules default for 5 seats) · 30–100% (e.g. 90%)</td><td>engine setting <code>loom.claimLimit</code></td><td>Sets the share of the loom at which code stops offering an agent further claim options.</td></tr>
 </tbody></table></div>
-<p class="sub">In every setting each agent starts with the same area, 20 of the loom's 100 width units. The switches combine, except
+<p class="sub">In every 5-agent setting each agent starts with the same area, 20 of the loom's 100 width units (or <code>100 / size</code> for smaller groups). The switches combine, except
 that peer communication needs a model, five deciding agents and areas that can change, and a solo match needs assigned designs.
 A chat model is a second decision system and not another model behind Jev's interface: the prompt below is a rendering of Jev's
 request, the reading sees the host's twenty likeliest first tokens, and a preference for a letter stays in the distribution (it is
@@ -333,15 +336,17 @@ refuses to add a match made under another.</p>
 
 <h2>10. Records, replay and scoring</h2>
 <figure class="codefig"><pre class="code">// bench/core.mjs. The benchmark layer over the engine.
-type PersonaKey = &quot;plain&quot; | &quot;outgoing&quot; | &quot;reserved&quot; | &quot;warm&quot; | &quot;blunt&quot; | &quot;organised&quot; | &quot;careless&quot; | &quot;anxious&quot; | &quot;calm&quot; | &quot;curious&quot; | &quot;conventional&quot;;
+type PersonaKey = &quot;plain&quot; | &quot;outgoing&quot; | &quot;reserved&quot; | &quot;warm&quot; | &quot;blunt&quot; | &quot;organised&quot; | &quot;careless&quot; | &quot;anxious&quot; | &quot;calm&quot; | &quot;curious&quot; | &quot;conventional&quot; | &quot;cooperative&quot; | &quot;greedy&quot; | &quot;rude&quot;;
 type ObjectiveKey = &quot;none&quot; | &quot;grow&quot; | &quot;give&quot; | &quot;hold&quot; | &quot;borrow&quot;;
+type KnowKey = &quot;none&quot; | &quot;persona&quot; | &quot;objective&quot; | &quot;both&quot;;
 interface Seat { personality: PersonaKey; goal: ObjectiveKey }           // field names as in the code
 
 function deal(match: number): Seat[]             // five seats; balanced: each persona holds each objective once per 11 matches
-function castOf(seats: Seat[]): Weaver[]         // engine agents: { name, she, hue, temperature: 0.7, who /* the prompt prefix */ }
+function castOf(seats: Seat[], know?: KnowKey): Weaver[] // engine agents: { name, she, hue, temperature: 0.7, who /* the prompt prefix */ }
 function play(o: { seats: Seat[]; seed: number; ask?: Ask | null; peers?: boolean;
                    solo?: number | null; neighbours?: &quot;accept&quot; | &quot;refuse&quot; | &quot;chance&quot;;
-                   area?: &quot;free&quot; | &quot;fixed&quot;; designs?: &quot;assigned&quot; | &quot;chosen&quot; }): Promise&lt;Rug&gt;      // the switches: section 9
+                   area?: &quot;free&quot; | &quot;fixed&quot;; designs?: &quot;assigned&quot; | &quot;chosen&quot;;
+                   threshold?: number | null; know?: KnowKey }): Promise&lt;Rug&gt;      // the switches: section 9
 function scoresOf(rug: Rug): { seat: number; ground: number; scores: Record&lt;Objective, number&gt;; met: Record&lt;Objective, boolean&gt;; did: Behaviour }[]
 function recordOf(rug: Rug, o: { id: string; match: number | null; seats: Seat[] }): MatchRecord
 function replay(record: MatchRecord): Promise&lt;Rug&gt;      // re-executes from the tape; makes no calls
@@ -351,7 +356,8 @@ interface MatchRecord {
   model: string;                                  // &quot;jev-1.13.0&quot;, &quot;chance&quot;, or a chat model as &quot;&lt;provider&gt;:&lt;model&gt;&quot;
   minds: &quot;jev&quot; | &quot;chance&quot;; mode: &quot;quiet&quot; | &quot;peers&quot;;                       // quiet = no communication
   conditions: { agents: &quot;group&quot; | &quot;solo&quot;; solo?: number; neighbours?: &quot;accept&quot; | &quot;refuse&quot; | &quot;chance&quot;;
-                area: &quot;free&quot; | &quot;fixed&quot;; designs?: &quot;chosen&quot;; read?: &quot;tokens&quot; | &quot;stated&quot; };
+                area: &quot;free&quot; | &quot;fixed&quot;; designs?: &quot;chosen&quot;; read?: &quot;tokens&quot; | &quot;stated&quot;;
+                mix?: string; size?: number; threshold?: number; know?: &quot;persona&quot; | &quot;objective&quot; | &quot;both&quot; };
   seats: Seat[]; bench: number[];                 // bench: seat numbers left to right as seated
   name: string; lot: string;                      // the rug&#x27;s title; the palette
   results: Result[];                              // one per seat
@@ -417,6 +423,16 @@ interface Decision { chose: string; top: string | null; options: { key: string; 
 communication, about two. Figures are for match 3 of run <code>main</code>; phases 2 and 3 vary with how contested a match is.
 A chat model is charged at its own prices for about 520 requests a match (one output token each when read by tokens); a model
 on the same machine costs nothing and took about 2.5 minutes a match on the machine these runs were made on.</p>
+
+<h2>12. Positioning in the multi-agent benchmark literature</h2>
+<p class="sub">Existing multi-agent LLM evaluations trade off open-ended expressiveness against exact measurement. LoomBench is designed so that code owns the state and enumerates legal actions while the model returns a probability distribution over those options—avoiding LLM-judge confounds while retaining spatial targeting, mixed-motive goals, and within-match randomised controls.</p>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Paradigm</th><th>Representative works</th><th>Action &amp; state interface</th><th>Scoring</th><th>What LoomBench adds</th></tr></thead>
+<tbody>
+<tr><td>Open-ended social role-play</td><td>Sotopia (Zhou et al., ICLR 2024); Concordia (Vezhnevets et al., 2023–2024)</td><td>Free-form dialogue</td><td>LLM-as-a-judge rubric (0–10)</td><td>Deterministic state scoring (no assertive-prose judge bias) and exact prior-to-posterior probability distributions.</td></tr>
+<tr><td>Repeated 2×2 matrix games</td><td>Akata et al. (Nature Human Behaviour, 2025); Homo Silicus (Horton, 2023)</td><td>Binary or scalar choice</td><td>Payoff matrix</td><td>Spatial 5-agent bench where agents choose <i>which</i> neighbour to claim from, concede to, or share with across zero-sum (Grow, Give, Hold) and non-zero-sum (Borrow) goals.</td></tr>
+<tr><td>Macro commons &amp; negotiation</td><td>GovSim (Piatti et al., NeurIPS 2024); Abdelnabi et al. (NeurIPS 2024)</td><td>Free-form chat + resource extraction or multi-issue deal</td><td>Survival or utility thresholds</td><td>Orthogonal Latin-square crossing of 10 affective personas × 4 explicit goals, plus within-match 75%/25% RCT on peer persuasion (5,436 decisions) and common knowledge (<code>--know</code>).</td></tr>
+</tbody></table></div>
 </main>
 <script type="module">
 import { topbar } from './web/ui.mjs';
