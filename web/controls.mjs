@@ -59,7 +59,17 @@ function setting(key, value) {
   if (String(value).startsWith('mixed: ')) return String(value).slice(7);
   if (key === 'persona') return value === 'dealt' ? 'dealt' : value === 'off' ? 'off' : `all ${personality(value).name.toLowerCase()}`;
   if (key === 'objective') return value === 'dealt' ? 'dealt' : value === 'off' ? 'off' : value === 'uniform' ? 'one for all' : `all ${goal(value).name}`;
-  if (key === 'agents') return { group: 'all five', 'solo-accept': 'one, neighbours accept (solo)', 'solo-refuse': 'one, neighbours refuse (solo)', 'solo-chance': 'one, neighbours by chance (solo)' }[value] ?? value;
+  if (key === 'agents') {
+    return {
+      group: 'all five',
+      'group, know persona': 'all five, others\' dispositions known',
+      'group, know objective': 'all five, others\' objectives known',
+      'group, know both': 'all five, others\' dispositions and objectives known',
+      'solo-accept': 'one, neighbours accept (solo)',
+      'solo-refuse': 'one, neighbours refuse (solo)',
+      'solo-chance': 'one, neighbours by chance (solo)',
+    }[value] ?? value;
+  }
   if (key === 'area') return value === 'fixed' ? 'fixed' : 'can change';
   if (key === 'designs') return value === 'chosen' ? 'chosen by the agents' : 'assigned';
   return value ? 'on' : 'off';
@@ -82,6 +92,7 @@ function kindOf(run, base) {
   const c = switchesOf(run);
   if (d[0] === 'persona' && c.persona !== 'off') return null;
   if (d[0] === 'objective' && c.objective !== 'off') return null;
+  if (d[0] === 'agents' && !String(c.agents).startsWith('solo')) return null;
   // A run with another claim threshold has areas that can change, as the default has: it is not the areas-fixed condition.
   if (d[0] === 'area' && c.area !== 'fixed') return null;
   return d[0];

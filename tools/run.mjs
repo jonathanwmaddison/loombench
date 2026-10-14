@@ -48,7 +48,7 @@
 import { access, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SCORED, SEATS, conditionsOf, deal, goal, oddSeats, personality, play, recordOf } from '../bench/core.mjs';
+import { KNOW, SCORED, SEATS, conditionsOf, deal, goal, oddSeats, personality, play, recordOf } from '../bench/core.mjs';
 import { rowsOf, table } from '../bench/stats.mjs';
 import { peerTable } from '../bench/peers.mjs';
 import { JEV } from '../engine/jev.mjs';
@@ -56,9 +56,9 @@ import { askerFor, keepMatch, writeIndex } from './keep.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const USAGE = 'usage: node tools/run.mjs [--model jev|chance|<provider>:<model>] [--read tokens|stated] [--effort LEVEL] [--price IN,OUT] [--cap DOLLARS] '
-  + '[--persona KEY|off] [--objective KEY|off] [--odd TYPE] [--odd-count K] [--size N] [--threshold P] [--solo] [--neighbours accept|refuse|chance] [--area fixed] [--designs chosen] [--peers] [--matches N | A-B] [--run NAME] [--at-once N]';
+  + '[--persona KEY|off] [--objective KEY|off] [--odd TYPE] [--odd-count K] [--size N] [--threshold P] [--know persona|objective|both] [--solo] [--neighbours accept|refuse|chance] [--area fixed] [--designs chosen] [--peers] [--matches N | A-B] [--run NAME] [--at-once N]';
 const FLAGS = new Set(['--chance', '--peers', '--solo']);
-const VALUED = new Set(['--model', '--read', '--effort', '--price', '--cap', '--objective', '--persona', '--odd', '--odd-count', '--size', '--threshold', '--area', '--designs', '--neighbours', '--matches', '--run', '--at-once']);
+const VALUED = new Set(['--model', '--read', '--effort', '--price', '--cap', '--objective', '--persona', '--odd', '--odd-count', '--size', '--threshold', '--know', '--area', '--designs', '--neighbours', '--matches', '--run', '--at-once']);
 const fail = message => { console.error(message); process.exit(1); };
 
 const args = process.argv.slice(2);
@@ -103,6 +103,8 @@ if (size !== SEATS && (solo || peers || designs === 'chosen')) fail('--size cann
 const threshold = option('threshold') === null ? null : Number(option('threshold'));
 if (threshold !== null && !(Number.isFinite(threshold) && threshold >= 30 && threshold <= 100)) fail('--threshold takes a share from 30 to 100 percent');
 if (threshold !== null && area === 'fixed') fail('--threshold is about claims, and with --area fixed nobody claims. Give one of the two.');
+const know = option('know') ?? 'none';
+if (!KNOW.includes(know) || option('know') === 'none') fail(`--know takes persona, objective or both, not "${option('know')}"`);
 if (!(Number.isInteger(oddCount) && oddCount >= 0 && oddCount <= size)) fail(`--odd-count takes a whole number from 0 to ${size}`);
 // The rest must be one type, or the seats would hold more than two and be no mix: both its persona and its objective are given.
 if (oddSpec && !(persona && objective)) fail('--odd swaps seats of a group made of one type: give both --persona and --objective for the rest (for example --persona calm --objective off).');
@@ -118,8 +120,8 @@ if (prices && !(prices.length === 2 && prices.every(x => Number.isFinite(x) && x
 if (!(cap > 0)) fail('--cap takes a number of dollars above 0');
 
 const slug = text => text.replace(/^openai-decisions:(.*)$/, '$1-decisions').replace(/^[a-z]+:/, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
-const tags = [size !== SEATS && `size-${size}`, threshold !== null && `t${threshold}`, odd && `${oddCount}-${slug(oddSpec)}`, peers && 'peers', solo && (neighbours === 'accept' ? 'solo' : `solo-${neighbours}`), area === 'fixed' && 'fixed', designs === 'chosen' && 'designs-chosen', persona && `persona-${option('persona')}`, objective && `objective-${option('objective')}`].filter(Boolean);
-const structural = peers || solo || area === 'fixed' || designs === 'chosen';
+const tags = [size !== SEATS && `size-${size}`, threshold !== null && `t${threshold}`, know !== 'none' && `know-${know}`, odd && `${oddCount}-${slug(oddSpec)}`, peers && 'peers', solo && (neighbours === 'accept' ? 'solo' : `solo-${neighbours}`), area === 'fixed' && 'fixed', designs === 'chosen' && 'designs-chosen', persona && `persona-${option('persona')}`, objective && `objective-${option('objective')}`].filter(Boolean);
+const structural = peers || solo || area === 'fixed' || designs === 'chosen' || know !== 'none';
 const named = model === 'jev' && objective && !structural ? `ref-${objective}`
   : model === 'jev' && !tags.length ? `jev-${new Date().toISOString().slice(0, 10)}`
   : [model === 'jev' || chance ? model : slug(model), ...tags].join('-');
@@ -152,9 +154,10 @@ const now = { model: chance ? 'chance' : ask.model ?? JEV.model, persona: person
 if (odd) { const c = conditionsOf({ seats: seatsOf(from), rules: 2 }); now.persona = c.persona; now.objective = c.objective; if (c.mix) now.mix = c.mix; }
 if (size !== SEATS) now.size = size;
 if (threshold !== null) now.threshold = threshold;
+if (know !== 'none') now.know = know;
 if (was) {
   // A reasoning effort the run was made under counts too, when this call names none.
-  const differs = [...new Set([...Object.keys(now), ...(was.effort ? ['effort'] : []), ...(was.mix ? ['mix'] : []), ...(was.size ? ['size'] : []), ...(was.threshold ? ['threshold'] : [])])].filter(k => (was[k] ?? { designs: 'assigned', neighbours: 'accept' }[k]) !== now[k]);
+  const differs = [...new Set([...Object.keys(now), ...(was.effort ? ['effort'] : []), ...(was.mix ? ['mix'] : []), ...(was.size ? ['size'] : []), ...(was.threshold ? ['threshold'] : []), ...(was.know ? ['know'] : [])])].filter(k => (was[k] ?? { designs: 'assigned', neighbours: 'accept' }[k]) !== now[k]);
   if (differs.length) fail(`runs/${run} was made under other switches (${differs.map(k => `${k}: ${was[k]}, not ${now[k]}`).join('; ')}). Give another --run.`);
 }
 
@@ -178,7 +181,7 @@ async function worker() {
   while (next < pending.length && !ask?.fatal) {
     const { n, seat, id } = pending[next++], seats = seatsOf(n);
     try {
-      const rug = await play({ seats, seed: n, ask, peers, solo: seat, neighbours, area, designs, threshold });
+      const rug = await play({ seats, seed: n, ask, peers, solo: seat, neighbours, area, designs, threshold, know });
       // A benchmark match is the model's decisions or nothing: one decided in part by the fallback is not kept.
       if (ask?.fatal) throw Error(ask.fatal);
       if (rug.stats.calls.script) throw Error(`${rug.stats.calls.script} calls had no valid response from the model, so the match is not kept`);

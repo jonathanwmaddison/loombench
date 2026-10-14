@@ -14,7 +14,7 @@ const near = (a, b, by = 0.011) => assert.ok(Math.abs(a - b) <= by, `${a} is not
 
 test('the overview has every part, and is plain JSON', async () => {
   const d = await overview;
-  for (const part of ['benchmark', 'opening', 'blunt', 'threshold', 'systems', 'switches', 'peers']) assert.ok(d[part], `no ${part}`);
+  for (const part of ['benchmark', 'opening', 'blunt', 'threshold', 'systems', 'switches', 'peers', 'knowledge']) assert.ok(d[part], `no ${part}`);
   assert.ok(d.sweeps.length >= 2 && d.steps.length >= 2);
   assert.deepEqual(JSON.parse(JSON.stringify(d)), d, 'a value that JSON cannot carry (NaN, undefined)');
 });
@@ -93,3 +93,22 @@ test('peer communication: the two arms are the discordant decisions, and the con
   assert.ok(Math.abs(peers.control.influence.mean) < 1 && peers.effect.lo > 0);
   assert.equal(peers.example.options.filter(o => o.advocated).length, 1);
 });
+
+test('common knowledge: balanced-deal cells, directional targeting, and adversarial contrasts', async () => {
+  const { knowledge } = await overview;
+  assert.equal(knowledge.cells.length, 6);
+  for (const c of knowledge.cells) {
+    assert.equal(c.n, 4 * knowledge.designs);
+    near(c.rate, 100 * c.attained / c.n);
+    const cl = c.targeting.claims;
+    assert.equal(cl.grow + cl.give + cl.hold + cl.borrow + cl.none, cl.total, `${c.run} claim targets sum to total`);
+  }
+  assert.equal(knowledge.personas.length, 10);
+  assert.equal(knowledge.adversarial.length, 3);
+  for (const a of knowledge.adversarial) {
+    assert.equal(a.private.seeds, 10);
+    assert.equal(a.known.seeds, 10);
+    near(a.knownVsPrivate.mean, a.known.focal.to - a.private.focal.to, 0.05);
+  }
+});
+

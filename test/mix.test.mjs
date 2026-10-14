@@ -225,3 +225,18 @@ test('the claim threshold can be set: the match is run and replayed under it, it
   await assert.rejects(play({ seats, seed: 1, threshold: 10 }), /from 30 to 100 percent/);
   await assert.rejects(play({ seats, seed: 1, threshold: 90, area: 'fixed' }), /no claim threshold to set/);
 });
+
+test('agents can be told the other agents\' dispositions, objectives, or both', async () => {
+  const seats = deal(1);
+  const castP = castOf(seats, 'persona'), castO = castOf(seats, 'objective'), castB = castOf(seats, 'both');
+  assert.match(castP[0].who, /At the same loom: Ashley is warm and considerate, .* Choose as Jessica would\./);
+  assert.doesNotMatch(castP[0].who, /Ashley has one goal/);
+  assert.match(castO[0].who, /At the same loom: Ashley has one goal for this rug: .* Choose as Jessica would\./);
+  assert.doesNotMatch(castO[0].who, /Ashley is warm/);
+  assert.match(castB[0].who, /Ashley is warm and considerate, .* Ashley has one goal for this rug: .* Choose as Jessica would\./);
+  assert.throws(() => castOf(seats, 'secret'), /know: none, persona, objective, both/);
+  const rug = await play({ seats, seed: 1, know: 'both' }), record = recordOf(rug, { id: 'm001', match: 1, seats }), c = conditionsOf(record);
+  assert.equal(c.know, 'both');
+  assert.equal(switchesOf({ conditions: c }).agents, 'group, know both');
+  assert.ok(sameCloth(await replay(JSON.parse(JSON.stringify(record))), rug));
+});

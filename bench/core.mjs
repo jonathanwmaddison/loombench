@@ -162,17 +162,31 @@ export function mixOf(seats) {
   return kinds.size === 2 ? [...kinds].sort((a, b) => a[0].localeCompare(b[0])).map(([type, n]) => `${n} ${type}`).join(' + ') : null;
 }
 
+/** What each agent is told about the other agents at the loom: nothing ('none'), their dispositions ('persona'), their objectives ('objective'), or both ('both'). */
+export const KNOW = Object.freeze(['none', 'persona', 'objective', 'both']);
+
 /**
  * The engine weavers for these seats (five, or the first two to four of them for a smaller group): each typed with its
- * personality, and its goal's sentence before "Choose as".
+ * personality, its goal's sentence, and (when `know` is not 'none') the sentences of the other weavers at the loom, before "Choose as".
  */
-export function castOf(seats) {
+export function castOf(seats, know = 'none') {
   if (!(seats.length >= 2 && seats.length <= SEATS)) throw Error(`a group has from 2 to ${SEATS} agents, not ${seats.length}`);
+  if (!KNOW.includes(know)) throw Error(`know: ${KNOW.join(', ')}`);
   return BASE.slice(0, seats.length).map((w, i) => {
     const extra = DISPOSITIONS.find(x => x.key === seats[i].personality), plain = typed(w, extra ? 'plain' : seats[i].personality);
     // A disposition's sentence stands where a trait sentence stands: after the opening, before "Choose as".
     const t = extra ? { ...plain, who: plain.who.replace(' Choose as', ` ${said(w, extra.text)} Choose as`) } : plain, g = goal(seats[i].goal);
-    return { ...t, temperature: 0.7, who: g.text ? t.who.replace(' Choose as', ` ${said(w, g.text)} Choose as`) : t.who };
+    const own = g.text ? t.who.replace(' Choose as', ` ${said(w, g.text)} Choose as`) : t.who;
+    const others = [];
+    if (know !== 'none') {
+      for (let j = 0; j < seats.length; j++) {
+        if (j === i) continue;
+        if (know === 'persona' || know === 'both') { const p = sentenceOf(j, seats[j].personality, 'personality'); if (p) others.push(p); }
+        if (know === 'objective' || know === 'both') { const o = sentenceOf(j, seats[j].goal, 'goal'); if (o) others.push(o); }
+      }
+    }
+    const who = others.length ? own.replace(/ Choose as (?:she|he) would\./, ` At the same loom: ${others.join(' ')} Choose as ${w.name} would.`) : own;
+    return { ...t, temperature: 0.7, who };
   });
 }
 
@@ -190,11 +204,12 @@ export function sentenceOf(seat, key, kind) {
  * lets the agents choose the palette and their first designs (`SWITCHES`). Returns the finished rug, with
  * `rug.conditions` and `rug.cost`.
  */
-export async function play({ seats, seed, ask = null, onPass, peers = false, solo = null, neighbours = 'accept', area = 'free', designs = 'assigned', threshold = null }) {
+export async function play({ seats, seed, ask = null, onPass, peers = false, solo = null, neighbours = 'accept', area = 'free', designs = 'assigned', threshold = null, know = 'none' }) {
   // The claim threshold: the share of the loom, in percent, at which an agent is offered no further claims. The loom's
   // own is 46 for five agents (for fewer, the larger of 46 and an equal part plus 20); another can be given.
   if (threshold !== null && !(Number.isFinite(threshold) && threshold >= 30 && threshold <= 100)) throw Error('threshold: a share from 30 to 100 percent');
   if (threshold !== null && area === 'fixed') throw Error('with areas fixed nobody claims, so there is no claim threshold to set');
+  if (!KNOW.includes(know)) throw Error(`know: ${KNOW.join(', ')}`);
   if (solo !== null && !(Number.isInteger(solo) && solo >= 0 && solo < SEATS)) throw Error(`solo: a seat from 0 to ${SEATS - 1}`);
   // A smaller group: every agent then starts with an equal part of the same loom (a third each for three), and the
   // share at which an agent is offered no further claims is the larger of 46% and that part plus 20 points
@@ -208,7 +223,7 @@ export async function play({ seats, seed, ask = null, onPass, peers = false, sol
   if (solo !== null && designs === 'chosen') throw Error('a solo match needs assigned designs: a placeholder chooses nothing');
   if (peers && solo !== null) throw Error('peer communication needs neighbours that decide, so it cannot be run solo');
   if (peers && area === 'fixed') throw Error('peer communication is about the action, and with fixed areas there is one action');
-  const cast = castOf(seats), log = [], speaking = Boolean(peers && ask), count = { scripted: 0 }, cost = { dollars: null, requests: null, reasked: 0, unanswered: 0 };
+  const cast = castOf(seats, know), log = [], speaking = Boolean(peers && ask), count = { scripted: 0 }, cost = { dollars: null, requests: null, reasked: 0, unanswered: 0 };
   // What a chat model charges, and how many requests an answer took, are carried beside each of its answers; Jev's
   // cost is the loom's own count of tokens, and a Jev call is one request. OpenAI's decision model also says how many
   // questions of a call it refused and was asked again, and how many it never answered (bench/decisions.mjs); a chat
@@ -228,7 +243,7 @@ export async function play({ seats, seed, ask = null, onPass, peers = false, sol
     simple: true, loom: { stepBacks: [], ...(area === 'fixed' ? { fixed: true } : {}), ...(threshold === null ? {} : { maxShare: threshold / 100 }) }, onPass, ...(designs === 'assigned' ? given() : {}),
   });
   if (speaking) rug.peers = log;
-  rug.conditions = { agents: solo === null ? 'group' : 'solo', ...(solo === null ? {} : { solo, neighbours }), area, ...(threshold === null ? {} : { threshold }), ...(designs === 'chosen' ? { designs } : {}), ...(ask?.read ? { read: ask.read } : {}), ...(ask?.effort ? { effort: ask.effort } : {}) };
+  rug.conditions = { agents: solo === null ? 'group' : 'solo', ...(solo === null ? {} : { solo, neighbours }), area, ...(threshold === null ? {} : { threshold }), ...(know === 'none' ? {} : { know }), ...(designs === 'chosen' ? { designs } : {}), ...(ask?.read ? { read: ask.read } : {}), ...(ask?.effort ? { effort: ask.effort } : {}) };
   rug.scripted = count.scripted;
   rug.cost = ask ? cost.dollars ?? rug.stats.dollars : 0;
   rug.requests = cost.requests;
@@ -339,6 +354,7 @@ export function conditionsOf(record) {
     ...(record.conditions?.effort ? { effort: record.conditions.effort } : {}),
     // The claim threshold in percent, when the match was not run at the loom's own.
     ...(record.conditions?.threshold ? { threshold: record.conditions.threshold } : {}),
+    ...(record.conditions?.know ? { know: record.conditions.know } : {}),
   };
 }
 
@@ -351,7 +367,7 @@ export function summaryOf(record) {
 export async function replay(record, { onAsk = null } = {}) {
   return weave({
     onAsk,
-    seed: record.seed, weavers: castOf(record.seats), loom: record.loom, minds: record.minds, model: record.model,
+    seed: record.seed, weavers: castOf(record.seats, record.conditions?.know ?? 'none'), loom: record.loom, minds: record.minds, model: record.model,
     // A record kept under the first rules has no `rules`, and is woven again as it was: a voted lot, a chosen first design.
     ...(record.rules >= 2 && record.conditions?.designs !== 'chosen' ? given() : {}),
     // A match woven wholly by chance has nothing on its tape; a solo match by chance has its placeholders' answers there.

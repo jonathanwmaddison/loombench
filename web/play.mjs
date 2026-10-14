@@ -19,7 +19,7 @@ const sentence = text => (/[.!?]$/.test(text) ? text : `${text}.`);
 const stampOf = m => Number(String(m.id).split('-').pop()) || 0;
 
 // The switches as the page holds them. `kept` is what each seat was given before personas or objectives were turned off.
-const set = { model: null, persona: true, objective: true, solo: null, neighbours: 'accept', area: 'free', designs: 'assigned', peers: false };
+const set = { model: null, persona: true, objective: true, solo: null, neighbours: 'accept', area: 'free', designs: 'assigned', peers: false, know: 'none' };
 const kept = { personality: [], goal: [] };
 const seats = [];       // per seat: { card, personality, goal (the selects), personalityNote, goalNote (their boxes) }
 const controls = [];    // every control, disabled while a match is being woven
@@ -161,6 +161,13 @@ function switchesCard() {
       () => (set.persona ? 'Each agent is given the trait sentence chosen below.' : 'No agent is given a trait sentence. Whatever differs between agents is then the objective, the seat and the model.')),
     switchRow('Objectives', segmented('Objectives', [[true, 'On'], [false, 'Off']], () => set.objective, v => assign('goal', v)),
       () => (set.objective ? 'Each agent is given the objective chosen below.' : 'No agent is given an objective. Whatever differs between agents is then the persona, the seat and the model.')),
+    switchRow('Common knowledge', segmented('Common knowledge', [['none', 'Private'], ['persona', 'Dispositions'], ['objective', 'Objectives'], ['both', 'Both']], () => set.know, v => { set.know = v; }),
+      () => ({
+        none: 'Each agent knows only its own persona and objective.',
+        persona: 'Each agent is also told the other four agents\' disposition sentences.',
+        objective: 'Each agent is also told the other four agents\' objective sentences.',
+        both: 'Each agent is told both the disposition and objective sentences of the other four agents.',
+      }[set.know])),
     switchRow('Agents deciding', agentsBox,
       () => (set.solo === null ? 'The model decides for all five agents, and each can refuse the others.' : soloWords())),
     switchRow('Areas', segmented('Areas', [['free', 'Can change'], ['fixed', 'Fixed']], () => set.area, v => { set.area = v; }),
@@ -247,7 +254,7 @@ async function weave() {
     const res = await fetch('api/play', {
       method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
       body: JSON.stringify({ seats: bench, seed, model: set.model, solo: set.solo, neighbours: set.solo === null ? 'accept' : set.neighbours,
-        area: set.area, designs: set.designs, peers: set.peers }),
+        area: set.area, designs: set.designs, peers: set.peers, know: set.know }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.job) throw Error(data.error ?? `the server answered ${res.status}`);

@@ -21,7 +21,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JEV } from './engine/jev.mjs';
-import { SEATS, SWITCHES, personality, goal, play, recordOf } from './bench/core.mjs';
+import { SEATS, SWITCHES, KNOW, personality, goal, play, recordOf } from './bench/core.mjs';
 import { PROVIDERS, modelsAt, parseModel } from './bench/llm.mjs';
 import { NEIGHBOURS } from './bench/solo.mjs';
 import { DECISIONS } from './bench/decisions.mjs';
@@ -29,7 +29,7 @@ import { askerFor, keepMatch, overviewFrom, runList, writeIndex } from './tools/
 
 const PORT = Number(process.env.PORT ?? 4330), HOST = '127.0.0.1', ROOT = fileURLToPath(new URL('./', import.meta.url));
 const PAGES = {
-  '/': 'web/index.html', '/results': 'web/results.html', '/match': 'web/match.html', '/peers': 'web/peers.html', '/play': 'web/play.html',
+  '/': 'web/index.html', '/groups': 'web/groups.html', '/results': 'web/results.html', '/match': 'web/match.html', '/peers': 'web/peers.html', '/play': 'web/play.html',
   '/report': 'web/report.html', '/design': 'web/design.html', '/controls': 'web/controls.html', '/mix': 'web/mix.html', '/brief': 'web/brief.html', '/brief-objective': 'web/brief-objective.html',
 };
 const TREES = ['web', 'engine', 'bench', 'runs'];
@@ -101,7 +101,7 @@ const known = (lookup, key, what) => {
  */
 async function checkPlay(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw Error('send an object with seats and a seed');
-  const { seats, seed, model = null, solo = null, neighbours = 'accept', area = 'free', designs = 'assigned', peers = false } = body;
+  const { seats, seed, model = null, solo = null, neighbours = 'accept', area = 'free', designs = 'assigned', peers = false, know = 'none' } = body;
   if (!Array.isArray(seats) || seats.length !== SEATS) throw Error('seats: exactly five, each with a personality and a goal');
   if (!Number.isInteger(seed) || seed < 1 || seed > 999999) throw Error('seed: a whole number from 1 to 999999');
   const list = await modelsOffered(), spec = model ?? list[0].spec;
@@ -113,8 +113,9 @@ async function checkPlay(body) {
   if (designs === 'chosen' && solo !== null) throw Error('a solo match needs assigned designs');
   if (typeof peers !== 'boolean') throw Error('peers: true or false');
   if (peers && (spec === 'chance' || solo !== null || area === 'fixed')) throw Error('peer communication needs a model, five deciding agents and areas that can change');
+  if (!KNOW.includes(know)) throw Error('know: none, persona, objective or both');
   return {
-    seed, spec, solo, neighbours, area, designs, peers,
+    seed, spec, solo, neighbours, area, designs, peers, know,
     seats: seats.map(s => ({ personality: known(personality, s?.personality, 'personality'), goal: known(goal, s?.goal, 'goal') })),
   };
 }
@@ -130,7 +131,7 @@ async function runJob(job, checked) {
     // Making the asker can itself fail in a sentence (a model with no known price, a host with no address).
     if (checked.spec !== 'chance') ask = askerOf(checked.spec);
     if (checked.spec !== 'chance' && !ask) throw Error(`there is no key for ${checked.spec}`);
-    const rug = await play({ seats: checked.seats, seed: checked.seed, ask, peers: checked.peers, solo: checked.solo, neighbours: checked.neighbours, area: checked.area, designs: checked.designs,
+    const rug = await play({ seats: checked.seats, seed: checked.seed, ask, peers: checked.peers, solo: checked.solo, neighbours: checked.neighbours, area: checked.area, designs: checked.designs, know: checked.know,
       onPass: entry => { job.round = Math.max(job.round, Math.min(ROUNDS, entry.pass + 1)); } });
     if (ask?.fatal) throw Error(`The match was not run: ${ask.fatal}`);
     if (rug.stats.calls.script) throw Error(`${rug.stats.calls.script} calls had no valid response from the model, so the match was not kept. Try again`);

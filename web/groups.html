@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Group Dynamics &amp; Common Knowledge: LoomBench</title>
+<meta name="description" content="Explore how 5 LLM agents behave in groups across 5 orthogonal experimental levers: persona vs objective, adversarial composition, peer persuasion, common knowledge (--know), and environmental caps.">
+<meta property="og:title" content="Understanding LLM Agent Behavior in Groups · LoomBench">
+<meta property="og:description" content="Interactive group dynamics lab & common knowledge study: revealing peer objectives redirects claims from Hold (33% → 20%) to Give (10% → 16%), yet knowing who is blunt or Grow never triggers group defense.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="runs/know-both/thumbs/m01-flat.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="web/app.css">
+<style>
+  h2 { margin-top: 44px; }
+  h3 { margin: 20px 0 8px; font-size: 16px; }
+  .kicker { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+
+  /* The 5 group levers grid */
+  .levers { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 12px; margin: 18px 0 24px; }
+  .lever { display: flex; flex-direction: column; justify-content: space-between; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .lever-num { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .lever h3 { margin: 4px 0 6px; font-size: 15px; }
+  .lever p { margin: 0 0 10px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+  .lever-stat { padding-top: 8px; border-top: 1px solid var(--hairline); font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+  .lever-stat b { font-variant-numeric: tabular-nums; color: var(--ink); }
+
+  /* Interactive Group Lab & Prompt Inspector */
+  .lab-card { margin: 16px 0 32px; padding: 20px; }
+  .lab-controls { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--hairline); }
+  .lab-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .lab-label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+  .segmented { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; background: var(--page); }
+  .seg-btn { appearance: none; border: 0; border-right: 1px solid var(--hairline); background: transparent; color: var(--ink); padding: 6px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .seg-btn:last-child { border-right: 0; }
+  .seg-btn[aria-pressed="true"] { background: var(--ink); color: #fff; font-weight: 600; }
+  .seg-btn:disabled { cursor: not-allowed; }
+
+  .bench-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .seat-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--page); font-size: 12px; cursor: pointer; color: var(--ink-2); }
+  .seat-pill[aria-pressed="true"] { border-color: var(--ink); background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--ink); }
+
+  .lab-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .lab-grid { grid-template-columns: 1fr; } }
+  .prompt-box { padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--page); font-size: 13.5px; line-height: 1.55; }
+  .prompt-box .know-hl { background: rgba(42, 120, 214, 0.14); color: var(--ink); padding: 1px 5px; border-radius: 4px; font-weight: 500; }
+  .cmd-box { margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: #191917; color: #f4f3ee; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; overflow-x: auto; white-space: pre; }
+  .outcome-box { padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--page); }
+  .outcome-split { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start; margin-top: 10px; }
+  @media (max-width: 520px) { .outcome-split { grid-template-columns: 1fr; } }
+  .outcome-thumb { display: block; text-decoration: none; color: var(--ink-2); font-size: 11px; line-height: 1.3; }
+  .outcome-thumb img { display: block; width: 96px; height: auto; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 4px; }
+  .outcome-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; }
+  .metric-cell { padding: 7px 9px; background: var(--surface); border: 1px solid var(--hairline); border-radius: 6px; }
+  .metric-val { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .metric-lbl { font-size: 11px; color: var(--ink-2); }
+
+  /* 4 headline cards for Common Knowledge */
+  .findings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 12px; margin: 16px 0 24px; }
+  .finding-card { padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .finding-big { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .finding-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .finding-body { font-size: 13px; line-height: 1.45; color: var(--ink-2); margin: 0; }
+
+  /* Tables & plots */
+  .grid th, .grid td { padding: 8px 11px; vertical-align: top; }
+  .grid .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .grid th.num { text-align: right; }
+  .strong { font-weight: 600; }
+  .delta-sub { display: block; font-size: 11.5px; font-weight: 400; color: var(--ink-2); margin-top: 2px; }
+  .chart-wrap { margin: 14px 0; overflow-x: auto; }
+  .chart-svg { display: block; max-width: 100%; height: auto; }
+
+  /* Cloth strip gallery */
+  .cloth-row { display: flex; gap: 12px; overflow-x: auto; padding: 6px 0 10px; }
+  .cloth-item { flex: 0 0 132px; text-decoration: none; color: inherit; }
+  .cloth-item img { display: block; width: 132px; height: auto; border-radius: 4px; background: var(--hairline); border: 1px solid var(--border); }
+  .cloth-cap { margin-top: 6px; font-size: 12px; font-weight: 600; line-height: 1.3; }
+  .cloth-sub { margin-top: 2px; font-size: 11.5px; color: var(--ink-2); line-height: 1.35; }
+</style>
+</head>
+<body>
+<main class="page" id="page">
+  <p class="muted">Loading…</p>
+</main>
+<script type="module" src="web/groups.mjs"></script>
+</body>
+</html>

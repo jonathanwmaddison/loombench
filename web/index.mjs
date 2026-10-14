@@ -150,6 +150,22 @@ const SCENES = [
       h('a', { href: 'report' }, 'The report'), ' has the method and its limits.'],
   },
   {
+    id: 'know', title: 'Key Result 4 · Common knowledge redirects claims to willing givers—but never deters an aggressor',
+    needs: d => d.knowledge?.cells?.length >= 6 && d.knowledge?.adversarial?.length >= 3,
+    steps: d => {
+      const k = d.knowledge, by = key => k.cells.find(c => c.key === key);
+      const priv = by('private'), kPer = by('persona'), kObj = by('objective'), kBoth = by('both'), pOff = by('personaOff'), pOffObj = by('personaOffObjective');
+      const cb46 = k.adversarial.find(a => a.key === 'calmBlunt46'), cb90 = k.adversarial.find(a => a.key === 'calmBlunt90'), hg = k.adversarial.find(a => a.key === 'holdGrow');
+      return [
+        ['Revealing peer objectives redirects claims', `When agents are told their neighbours' objectives, executed claims targeting the Give neighbour rise from ${pc1(priv.targeting.claims.givePct)} (${priv.targeting.claims.give}/${priv.targeting.claims.total}) to ${pc1(kObj.targeting.claims.givePct)} (${kObj.targeting.claims.give}/${kObj.targeting.claims.total}) and ${pc1(kBoth.targeting.claims.givePct)} (${kBoth.targeting.claims.give}/${kBoth.targeting.claims.total} when dispositions are also known), while claims hitting the Hold neighbour drop from ${pc1(priv.targeting.claims.holdPct)} to ${pc1(kObj.targeting.claims.holdPct)} and ${pc1(kBoth.targeting.claims.holdPct)}. Yet refusals per agent climb from ${n1(priv.refusals)} to ${n1(kBoth.refusals)} and share dispersion widens from ${n1(priv.dispersion)} to ${n1(kBoth.dispersion)} pp.`],
+        ['Without personas, objective knowledge cuts wasted conflict', `With personas switched off, disclosing objectives cuts claims per agent from ${n1(pOff.claims)} to ${n1(pOffObj.claims)}, drops top-choice pushes into the Hold seat from ${pOff.targeting.pushTop.hold} to ${pOffObj.targeting.pushTop.hold} and unwanted concessions to Hold from ${pOff.targeting.yieldTop.hold} to ${pOffObj.targeting.yieldTop.hold}, lifting the Hold score from ${fmt(pOff.scores.hold.score)} to ${fmt(pOffObj.scores.hold.score)}. Meanwhile, disclosing dispositions alone drops concessions from ${n1(priv.concessions)} to ${n1(kPer.concessions)} per agent.`],
+        ['Knowing who the aggressor is does not protect the group', `In adversarial compositions, common knowledge does not trigger defensive refusal. A single blunt agent among four calm ones takes ${pc1(cb46.known.focal.to)} when dispositions are known (vs ${pc1(cb46.private.focal.to)} when private, with ${n1(cb46.known.refusals.others)} calm refusals), and ${pc1(cb90.known.focal.to)} vs ${pc1(cb90.private.focal.to)} at the 90% threshold. A single Grow agent among four Hold neighbours takes ${pc1(hg.known.focal.to)} when objectives are known vs ${pc1(hg.private.focal.to)} when private.`],
+      ];
+    },
+    caption: d => [`Common knowledge of dispositions and objectives across match designs 1 to ${d.knowledge.designs} (top) and 10-seed adversarial compositions (bottom), run under Jev. `,
+      h('a', { href: 'groups' }, 'The Group Dynamics & Knowledge page'), ' has the interactive lab, directional targeting tables and match cloths.'],
+  },
+  {
     id: 'switches', title: 'Benchmarking models I · A ~50% default score hides opposite failure modes across switches',
     needs: d => cellOf(d, 'jev', 'default') && cellOf(d, 'chance', 'default'),
     steps: d => {
@@ -208,6 +224,7 @@ const LIMITS = d => [
 ];
 
 const ONWARD = [
+  ['groups', 'Group Lab & Knowledge', 'Using LoomBench as a 5-lever group behavior laboratory, plus the full Common Knowledge (--know) study.'],
   ['results', 'Results', 'The 44-match benchmark: objective scores, variance split, persona × objective heatmap.'],
   ['controls', 'Controls & Models', 'The seven switches, the model diagnostic table, and paired switch comparisons.'],
   ['mix', 'Composition', 'Groups of one type with one to five seats given to another, side by side.'],
@@ -274,6 +291,8 @@ function head(d, scenes) {
   const pLo = growS && giveS ? fmt(Math.min(growS.persona, giveS.persona), 0) : null, pHi = growS && giveS ? fmt(Math.max(growS.persona, giveS.persona), 0) : null;
   const oLo = growS && giveS ? fmt(Math.min(growS.objective, giveS.objective), 0) : null, oHi = growS && giveS ? fmt(Math.max(growS.objective, giveS.objective), 0) : null;
   const rude90 = d.threshold?.contrasts.find(c => c.size === 5 && c.added === 'Rude')?.raised.mean;
+  const kPriv = d.knowledge?.cells.find(c => c.key === 'private'), kBoth = d.knowledge?.cells.find(c => c.key === 'both');
+  const cb46 = d.knowledge?.adversarial.find(a => a.key === 'calmBlunt46');
   const facts = [
     b ? ['persona', pLo && pHi ? `${pLo}–${pHi}%` : pc(b.withObjective.rate), '',
       pLo && pHi ? `of Grow and Give score variance comes from the persona (vs ${oLo}–${oHi}% from the objective); overall attainment is ${pc(b.withObjective.rate)} vs ${pc(b.baseline.rate)} baseline.`
@@ -282,20 +301,28 @@ function head(d, scenes) {
       `gain in final share when 1 of 5 calm agents is made blunt ${brackets(d.blunt.focal.change)}${rude90 ? `—reaching ${pc1(rude90)} for a rude agent when the 46% rule cap is lifted` : ''}.`] : null,
     d.peers ? ['peers', signed(d.peers.effect.mean, 1), 'pp',
       `shift in action probability after one sentence from a neighbour ${brackets(d.peers.effect)}, flipping the modal choice in ${pc(d.peers.treatment.adoption.mean)} of discordant decisions.`] : null,
+    kPriv && kBoth ? ['know', `${pc(kPriv.targeting.claims.givePct)} → ${pc(kBoth.targeting.claims.givePct)}`, '',
+      `of claims target the Give neighbour when peer goals are public (vs ${pc(kPriv.targeting.claims.holdPct)} → ${pc(kBoth.targeting.claims.holdPct)} hitting Hold)${cb46 ? `—yet knowing who is blunt triggers ${n1(cb46.known.refusals.others)} calm refusals` : ''}.`] : null,
     jevSolo && jevOff && jevDef ? ['switches', `${pc(jevSolo.rate)} → ${pc(jevDef.rate)}`, '',
       `how switches diagnose models: Jev attains ${pc(jevSolo.rate)} solo and ${pc(jevOff.rate)} without personas, dropping to ${pc(jevDef.rate)} when personas are dealt.`] : null,
   ].filter(f => f && scenes.some(s => s.def.id === f[0]));
   return h('header', { class: 'story-head' },
     h('div', { class: 'story-title' }, h('div', null,
-    h('p', { class: 'kicker' }, 'LoomBench · a multi-agent benchmark'),
+    h('p', { class: 'kicker' }, 'LoomBench · a multi-agent LLM benchmark & group behavior lab'),
     h('h1', null, 'Five agents, one loom'),
     h('p', { class: 'abstract' }, 'Five LLM agents share a 100-unit loom over 26 rounds. Each receives a one-sentence ',
-      h('b', null, 'persona'), ' (a disposition) and a one-sentence ', h('b', null, 'objective'), ' (what to achieve). Three empirical findings stand out: ',
+      h('b', null, 'persona'), ' (a disposition) and a one-sentence ', h('b', null, 'objective'), ' (what to achieve). Four empirical findings stand out: ',
       h('b', null, 'personas outweigh explicit instructions'), ' on contested share; ',
-      h('b', null, 'one adversarial agent reshapes a cooperative group'), ' up to the environment\'s claim cap; and ',
-      h('b', null, 'one sentence from a neighbour shifts action probabilities by +28 percentage points'), ' unless the receiver is blunt or has a stake. ',
-      'As a ', h('b', null, 'model benchmark'), ', LoomBench uses controlled switches (solo, personas off, objectives off, composition) to decompose an aggregate score into unopposed agency, persona drift, baseline restraint and social robustness.'),
-    h('p', { class: 'byline' }, `Every number and figure is computed live from the records of ${d.runs} runs. `, h('a', { href: '#scorecard' }, 'Model scorecard'), ' · ', h('a', { href: REPO }, 'Code and data'))),
+      h('b', null, 'one adversarial agent reshapes a cooperative group'), ' up to the environment\'s claim cap; ',
+      h('b', null, 'one sentence from a neighbour shifts action probabilities by +28 percentage points'), ' unless the receiver is blunt or has a stake; and ',
+      h('b', null, 'common knowledge of peer objectives redirects claims toward willing givers'), ' while failing to deter a blunt or Grow aggressor. ',
+      'As a ', h('b', null, 'group behavior lab and model benchmark'), ', LoomBench uses controlled switches (solo, personas off, objectives off, composition, common knowledge) to isolate unopposed agency, persona drift, baseline restraint and social robustness.'),
+    h('div', { class: 'story-actions' },
+      h('a', { class: 'btn', href: 'groups' }, 'Group Lab & Common Knowledge Study →'),
+      h('a', { class: 'btn quiet', href: '#scorecard' }, 'Model Diagnostic Scorecard'),
+      d.opening ? h('a', { class: 'btn quiet', href: d.opening.href }, `Inspect Match ${d.opening.seed} Replay`) : null,
+      h('a', { class: 'btn quiet', href: REPO }, `GitHub (${d.runs} runs)`)),
+    h('p', { class: 'byline' }, `Every number and figure on this site is computed live from the JSON records of ${d.runs} experimental runs.`)),
     d.opening ? cloth(d.opening) : null),
     facts.length ? h('div', { class: 'facts' }, facts.map(([id, value, unit, label]) => h('a', { class: 'fact', href: `#${id}` },
       h('span', { class: 'value' }, value, unit ? h('small', null, unit) : null), h('span', { class: 'label' }, label)))) : null,

@@ -90,7 +90,7 @@ export function qs(name) {
   return new URLSearchParams(window.location.search).get(name) || null;
 }
 
-/** The top bar; `active` is 'overview', 'results', 'controls', 'mix', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
+/** The top bar; `active` is 'overview', 'groups', 'results', 'controls', 'mix', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
 export function topbar(active) {
   const link = (href, label, key) => h('a', {
     href,
@@ -102,7 +102,7 @@ export function topbar(active) {
       h('a', { class: 'brand', href: './' }, 'LoomBench'),
       h('span', { class: 'tag' }, 'a multi-agent benchmark')),
     h('nav', null,
-      link('./', 'Overview', 'overview'), link('results', 'Results', 'results'), link('controls', 'Controls', 'controls'), link('mix', 'Composition', 'mix'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
+      link('./', 'Overview', 'overview'), link('groups', 'Groups', 'groups'), link('results', 'Results', 'results'), link('controls', 'Controls', 'controls'), link('mix', 'Composition', 'mix'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
       link('design', 'Design', 'design'), link('play', 'Play', 'play'), h('a', { class: 'source', href: REPO }, 'Source')));
 }
 
@@ -151,6 +151,7 @@ export function switchWords(c) {
   return [
     c.size ? `${c.size} agents` : null,
     c.threshold ? `claim threshold ${c.threshold}%` : null,
+    c.know ? ({ persona: 'others\' dispositions known', objective: 'others\' objectives known', both: 'others\' dispositions and objectives known' }[c.know] ?? `know ${c.know}`) : null,
     c.mix ? `a group of ${c.mix}` : null,
     c.persona === 'off' ? 'personas off' : c.persona && c.persona !== 'dealt' && c.persona !== 'mixed' ? `every persona ${personality(c.persona).name.toLowerCase()}` : null,
     c.objective === 'off' ? 'objectives off' : c.objective === 'uniform' ? 'one objective for all' : c.objective && c.objective !== 'dealt' && c.objective !== 'mixed' ? `every objective ${goal(c.objective).name}` : null,

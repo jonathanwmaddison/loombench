@@ -183,6 +183,23 @@ Each condition below was run on match designs 1–11 (44 agents with an objectiv
 | **Areas fixed (*Borrow* only)** | **11/11**, score 93 | **11/11**, score 85 | **9/11**, score 77 | **11/11**, score 94 | **5/11**, score 53 |
 | **Cost & speed per match** | $0.011 · ~12 s | $0.022 · ~12 s | $0.039 · 2–3 min | local · ~40 s | $0 · <0.1 s |
 
+### 5. Common Knowledge of Dispositions & Objectives (`--know persona|objective|both`)
+In the default benchmark, each agent's persona and objective are private. Disclosing the other four weavers' dispositions (`--know persona`), objectives (`--know objective`), or both (`--know both`) across the same match designs isolates how information about peers changes targeting, resistance, and the final distribution of shares (`jev-1.13.0`):
+
+| Condition (match designs 1–11) | Attainment | `Grow / Give / Hold / Borrow` scores | Claims / Concessions / Refusals per agent | Share dispersion (SD) | Max / Min share | Key distributional & behavioral effect |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Private (default, `runs/main`)** | **48%** (21/44) | `77 / 72 / 57 / 89` | `6.3 / 3.1 / 2.9` | **14.3 pp** | `39.3% / 2.3%` | 33.0% of executed claims hit the *Hold* agent; only 10.1% target the *Give* agent. |
+| **Know dispositions (`runs/know-persona`)** | **50%** (22/44) | `68 / 69 / 48 / 88` | `7.1 /` **`2.2`** `/ 3.3` | **14.8 pp** | `41.5% / 3.2%` | **Concessions fall by −0.9 [−1.7, −0.1]**; *outgoing* share surges (**20.4% → 37.0%**) while *anxious* drops (**29.4% → 16.0%**); *blunt* still takes **42.4%**. |
+| **Know objectives (`runs/know-objective`)** | **45%** (20/44) | `75 / 74 / 42 / 90` | `6.8 / 2.4 /` **`4.1`** | **17.7 pp** *(+3.4 [0.6, 6.2])* | **`45.6%`** `/ 1.2%` | **Refusals rise by +1.2 [+0.2, +2.1]** (+53% against *Grow* claimants); claims redirect to *Give* (14.1%) and away from *Hold* (21.9%), widening inequality (**+3.4 pp**). |
+| **Know both (`runs/know-both`)** | **52%** (23/44) | `75 / 75 /` **`66`** `/ 90` | `6.9 / 2.2 / 3.5` | **15.3 pp** | `43.9% / 2.6%` | Claims against *Give* **double** (`10.1% → 16.4%`, 22 → 44) and claims against *Hold* drop (`33.0% → 20.4%`), lifting *Hold* score (`57 → 66`). |
+| **Personas off, private (`runs/persona-off`)** | **75%** (33/44) | `98 / 89 / 73 / 96` | `6.8 / 2.6 / 3.4` | **15.2 pp** | `45.8% / 3.4%` | Without personas, neighbours push into *Hold* 82 times and yield unwanted warps to *Hold* 33 times. |
+| **Personas off, know objectives (`runs/persona-off-know-objective`)** | **73%** (32/44) | `98 / 88 /` **`81`** `/ 92` | **`5.6`** `/ 3.0 / 3.4` | **14.3 pp** | `42.6% / 3.3%` | **Claims fall by −1.2 [−2.0, −0.4]**; pushes into *Hold* drop **−43%** (`82 → 47`) and unwanted yields to *Hold* drop **−52%** (`33 → 16`), lifting *Hold* to **81**. |
+
+**Does knowing a neighbour is adversarial (*blunt* or *Grow*) protect the group?** No—common knowledge cannot substitute for institutional rules or overcome persona passivity (10 paired matches each):
+- **`4 calm + 1 blunt` at 46% threshold (`runs/calm-blunt-1-know-persona`):** Telling the 4 *calm* agents that their neighbour is *blunt* produces **0.0 refusals**; the *blunt* agent's share rises from **42.6%** (`+23.0 pp`) to **45.1%** (`+25.1 pp [23.3, 26.9]`), hitting the 46% ceiling in nearly every match because the *blunt* agent also knows its neighbours are *calm*.
+- **`4 calm + 1 blunt` at 90% threshold (`runs/calm-blunt-1-t90-know-persona`):** With the rule ceiling lifted, the *blunt* agent captures **63.6%** (`+43.6 pp [25.8, 61.4]`) when dispositions are known vs. **64.1%** (`+44.1 pp`) when private.
+- **`4 Hold + 1 Grow` without personas (`runs/hold-grow-1-know-objective`):** When the 4 *Hold* agents know which neighbour has *Grow*, they still average 2.7 refusals (vs. 2.6 private), and the *Grow* agent's final share rises from **34.7%** (`+14.7 pp [8.7, 20.7]`) to **39.2%** (`+19.2 pp [12.5, 25.9]`, winning 10/10 matches).
+
 ---
 
 ## Environment, Switches & Technical Reference
@@ -198,12 +215,13 @@ Each condition below was run on match designs 1–11 (44 agents with an objectiv
 | **Action** | *Maintain position*, *claim* share from a neighbour, *concede* share, or *propose joint ownership*; a neighbour may accept, refuse, or counter-propose |
 | **Influence** | Under `--peers`: posterior minus prior probability of the action a neighbour advocated, in percentage points |
 
-### The Seven Switches
+### The Controlled Switches
 | Switch | Default | Control setting | What the comparison isolates | Flag |
 | --- | --- | --- | --- | --- |
 | **Decision model** | Jev | `chance`, `openai-decisions:gpt-6-luna`, or `<provider>:<model>` | Whether an outcome requires a model, holds across decision APIs, or holds under chat prompting | `--model ...` |
 | **Personas** | Dealt | Off (no agent has a trait sentence) | Persona drift: what personas add to or subtract from objective attainment | `--persona off \| KEY` |
 | **Objectives** | Dealt | Off (no agent has an objective) | Uninstructed baseline action rate (claims, concessions, design adoptions) | `--objective off \| KEY` |
+| **Peer knowledge** | Private (`none`) | Common knowledge of others' dispositions, objectives, or both | How knowing neighbours' traits/goals changes targeting, refusals, and share inequality | `--know persona\|objective\|both` |
 | **Agents deciding** | All five | Solo (1 model agent + 4 scripted neighbours that `accept`, `refuse`, or act by `chance`) | Unopposed agency: whether the model can execute each objective without multi-agent interference | `--solo [--neighbours ...]` |
 | **Areas** | Contested | Fixed at 20% each throughout | Design adoption (*Borrow*) when territory cannot change | `--area fixed` |
 | **Starting designs** | Assigned | Chosen by the agents in round 1 (rules 1, `runs/chosen-*`) | Effect of distinct starting designs on *Borrow* (+10.8 points [3.2, 18.4] under assigned) | `--designs chosen` |

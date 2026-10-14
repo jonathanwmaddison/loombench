@@ -60,7 +60,7 @@ export function division(m, types) {
  * Returns [{ key, model, types: [first, second], levels: [{ count, run }] }], levels by count.
  */
 export function compositions(runs) {
-  const rest = r => { const c = r.conditions ?? {}; return JSON.stringify([c.agents ?? 'group', c.neighbours ?? null, c.area ?? 'free', c.designs ?? 'assigned', Boolean(c.peers), c.read ?? null, c.effort ?? null, c.size ?? 5, c.threshold ?? null]); };
+  const rest = r => { const c = r.conditions ?? {}; return JSON.stringify([c.agents ?? 'group', c.neighbours ?? null, c.area ?? 'free', c.designs ?? 'assigned', Boolean(c.peers), c.read ?? null, c.effort ?? null, c.size ?? 5, c.threshold ?? null, c.know ?? null]); };
   // What types a run is made of: the same in every match, or it is no run of a composition.
   const made = new Map();
   for (const r of runs) {
@@ -72,7 +72,7 @@ export function compositions(runs) {
   for (const [r, kinds] of made) {
     if (kinds.length !== 2) continue;
     const key = `${r.model} ${rest(r)} ${kinds.join(' | ')}`;
-    if (!sets.has(key)) sets.set(key, { key, model: r.model, rest: rest(r), size: r.conditions?.size ?? 5, threshold: r.conditions?.threshold ?? null, types: kinds, levels: [] });
+    if (!sets.has(key)) sets.set(key, { key, model: r.model, rest: rest(r), size: r.conditions?.size ?? 5, threshold: r.conditions?.threshold ?? null, ...(r.conditions?.know ? { know: r.conditions.know } : {}), types: kinds, levels: [] });
   }
   for (const set of sets.values()) {
     // Which type is the one added: the minority of the largest run that has both (then of the most unequal one).
