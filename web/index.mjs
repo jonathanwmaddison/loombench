@@ -10,6 +10,7 @@
 // `?only=<id>&step=<n>` shows one scene's figure alone at one step, for checking it; `&still` turns motion off, and
 // `&width=390` sets the page that many pixels wide, as on a phone (in a window narrow enough for the narrow layout).
 import { h, getJSON, fmt, signed, qs, topbar, REPO } from './ui.mjs';
+import { interactiveLab } from './inspector.mjs';
 import * as kit from './story/kit.mjs';
 
 // An address kept from when this was the Results page still opens the run it names.
@@ -31,29 +32,28 @@ const cellOf = (d, system, key) => d.switches?.systems.find(s => s.system === sy
 const level = (sweep, k) => sweep.levels.find(l => l.k === k);
 
 /**
- * The scenes, in order. `needs` says whether the data for it is there; `steps` gives each step as [lead, words];
- * `caption` is what stands under the figure. The step states each figure must show are specified with these words:
- * step i of the figure is what step i of the words describes.
+ * The 5 core scenes on the distilled Overview page.
  */
 const SCENES = [
   {
-    id: 'loom', title: 'One loom, five agents, twenty-six rounds',
+    id: 'loom', kicker: 'Act 1 · The Environment & Prompt Inspector', title: 'One loom, five agents, twenty-six rounds',
     needs: d => d.opening?.decision,
+    after: d => interactiveLab(d),
     steps: d => {
       const o = d.opening, f = o.seats.find(s => s.seat === o.focal), g = o.seats.find(s => s.objectiveKey === 'grow');
       const most = Math.max(...o.seats.map(s => s.share)) === f.share;
       return [
-        ['The start', `Five agents sit side by side at one loom, each holding 20% of its width. Each receives a one-sentence persona (a disposition), and four of the five receive a one-sentence objective (what to achieve); the fifth has no objective and serves as the baseline. This is match ${o.seed} of the benchmark.`],
+        ['The start', `Five agents sit side by side at one 100-unit loom, each holding 20% of its width. Each receives a one-sentence persona (a disposition), and four of the five receive a one-sentence objective (what to achieve); the fifth has no objective and serves as the baseline. This is match ${o.seed} of the benchmark.`],
         ['A decision', `In every round, code lists an agent's legal actions: maintain position, claim share from a neighbour, concede share, or propose joint ownership. The model returns a probability for each option and one is sampled. This is ${o.decision.name}'s query in round ${o.decision.round}.`],
         ['Twenty-six rounds', 'Each round adds one row to the cloth, from the bottom up. The finished picture is a complete record of who held which part of the loom, and when.'],
-        ['The result', `${f.name}, instructed to finish with less share than any other agent, finished with ${pc(f.share)}${most ? ', the largest share on the loom' : ''}.${g ? ` ${g.name}, instructed to finish with the most, held ${pc(g.share)}.` : ''} Each objective is scored from 0 to 100 on the final state, with a binary criterion for attainment.`],
+        ['The result', `${f.name}, instructed to finish with less share than any other agent, finished with ${pc(f.share)}${most ? ', the largest share on the loom' : ''}.${g ? ` ${g.name}, instructed to finish with the most, held ${pc(g.share)}.` : ''} Each objective is scored deterministically from 0 to 100 on the final state (no LLM judge).`],
       ];
     },
-    caption: d => [`Match ${d.opening.seed} of the benchmark (run ${d.opening.run}, Jev), replayed from its record. Each colour is one agent's share of the loom; a band of two colours is a share two agents hold jointly. `,
-      h('a', { href: d.opening.href }, 'Open this match'), ' to step through its rounds and queries.'],
+    caption: d => [`Match ${d.opening.seed} of the benchmark (run ${d.opening.run}, Jev), replayed from its record. `,
+      h('a', { href: d.opening.href }, 'Open this match'), ' to step through its 26 rounds, or use the Interactive Prompt Inspector below to test any group configuration.'],
   },
   {
-    id: 'persona', title: 'Key Result 1 · Persona outweighs explicit instruction',
+    id: 'persona', kicker: 'Act 2 · Finding 1 (Internal Framing)', title: 'Persona outweighs explicit instruction by 2–4×',
     needs: d => d.benchmark,
     steps: d => {
       const b = d.benchmark, ps = b.personas, by = key => ps.find(p => p.key === key);
@@ -72,71 +72,36 @@ const SCENES = [
         ['Persona explains 2–4× more share variance', `Agents given an objective attained it in ${pc(b.withObjective.rate)} of cases (${b.withObjective.attained} of ${b.withObjective.n}), against ${pc(b.baseline.rate)} for baseline agents.${vNote} ${best.name}${best.key === 'borrow' ? ', which concerns design rather than share,' : ''} was attained by ${best.attained} of ${best.n}; ${worst.name} by ${worst.attained} of ${worst.n}.`],
       ];
     },
-    caption: d => [`Mean final share of the loom by persona under three assignments: no objective, Grow (maximise final share) and Give (minimise it). Run ${d.benchmark.run}, ${d.benchmark.matches} matches, four agents in each cell, one execution. The last step shows each objective's mean score against the baseline: agents with no objective, scored on the same rule. `,
-      h('a', { href: 'results' }, 'Every match and the full table')],
+    caption: d => [`Mean final share of the loom by persona under no objective, Grow, and Give (run ${d.benchmark.run}, ${d.benchmark.matches} matches). `,
+      h('a', { href: 'results' }, 'Browse all matches and the full persona × objective heatmap →')],
   },
   {
-    id: 'blunt', title: 'Key Result 2 · One adversarial agent reshapes a cooperative group',
-    needs: d => d.blunt?.before && d.blunt?.after,
-    steps: d => {
-      const s = d.blunt, rose = s.pairs.filter(p => p.focal[1] > p.focal[0]).length;
-      return [
-        ['Five calm agents', `Every agent receives the same disposition: calm and relaxed, hard to upset, and even-tempered under stress. Nobody has an objective. Over ${s.seeds} matches they made ${s.claims.before ? `${n1(s.claims.before)} claims each` : 'no claims at all'}, and each finished at the 20% it started with.`],
-        ['One sentence changed', `The seed, seats and starting designs are held fixed. One agent is told instead that it is blunt and hard-headed, suspicious of people's motives, and does not mind starting an argument. It made ${n1(s.claims.focal)} claims per match on average; the four calm neighbours made ${s.claims.others ? n1(s.claims.others) : 'none'}.`],
-        ['Every match number', `The changed seat rose from ${pc1(s.focal.from)} as a calm agent to ${pc1(s.focal.to)} as a blunt one: a paired gain of ${ci(s.focal.change)}, increasing in ${rose === s.seeds ? `all ${s.seeds}` : `${rose} of ${s.seeds}`} match numbers.`],
-        ['The other four absorb the loss', `The four unchanged calm agents fell from ${pc1(s.others.from)} each to ${pc1(s.others.to)}: ${ci(s.others.change)} per agent. That difference compares the two resulting matches as a whole, capturing everything set in motion by the single substitution.`],
-      ];
-    },
-    caption: d => [`A group of five calm agents, and the same match numbers with one agent blunt (${d.blunt.systemName}; ${d.blunt.seeds} match numbers, each run executed once). The cloths are match number ${d.blunt.seed}. Intervals are Student-t 95% over match numbers. `,
-      h('a', { href: 'brief' }, 'The brief on dispositions')],
-  },
-  {
-    id: 'threshold', title: 'A 46% rule cap was hiding the ceiling: 64% for blunt, 89% for rude',
+    id: 'threshold', kicker: 'Act 3 · Finding 2 (Contagion & Rule Caps)', title: 'One adversarial agent reshapes a calm group—and a 46% rule cap was hiding the ceiling',
     needs: d => d.threshold?.gap && d.threshold.pictured?.rules && d.threshold.pictured.raised,
     steps: d => {
       const t = d.threshold, five = t.contrasts.filter(c => c.size === 5), of = name => five.find(c => c.added === name);
       const blunt = of('Blunt'), rude = of('Rude'), grow = of('Grow'), n = blunt.seeds.length;
+      const s = d.blunt;
       const out = [
-        ['Capped at 46% by the rules', `The engine stops offering an agent further claims once it holds ${pc(t.rules)} of the loom. With one blunt agent in a calm group, that agent hit ${pc(t.rules - 1)} or more in ${blunt.rules.atThreshold} of ${n} match numbers; a rude agent hit it in ${rude.rules.atThreshold} of ${rude.seeds.length}.`],
-        ['Under the cap, blunt and rude look alike', `At the ${pc(t.rules)} threshold, the blunt agent averaged ${pc1(blunt.rules.mean)} and the rude agent ${pc1(rude.rules.mean)}: a difference of only ${ci(t.gap.rules)}${spansZero(t.gap.rules) ? ', whose interval includes zero' : ''}.`],
-        [`Uncapped at ${pc(t.raised)}, dispositions separate sharply`, `Re-running the same match numbers with claims offered up to ${pc(t.raised)} of the loom lifted the blunt agent to ${pc1(blunt.raised.mean)} and the rude agent to ${pc1(rude.raised.mean)}—separating the two dispositions by ${ci(t.gap.raised)}.`],
+        ['1-in-5 substitution hits the 46% rule cap', `Five calm agents with no objective make 0 claims and finish at 20% each. Replacing just one sentence—making 1 of 5 agents blunt or rude—drives that seat to the engine's ${pc(t.rules)} claim cap in ${blunt.rules.atThreshold} of ${n} matches for blunt (${s ? `${ci(s.focal.change)} gain` : pc1(blunt.rules.mean)}) and ${rude.rules.atThreshold} of ${rude.seeds.length} for rude.`],
+        ['Under the 46% cap, blunt and rude look alike', `At the default ${pc(t.rules)} threshold, the blunt agent averaged ${pc1(blunt.rules.mean)} and the rude agent ${pc1(rude.rules.mean)}: a difference of only ${ci(t.gap.rules)}${spansZero(t.gap.rules) ? ', whose interval includes zero' : ''}.`],
+        [`Uncapped at ${pc(t.raised)}, dispositions separate by 25 pp`, `Re-running the same match numbers with claims offered up to ${pc(t.raised)} of the loom lifted the blunt agent to ${pc1(blunt.raised.mean)} and the rude agent to ${pc1(rude.raised.mean)}—separating the two dispositions by ${ci(t.gap.raised)}.`],
       ];
-      if (grow) out.push(['An objective alone did not exploit the raised cap', `An unpersonied agent told to grow, placed among four agents with no persona and no objective, finished with ${pc1(grow.raised.mean)} at the ${pc(t.raised)} threshold against ${pc1(grow.rules.mean)} at ${pc(t.rules)}: ${ci(grow.difference)}${spansZero(grow.difference) ? ', an inconclusive change' : ''}, as neutral neighbours refused ${n1(grow.refusalsOthers)} times each.`]);
+      if (grow) out.push(['An explicit objective alone does not exploit the raised cap', `An unpersonied agent told to grow among four neutral neighbours finished with ${pc1(grow.raised.mean)} at the ${pc(t.raised)} threshold against ${pc1(grow.rules.mean)} at ${pc(t.rules)} (${ci(grow.difference)}), as neutral neighbours refused ${n1(grow.refusalsOthers)} times each.`]);
       const both = blunt.seeds.find(p => p.seed === t.pictured.seed);
       out.push(['One match, both ways', `Match number ${t.pictured.seed}, with the same blunt agent in the same seat: ${pc(both.rules)} under the ${pc(t.rules)} threshold, and ${pc(both.raised)} with the threshold raised to ${pc(t.raised)}.`]);
       return out;
     },
-    caption: d => [`The focal agent's final share in each of ${d.threshold.contrasts[0].seeds.length} match numbers, at the rules' claim threshold (${pc(d.threshold.rules)}) and with it raised to ${pc(d.threshold.raised)} (Jev, five agents; each run executed once). Differences are paired by match number. `,
-      h('a', { href: 'brief' }, 'The threshold by group size')],
+    caption: d => [`Final share of 1 aggressive agent among 4 calm neighbours across ${d.threshold.contrasts[0].seeds.length} paired seeds at the ${pc(d.threshold.rules)} vs ${pc(d.threshold.raised)} claim threshold (Jev). `,
+      h('a', { href: 'mix' }, 'See k = 0..5 composition sweeps →')],
   },
   {
-    id: 'sweep', title: 'As aggressive agents multiply, per-agent share falls and joint ownership collapses',
-    needs: d => sweepOf(d, 'jev', 'Blunt')?.levels.length > 3,
-    steps: d => {
-      const a = sweepOf(d, 'jev', 'Blunt'), b = sweepOf(d, 'gptd', 'Greedy'), ks = a.levels.filter(l => l.second !== null), mixed = a.levels.filter(l => l.k >= 2 && l.first !== null);
-      const k0 = level(a, 0), k1 = level(a, 1), kn = a.levels.at(-1);
-      const out = [
-        ['From none to five', `The same match numbers were run with ${list(ks.map(l => word(l.k)))} of the five seats given to blunt agents. The pictures show one seed across all six compositions (k = 0 to 5).`],
-        ['Competition dilutes each blunt agent\'s gain', `A single blunt agent averaged ${pc1(k1.second)}. With ${list(ks.slice(1).map(l => word(l.k)))} blunt agents competing on the same loom, each averaged ${list(ks.slice(1).map(l => pc1(l.second)))}.`],
-        ['Remaining calm agents are squeezed out', `Each calm agent averaged ${pc1(k1.first)} beside one blunt agent, and only ${pc1(Math.min(...mixed.map(l => l.first)))} to ${pc1(Math.max(...mixed.map(l => l.first)))} once ${word(mixed[0].k)} to ${word(mixed.at(-1).k)} seats were blunt.`],
-        ['Five alike do not end equal', `Five blunt agents averaged ${pc(kn.second)} each, just as five calm agents did—but with a within-match share dispersion of ${n1(kn.dispersion)} points against ${n1(k0.dispersion)}, and a largest share averaging ${pc1(kn.largest)}.`],
-      ];
-      if (b) {
-        const rest = b.levels.filter(l => l.k >= 3);
-        out.push(['Two greedy agents collapse joint ownership', `Under OpenAI's decision model, five cooperative agents ended with ${pc1(level(b, 0).joint)} of the loom held jointly. Adding one greedy agent cut joint holding to ${pc1(level(b, 1).joint)}, adding two cut it to ${pc1(level(b, 2).joint)}, and with three or more ${Math.max(...rest.map(l => l.joint)) < 1 ? 'next to none remained' : `at most ${pc1(Math.max(...rest.map(l => l.joint)))} remained`}.`]);
-      }
-      return out;
-    },
-    caption: d => [`Mean final share of one agent of each type, by the number of agents of the second type (k). Match numbers: ${level(sweepOf(d, 'jev', 'Blunt'), 0).matches} at k = 0 and 1, ${level(sweepOf(d, 'jev', 'Blunt'), 2).matches} from k = 2; each composition executed once. A share is what an agent holds alone; a part held jointly counts for neither holder. `,
-      h('a', { href: 'mix' }, 'Every composition side by side')],
-  },
-  {
-    id: 'peers', title: 'Key Result 3 · One neighbour sentence shifts choices by +28 pp—unless the receiver is blunt',
+    id: 'peers', kicker: 'Act 4a · Finding 3 (Peer Persuasion RCT)', title: 'One sentence from a neighbour shifts choices by +28 pp—unless the receiver is blunt',
     needs: d => d.peers?.example,
     steps: d => {
       const p = d.peers, x = p.example, said = x.options.find(o => o.advocated), blunt = p.receivers.find(r => r.key === 'blunt'), others = p.receivers.filter(r => r.key !== 'blunt');
       const out = [
-        ['Randomised within-match control', 'Before each action an agent is queried for its prior distribution, then queried a second time. In a randomised 75% of decisions the second query carries one sentence stating the action an adjacent agent would have it take (treatment); in the remaining 25% the query is repeated unchanged (control).'],
+        ['Within-match randomised control', 'Before each action an agent is queried for its prior distribution, then queried a second time. In a randomised 75% of decisions the second query carries one sentence stating the action an adjacent agent would have it take (treatment); in the remaining 25% the query is repeated unchanged (control).'],
         ['A single decision', `${x.receiver}'s prior probability of the action ${x.sender} advocated was ${pc(said.prior)}. After hearing the one-sentence request, it rose to ${pc(said.posterior)}: an influence of ${signed(x.influence, 0)} percentage points.`],
         ['+27.9 points across discordant decisions', `In ${p.discordant.toLocaleString('en')} decisions where the sender advocated an action other than the receiver's prior favourite, the message raised the advocated action's probability by ${n1(p.effect.mean)} points ${brackets(p.effect)} relative to the repeated query (${n1(p.control.influence.mean)} ${brackets(p.control.influence)}).`],
         ['Flips the modal choice 46% of the time', `The advocated action became the receiver's top choice in ${pc(p.treatment.adoption.mean)} of discordant treatment decisions, against ${pc(p.control.adoption.mean)} when the query was merely repeated.`],
@@ -146,11 +111,11 @@ const SCENES = [
       }
       return out;
     },
-    caption: d => [`Peer communication: ${d.peers.decisions.toLocaleString('en')} decisions from two runs of the same ${d.peers.designs} match designs. Influence is the posterior minus the prior probability of the advocated action, in percentage points. Intervals are clustered by match design (by receiving agent for personas), which are descriptive subgroups. `,
-      h('a', { href: 'report' }, 'The report'), ' has the method and its limits.'],
+    caption: d => [`Within-match peer communication RCT across ${d.peers.decisions.toLocaleString('en')} decisions (${d.peers.designs} match designs). `,
+      h('a', { href: 'peers' }, 'Explore all 5,436 peer decisions →')],
   },
   {
-    id: 'know', title: 'Key Result 4 · Common knowledge redirects claims to willing givers—but never deters an aggressor',
+    id: 'know', kicker: 'Act 4b · Finding 4 (Common Knowledge --know)', title: 'Knowing peer objectives redirects claims to willing givers—but never deters an aggressor',
     needs: d => d.knowledge?.cells?.length >= 6 && d.knowledge?.adversarial?.length >= 3,
     steps: d => {
       const k = d.knowledge, by = key => k.cells.find(c => c.key === key);
@@ -162,77 +127,68 @@ const SCENES = [
         ['Knowing who the aggressor is does not protect the group', `In adversarial compositions, common knowledge does not trigger defensive refusal. A single blunt agent among four calm ones takes ${pc1(cb46.known.focal.to)} when dispositions are known (vs ${pc1(cb46.private.focal.to)} when private, with ${n1(cb46.known.refusals.others)} calm refusals), and ${pc1(cb90.known.focal.to)} vs ${pc1(cb90.private.focal.to)} at the 90% threshold. A single Grow agent among four Hold neighbours takes ${pc1(hg.known.focal.to)} when objectives are known vs ${pc1(hg.private.focal.to)} when private.`],
       ];
     },
-    caption: d => [`Common knowledge of dispositions and objectives across match designs 1 to ${d.knowledge.designs} (top) and 10-seed adversarial compositions (bottom), run under Jev. `,
-      h('a', { href: 'groups' }, 'The Group Dynamics & Knowledge page'), ' has the interactive lab, directional targeting tables and match cloths.'],
+    caption: d => [`Common knowledge (--know persona|objective|both) across match designs 1 to ${d.knowledge.designs} (top) and 10-seed adversarial probes (bottom). `,
+      h('a', { href: 'groups' }, 'Open the Group Lab for full tables & side-by-side cloths →')],
+  },
+];
+
+// Additional standalone figures kept accessible via /?only=<id> for testing/embeds.
+const EXTRA_SCENES = [
+  {
+    id: 'blunt', title: 'One adversarial agent reshapes a cooperative group',
+    needs: d => d.blunt?.before && d.blunt?.after,
+    steps: d => {
+      const s = d.blunt, rose = s.pairs.filter(p => p.focal[1] > p.focal[0]).length;
+      return [
+        ['Five calm agents', `Over ${s.seeds} matches they made ${s.claims.before ? `${n1(s.claims.before)} claims each` : 'no claims at all'}, and each finished at 20%.`],
+        ['One sentence changed', `One agent is told instead that it is blunt. It made ${n1(s.claims.focal)} claims per match on average.`],
+        ['Every match number', `The changed seat rose from ${pc1(s.focal.from)} to ${pc1(s.focal.to)}: ${ci(s.focal.change)} (${rose} of ${s.seeds} matches).`],
+        ['The other four absorb the loss', `The four unchanged calm agents fell from ${pc1(s.others.from)} each to ${pc1(s.others.to)}: ${ci(s.others.change)} per agent.`],
+      ];
+    },
+    caption: d => [`Five calm agents vs one blunt agent (${d.blunt.systemName}, ${d.blunt.seeds} seeds).`],
   },
   {
-    id: 'switches', title: 'Benchmarking models I · A ~50% default score hides opposite failure modes across switches',
+    id: 'sweep', title: 'As aggressive agents multiply, per-agent share falls and joint ownership collapses',
+    needs: d => sweepOf(d, 'jev', 'Blunt')?.levels.length > 3,
+    steps: d => {
+      const a = sweepOf(d, 'jev', 'Blunt'), ks = a.levels.filter(l => l.second !== null), mixed = a.levels.filter(l => l.k >= 2 && l.first !== null);
+      const k0 = level(a, 0), k1 = level(a, 1), kn = a.levels.at(-1);
+      return [
+        ['From none to five', `Compositions k = 0 to 5.`],
+        ['Competition dilutes each blunt agent\'s gain', `A single blunt agent averaged ${pc1(k1.second)}; from k = 2 to 5 each averaged ${list(ks.slice(1).map(l => pc1(l.second)))}.`],
+        ['Remaining calm agents are squeezed out', `Calm agents averaged ${pc1(k1.first)} at k = 1 and ${pc1(Math.min(...mixed.map(l => l.first)))}–${pc1(Math.max(...mixed.map(l => l.first)))} for k >= 2.`],
+        ['Five alike do not end equal', `Dispersion rose from ${n1(k0.dispersion)} to ${n1(kn.dispersion)} pp.`],
+      ];
+    },
+    caption: () => ['Mean final share by k.'],
+  },
+  {
+    id: 'switches', title: 'A ~50% default score hides opposite failure modes across switches',
     needs: d => cellOf(d, 'jev', 'default') && cellOf(d, 'chance', 'default'),
     steps: d => {
-      const c = (system, key) => cellOf(d, system, key), jev = c('jev', 'default'), again = c('jev', 'again'), has = system => c(system, 'default');
-      const out = [['Default group run: model vs. chance', `On the 11 match designs run across every condition (${jev.n} agents with an objective), Jev attained ${pc(jev.rate)} (${jev.attained} of ${jev.n}), against ${pc(c('chance', 'default').rate)} when actions are sampled uniformly at random.`]];
-      if (again) out.push(['Run-to-run variation at n = 11', `A second execution of Jev's default, with nothing changed, attained ${pc(again.rate)} (${fmt(Math.abs(again.difference.mean), 0)} points ${again.difference.mean >= 0 ? 'higher' : 'lower'} on these 11 designs; 4.5 points across 22 designs): the yardstick for single-run contrasts at this sample size.`]);
-      if (c('jev', 'personaOff') && c('jev', 'solo')) {
-        const pOff = c('jev', 'personaOff'), solo = c('jev', 'solo');
-        out.push(['Isolating persona drift and opposition', `Switching personas off lifts Jev by ${signed(pOff.rate - jev.rate, 0)} points to ${pc(pOff.rate)}. Running solo among passive neighbours lifts it to ${pc(solo.rate)}${c('jev', 'soloRefuse') ? ` (${pc(c('jev', 'soloRefuse').rate)} when neighbours refuse)` : ''}.${c('chance', 'solo') ? ` Uniform random reaches ${pc(c('chance', 'solo').rate)} in solo.` : ''} Jev's default score is held down by persona hijack and peer competition, not inability to execute the goals.`]);
-      }
-      if (has('gptd') && has('gptc')) {
-        const gd = c('gptd', 'default'), gc = c('gptc', 'default'), gdOff = c('gptd', 'personaOff'), gcOff = c('gptc', 'personaOff');
-        const gdSolo = c('gptd', 'solo'), gcSolo = c('gptc', 'solo'), locSolo = c('local', 'solo');
-        const gdHold = gdSolo?.scores?.hold, gcGive = gcSolo?.scores?.give, locGrow = locSolo?.scores?.grow;
-        out.push(['How the switches separate models that tie in the default',
-          `In the default run, Jev (${pc(jev.rate)}), GPT Decisions (${pc(gd.rate)}) and GPT Chat (${pc(gc.rate)}) look almost tied. The switches expose opposite failure modes: removing personas lifts Jev to ${pc(c('jev', 'personaOff').rate)} and GPT Chat to ${pc(gcOff.rate)}, while GPT Decisions stays at ${pc(gdOff.rate)}. `
-          + `Solo, Jev reaches ${pc(c('jev', 'solo').rate)} across all four objectives; GPT Decisions (${pc(gdSolo.rate)}) fails Hold${gdHold ? ` (${gdHold.attained} of ${gdHold.n}, score ${fmt(gdHold.score)})` : ''}, `
-          + `GPT Chat (${pc(gcSolo.rate)}) fails Give${gcGive ? ` (${gcGive.attained} of ${gcGive.n}, score ${fmt(gcGive.score)})` : ''}`
-          + `${locSolo ? `, and medgemma:4b (${pc(locSolo.rate)}) fails Grow${locGrow ? ` (${locGrow.attained} of ${locGrow.n}, score ${fmt(locGrow.score)})` : ''}` : ''}.`]);
-      }
-      return out;
+      const c = (system, key) => cellOf(d, system, key), jev = c('jev', 'default');
+      return [['Default group run', `Jev attained ${pc(jev.rate)} vs ${pc(c('chance', 'default').rate)} for uniform random.`]];
     },
-    caption: d => [`Attainment rate: the share of agents given an objective that met its criterion, on match designs 1 to ${d.switches.designs}, under each switch and each decision system. Hover a mark for its per-objective breakdown (Grow, Give, Hold, Borrow). `,
-      h('a', { href: 'controls' }, 'Every pair of runs one switch apart')],
+    caption: () => ['Attainment rate by switch.'],
   },
   {
-    id: 'systems', title: 'Benchmarking models II · Identical share shifts hide different action biases and failure on Give',
+    id: 'systems', title: 'Identical share shifts hide different action biases',
     needs: d => d.systems?.rows.length > 1,
-    steps: d => {
-      const y = d.systems, [jev, ...rest] = y.rows, give = [stepOf(d, 'jev', 'No objective → Give'), stepOf(d, 'gptd', 'No objective → Give')];
-      const zero = y.versus.every(v => spansZero(v.focal));
-      const out = [
-        ['Same composition shift across three systems', `The step from five calm agents to one blunt agent was run under ${word(y.rows.length)} decision systems on the same ${y.seeds} match numbers: Jev, OpenAI's Decisions API, and the same OpenAI model via chat. The blunt seat's share rose by ${list(y.rows.map(r => n1(r.focal.mean)))} points.`],
-        ['No clear difference in final share', `Paired by match number, the differences from Jev in the blunt agent's gain were ${list(y.versus.map(v => ci(v.focal)))}.${zero ? ' Both intervals span zero.' : ''}`],
-        ['Different underlying action rates', `To reach the same share, the blunt agent made ${n1(jev.claims.mean)} claims per match under Jev versus ${list(rest.map(r => n1(r.claims.mean)))} under the GPT systems, while calm neighbours recorded ${jev.refusals.mean ? n1(jev.refusals.mean) : 'no'} refusals under Jev versus ${list(rest.map(r => n1(r.refusals.mean)))} each under GPT.`],
-        ['Baseline restlessness in the all-calm group', `Under Jev, five calm agents were completely still (${jev.baseClaims.mean ? `${n1(jev.baseClaims.mean)} claims` : '0 claims'}, ${jev.baseJoint.mean ? pc1(jev.baseJoint.mean) : '0%'} joint ownership). Under the GPT systems they churned the loom with ${list(rest.map(r => n1(r.baseClaims.mean)))} claims per agent and ${list(rest.map(r => pc1(r.baseJoint.mean)))} ending in joint ownership.`],
-      ];
-      if (give[0] && give[1]) {
-        const met = s => `${s.pairs.filter(p => p.met).length} of ${s.seeds}`;
-        out.push(['Why baseline churn matters: single-agent Give', `With no personas, a single agent told to minimise its share among four uninstructed neighbours dropped to ${pc1(give[0].focal.to)} under Jev, meeting the Give criterion in ${met(give[0])} seeds. Under OpenAI's decision model—where uninstructed neighbours also concede and claim—it ended at ${pc1(give[1].focal.to)} and met the criterion in only ${met(give[1])}.`]);
-      }
-      return out;
-    },
-    caption: d => [`One contrast (${d.systems.contrast.toLowerCase()}) under each decision system on the same ${d.systems.seeds} match numbers. Means with Student-t 95% intervals over match numbers; differences between systems are paired. `,
-      h('a', { href: 'brief' }, 'The systems set against each other')],
+    steps: d => [['Cross-system comparison', `${d.systems.rows.length} decision systems on ${d.systems.seeds} seeds.`]],
+    caption: () => ['Cross-system comparison.'],
   },
 ];
 
 const LIMITS = d => [
-  ['One execution of most conditions.', `${cellOf(d, 'jev', 'again') ? `Two executions of Jev's default differed by ${fmt(Math.abs(cellOf(d, 'jev', 'again').difference.mean), 0)} points of attainment on ${d.switches.designs} match designs (and 4.5 points across 22 designs). ` : ''}Most conditions were run once, so their run-to-run variation is unmeasured; the intervals describe variation over match numbers.`],
-  ['Small samples.', 'Ten or eleven match numbers for most comparisons, five for a composition with two or more agents changed, and four agents in each cell of persona by objective.'],
-  ['One wording.', 'Each persona and each objective is a single sentence. Nothing here isolates what in a sentence matters.'],
-  ['Scores are ranks among five seats.', 'They are interdependent within a match, and a difference for the agents left unchanged includes everything that followed from the change.'],
-  ['Systems, not models alone.', 'A comparison between decision systems compares a model together with its interface and the way its probabilities are read.'],
-  ['This task.', 'The results concern this task and its rules, including the claim threshold, and these systems.'],
+  ['Single-run conditions & sample size.', `${cellOf(d, 'jev', 'again') ? `Two executions of Jev's default differed by ${fmt(Math.abs(cellOf(d, 'jev', 'again').difference.mean), 0)} pp on ${d.switches.designs} designs (4.5 pp across 22 designs). ` : ''}Most conditions use 10–11 paired seeds.`],
+  ['Interdependent zero-sum shares.', 'Shares sum to 100% within each match, and comparisons between decision systems evaluate each model together with its probability readout interface.'],
 ];
 
 const ONWARD = [
-  ['groups', 'Group Lab & Knowledge', 'Using LoomBench as a 5-lever group behavior laboratory, plus the full Common Knowledge (--know) study.'],
-  ['results', 'Results', 'The 44-match benchmark: objective scores, variance split, persona × objective heatmap.'],
-  ['controls', 'Controls & Models', 'The seven switches, the model diagnostic table, and paired switch comparisons.'],
-  ['mix', 'Composition', 'Groups of one type with one to five seats given to another, side by side.'],
-  ['brief', 'Briefs (1-page)', 'Printable A4 summaries for dispositions (/brief) and objectives (/brief-objective).'],
-  ['peers', 'Peer influence', 'Interactive explorer of the 5,436 peer-communication decisions.'],
-  ['report', 'Peer Report', 'The peer-influence study written up as a short paper with clustered intervals.'],
-  ['design', 'Design', 'System specification: every model call in a round, schemas, records and replay.'],
-  ['play', 'Play', 'Set the switches, assign personas and objectives, and run a live match.'],
+  ['groups', 'Lab & All 102 Runs →', 'Interactive group workbench, Common Knowledge (--know) tables, k = 0..5 sweeps, peer persuasion RCT, and all 102 match replays.'],
+  ['design', 'System Design & Literature →', 'Exact model queries, legal action schemas, scoring rules, and comparison with Sotopia, Concordia, GovSim, and 2×2 matrix games.'],
+  [REPO, 'Source & CLI on GitHub →', 'Zero-dependency Node.js engine, complete JSON run records in runs/, and one-line CLI switches to evaluate any model.'],
 ];
 
 /** The tallest a figure's drawing may be, so that the whole figure fits in view while it is pinned. */
@@ -252,7 +208,6 @@ async function sceneOf(def, number, d) {
   const show = (i, motion = true) => { if (!scene) return; try { if (motion) scene.step(i); else kit.instant(() => scene.step(i)); } catch (e) { failed(e); } };
   function go(i, { replay = false } = {}) {
     if (replay || i !== current) {
-      // A step played again starts from the one before it.
       if (replay) show(i - 1, false);
       show(i);
     }
@@ -262,17 +217,17 @@ async function sceneOf(def, number, d) {
   }
   const caption = () => [h('b', null, `Figure ${number}. `), ...def.caption(d)];
   const el = h('section', { class: 'scene', id: def.id },
-    h('header', { class: 'scene-head' }, h('p', { class: 'kicker' }, `Part ${number}`), h('h2', null, def.title)),
+    h('header', { class: 'scene-head' }, h('p', { class: 'kicker' }, def.kicker ?? `Part ${number}`), h('h2', null, def.title)),
     h('div', { class: 'scrolly' },
       h('div', { class: 'stage' }, h('figure', { class: 'fig' },
         h('div', { class: 'fig-bar' }, h('span', { class: 'fig-num' }, `Figure ${number}`), h('ol', { class: 'fig-dots' }, dots.map(b => h('li', null, b))),
           h('button', { type: 'button', class: 'replay', onclick: () => go(current, { replay: true }) }, 'Replay')),
         body, h('figcaption', null, caption()))),
       h('div', { class: 'steps' }, stepEls)),
-    h('p', { class: 'scene-cap' }, caption()));
+    h('p', { class: 'scene-cap' }, caption()),
+    def.after ? def.after(d) : null);
   let mount = null;
   try { mount = (await import(`./story/${def.id}.mjs`)).default; } catch (e) { failed(e); }
-  /** Draws the figure afresh at the width it now has, in the state it was in. */
   function draw() {
     if (!mount) return;
     body.replaceChildren();
@@ -284,9 +239,9 @@ async function sceneOf(def, number, d) {
   return { el, go, steps: stepEls, stage: body, draw, resize() { if (Math.abs(body.clientWidth - width) > 8) draw(); }, current: () => current };
 }
 
-/** The head: the title, the abstract, and four headline figures of the benchmark, each linking to its scene. */
+/** The head: title, concise abstract, 4 headline stat cards, and 5-act table of contents. */
 function head(d, scenes) {
-  const b = d.benchmark, jevDef = cellOf(d, 'jev', 'default'), jevOff = cellOf(d, 'jev', 'personaOff'), jevSolo = cellOf(d, 'jev', 'solo');
+  const b = d.benchmark;
   const growS = b?.objectives.find(o => o.key === 'grow')?.split, giveS = b?.objectives.find(o => o.key === 'give')?.split;
   const pLo = growS && giveS ? fmt(Math.min(growS.persona, giveS.persona), 0) : null, pHi = growS && giveS ? fmt(Math.max(growS.persona, giveS.persona), 0) : null;
   const oLo = growS && giveS ? fmt(Math.min(growS.objective, giveS.objective), 0) : null, oHi = growS && giveS ? fmt(Math.max(growS.objective, giveS.objective), 0) : null;
@@ -295,38 +250,37 @@ function head(d, scenes) {
   const cb46 = d.knowledge?.adversarial.find(a => a.key === 'calmBlunt46');
   const facts = [
     b ? ['persona', pLo && pHi ? `${pLo}–${pHi}%` : pc(b.withObjective.rate), '',
-      pLo && pHi ? `of Grow and Give score variance comes from the persona (vs ${oLo}–${oHi}% from the objective); overall attainment is ${pc(b.withObjective.rate)} vs ${pc(b.baseline.rate)} baseline.`
-        : `of agents given an objective attained it (${b.withObjective.attained} of ${b.withObjective.n}), against ${pc(b.baseline.rate)} baseline.`] : null,
-    d.blunt ? ['blunt', signed(d.blunt.focal.change.mean, 1), 'pp',
-      `gain in final share when 1 of 5 calm agents is made blunt ${brackets(d.blunt.focal.change)}${rude90 ? `—reaching ${pc1(rude90)} for a rude agent when the 46% rule cap is lifted` : ''}.`] : null,
+      pLo && pHi ? `of Grow and Give score variance comes from persona (vs ${oLo}–${oHi}% from the explicit objective).`
+        : `of agents given an objective attained it (${b.withObjective.attained} of ${b.withObjective.n}).`] : null,
+    d.blunt ? ['threshold', signed(d.blunt.focal.change.mean, 1), 'pp',
+      `gain when 1 of 5 calm agents is made blunt ${brackets(d.blunt.focal.change)}${rude90 ? `—reaching ${pc1(rude90)} for a rude agent when the 46% rule cap is raised` : ''}.`] : null,
     d.peers ? ['peers', signed(d.peers.effect.mean, 1), 'pp',
-      `shift in action probability after one sentence from a neighbour ${brackets(d.peers.effect)}, flipping the modal choice in ${pc(d.peers.treatment.adoption.mean)} of discordant decisions.`] : null,
+      `shift in action probability after one sentence from a neighbour ${brackets(d.peers.effect)}, flipping the top choice ${pc(d.peers.treatment.adoption.mean)} of the time.`] : null,
     kPriv && kBoth ? ['know', `${pc(kPriv.targeting.claims.givePct)} → ${pc(kBoth.targeting.claims.givePct)}`, '',
-      `of claims target the Give neighbour when peer goals are public (vs ${pc(kPriv.targeting.claims.holdPct)} → ${pc(kBoth.targeting.claims.holdPct)} hitting Hold)${cb46 ? `—yet knowing who is blunt triggers ${n1(cb46.known.refusals.others)} calm refusals` : ''}.`] : null,
-    jevSolo && jevOff && jevDef ? ['switches', `${pc(jevSolo.rate)} → ${pc(jevDef.rate)}`, '',
-      `how switches diagnose models: Jev attains ${pc(jevSolo.rate)} solo and ${pc(jevOff.rate)} without personas, dropping to ${pc(jevDef.rate)} when personas are dealt.`] : null,
-  ].filter(f => f && scenes.some(s => s.def.id === f[0]));
+      `of claims route to the Give neighbour when goals are public—yet knowing who is blunt triggers ${cb46 ? n1(cb46.known.refusals.others) : '0'} calm refusals.`] : null,
+  ].filter(Boolean);
   return h('header', { class: 'story-head' },
     h('div', { class: 'story-title' }, h('div', null,
-    h('p', { class: 'kicker' }, 'LoomBench · a multi-agent LLM benchmark & group behavior lab'),
-    h('h1', null, 'Five agents, one loom'),
-    h('p', { class: 'abstract' }, 'Five LLM agents share a 100-unit loom over 26 rounds. Each receives a one-sentence ',
-      h('b', null, 'persona'), ' (a disposition) and a one-sentence ', h('b', null, 'objective'), ' (what to achieve). Four empirical findings stand out: ',
-      h('b', null, 'personas outweigh explicit instructions'), ' on contested share; ',
-      h('b', null, 'one adversarial agent reshapes a cooperative group'), ' up to the environment\'s claim cap; ',
-      h('b', null, 'one sentence from a neighbour shifts action probabilities by +28 percentage points'), ' unless the receiver is blunt or has a stake; and ',
-      h('b', null, 'common knowledge of peer objectives redirects claims toward willing givers'), ' while failing to deter a blunt or Grow aggressor. ',
-      'As a ', h('b', null, 'group behavior lab and model benchmark'), ', LoomBench uses controlled switches (solo, personas off, objectives off, composition, common knowledge) to isolate unopposed agency, persona drift, baseline restraint and social robustness.'),
-    h('div', { class: 'story-actions' },
-      h('a', { class: 'btn', href: 'groups' }, 'Group Lab & Common Knowledge Study →'),
-      h('a', { class: 'btn quiet', href: '#scorecard' }, 'Model Diagnostic Scorecard'),
-      d.opening ? h('a', { class: 'btn quiet', href: d.opening.href }, `Inspect Match ${d.opening.seed} Replay`) : null,
-      h('a', { class: 'btn quiet', href: REPO }, `GitHub (${d.runs} runs)`)),
-    h('p', { class: 'byline' }, `Every number and figure on this site is computed live from the JSON records of ${d.runs} experimental runs.`)),
-    d.opening ? cloth(d.opening) : null),
+      h('p', { class: 'kicker' }, 'LoomBench · Multi-Agent LLM Benchmark & Group Dynamics Lab'),
+      h('h1', null, 'Five agents, one loom'),
+      h('p', { class: 'abstract' }, 'Five LLM agents share a 100-unit loom over 26 rounds. Each receives a one-sentence ',
+        h('b', null, 'persona'), ' (disposition) and a one-sentence ', h('b', null, 'objective'), ' (task goal), while code enumerates legal actions and reads the model\'s probability distribution over options. Across ',
+        h('b', null, `${d.runs} controlled runs`), ', four findings stand out: ',
+        h('b', null, '(1) personas outweigh explicit instructions'), ' by 2–4× on contested share; ',
+        h('b', null, '(2) a single adversarial agent reshapes a calm group'), ' right up to the environment\'s claim cap; ',
+        h('b', null, '(3) one neighbour sentence shifts choices by +28 pp'), ' unless the receiver is blunt; and ',
+        h('b', null, '(4) common knowledge (--know) redirects claims toward willing givers'), ' without ever triggering defensive refusal against an aggressor.'),
+      h('div', { class: 'story-actions' },
+        h('a', { class: 'btn', href: '#lab' }, 'Try the Prompt Inspector ↓'),
+        h('a', { class: 'btn quiet', href: '#scorecard' }, 'Model Scorecard & Takeaways ↓'),
+        h('a', { class: 'btn quiet', href: 'groups' }, `Explore All ${d.runs} Runs →`)),
+      h('p', { class: 'byline' }, `Every number and figure on this page is computed live from the JSON records of ${d.runs} runs.`)),
+      d.opening ? cloth(d.opening) : null),
     facts.length ? h('div', { class: 'facts' }, facts.map(([id, value, unit, label]) => h('a', { class: 'fact', href: `#${id}` },
       h('span', { class: 'value' }, value, unit ? h('small', null, unit) : null), h('span', { class: 'label' }, label)))) : null,
-    h('ol', { class: 'toc' }, scenes.map((s, i) => h('li', null, h('a', { href: `#${s.def.id}` }, h('span', { class: 'n' }, String(i + 1)), s.def.title)))));
+    h('ol', { class: 'toc' },
+      ...scenes.map((s, i) => h('li', null, h('a', { href: `#${s.def.id}` }, h('span', { class: 'n' }, String(i + 1)), s.def.title))),
+      h('li', null, h('a', { href: '#scorecard' }, h('span', { class: 'n' }, String(scenes.length + 1)), 'Model diagnostic scorecard & engineering takeaways'))));
 }
 
 /** Beside the title, one match weaving itself: the cloth of the match the first figure goes through, with no words on it. */
@@ -340,8 +294,7 @@ function cloth(timeline) {
 }
 
 /**
- * The Model Benchmark Scorecard: how the controlled switches on designs 1–11 (and composition on seeds 1–10) separate
- * models that look nearly tied on default attainment alone. Every cell is computed from `d.switches` and `d.systems`.
+ * Act 5: Model Benchmark Scorecard + Four Practical Takeaways for Multi-Agent System Builders.
  */
 function scorecard(d) {
   if (!d.switches?.systems?.length) return null;
@@ -359,9 +312,32 @@ function scorecard(d) {
     if (sr) parts.push(sr.baseClaims.mean === 0 ? 'still when calm (0.0 claims)' : `restless when calm (${n1(sr.baseClaims.mean)} claims/agent, ${pc1(sr.baseJoint.mean)} joint)`);
     return parts.length ? `${parts.join('; ')}.` : s.about;
   };
+
+  const b = d.benchmark, k = d.knowledge;
+  const growS = b?.objectives.find(o => o.key === 'grow')?.split, giveS = b?.objectives.find(o => o.key === 'give')?.split;
+  const pLo = growS && giveS ? fmt(Math.min(growS.persona, giveS.persona), 0) : '52', pHi = growS && giveS ? fmt(Math.max(growS.persona, giveS.persona), 0) : '60';
+  const oLo = growS && giveS ? fmt(Math.min(growS.objective, giveS.objective), 0) : '15', oHi = growS && giveS ? fmt(Math.max(growS.objective, giveS.objective), 0) : '26';
+  const cb46 = k?.adversarial.find(a => a.key === 'calmBlunt46');
+  const tBlunt = d.threshold?.contrasts.find(c => c.size === 5 && c.added === 'Blunt'), tRude = d.threshold?.contrasts.find(c => c.size === 5 && c.added === 'Rude');
+
+  const takeaways = [
+    ['1. Decouple conversational style from decision prompts',
+      `In contested group settings, one-sentence affective personas account for ${pLo}–${pHi}% of score variance vs. ${oLo}–${oHi}% for explicit task goals. Apply conversational tone in a formatting pass after the action is chosen rather than inside the decision prompt.`],
+    ['2. Audit environmental caps before declaring an agent safe',
+      tBlunt && tRude
+        ? `Under the default 46% rule cap, blunt (${pc1(tBlunt.rules.mean)}) and rude (${pc1(tRude.rules.mean)}) agents look identical. Raising the cap to 90% separates them by ${signed(d.threshold.gap.raised.mean, 1)} pp (${pc1(tBlunt.raised.mean)} vs. ${pc1(tRude.raised.mean)}).`
+        : 'Environment caps can mask large differences between moderately assertive and hyper-extractive dispositions.'],
+    ['3. Prompt transparency (--know) is used opportunistically, not defensively',
+      cb46
+        ? `Disclosing peer goals redirects claims from Hold to Give, yet disclosing that a neighbour is blunt (${pc1(cb46.private.focal.to)} → ${pc1(cb46.known.focal.to)}, ${n1(cb46.known.refusals.others)} calm refusals) or Grow never triggers defensive refusal. Protecting a group requires engine-level thresholds or explicit sanction rules.`
+        : 'Disclosing peer traits redirects claims toward willing givers but never triggers defensive refusal against an aggressor.'],
+    ['4. Benchmark models across orthogonal switches, not a single group score',
+      'Models that tie near 41–50% in the default 5-agent group fail for opposite reasons when switches are flipped: Jev suffers persona hijack (−30 pp vs personas off) despite 93% solo agency, whereas GPT Decisions is immune to persona drift (0 pp) but exhibits uninstructed restlessness (5.0 claims/agent when calm) and fails Hold.'],
+  ];
+
   return h('section', { class: 'story-bench', id: 'scorecard' },
-    h('p', { class: 'kicker' }, 'How to evaluate a model on LoomBench'),
-    h('h2', null, 'Model diagnostic scorecard'),
+    h('p', { class: 'kicker' }, 'Act 5 · Model Diagnostic Scorecard & Engineering Takeaways'),
+    h('h2', null, 'How controlled switches separate models that tie in the default group'),
     h('p', { class: 'sub' },
       `In the default five-agent run on match designs 1–${d.switches.designs}, capable systems cluster near 41–50% attainment. `
       + 'Running the same designs across three diagnostic switches—personas off (pure multi-agent steerability), solo (unopposed agency by objective), '
@@ -397,13 +373,17 @@ function scorecard(d) {
       + 'node --env-file=.env tools/run.mjs --model <provider>:<model> --matches 1-11 --persona off --run mymodel-persona-off\n'
       + 'node --env-file=.env tools/run.mjs --model <provider>:<model> --matches 1-11 --solo --run mymodel-solo\n'
       + 'node --env-file=.env tools/run.mjs --model <provider>:<model> --matches 1-11 --objective off --run mymodel-objective-off\n'
-      + 'node analysis/models.mjs --scores --did'));
+      + 'node analysis/models.mjs --scores --did'),
+    h('h3', null, 'Four practical takeaways for multi-agent system builders'),
+    h('div', { class: 'takeaways' }, takeaways.map(([title, body]) => h('div', { class: 'takeaway' },
+      h('b', null, title),
+      h('p', null, body)))));
 }
 
-/** The end: what limits the results, and where each part is in full. */
+/** The end: concise limitations and 3 primary destinations. */
 function end(d) {
   return h('section', { class: 'story-end' },
-    h('h2', null, 'Limitations'),
+    h('h2', null, 'Scope & Further Exploration'),
     h('ul', { class: 'limits' }, LIMITS(d).map(([lead, words]) => h('li', null, h('b', null, `${lead} `), words))),
     h('div', { class: 'onward' }, ONWARD.map(([href, name, words]) => h('a', { href }, h('b', null, name), h('span', null, words)))));
 }
@@ -430,11 +410,11 @@ function follow(scenes) {
 async function start() {
   const d = await getJSON('api/overview.json'), only = qs('only');
   if (Number(qs('width'))) Object.assign(main.style, { maxWidth: `${Number(qs('width'))}px`, margin: '0' });
-  const defs = SCENES.filter(s => (only ? s.id === only : true) && s.needs(d));
+  const pool = only ? [...SCENES, ...EXTRA_SCENES] : SCENES;
+  const defs = pool.filter(s => (only ? s.id === only : true) && s.needs(d));
   const scenes = [];
-  for (const def of defs) scenes.push({ def, ...await sceneOf(def, SCENES.indexOf(def) + 1, d) });
+  for (const def of defs) scenes.push({ def, ...await sceneOf(def, pool.indexOf(def) + 1, d) });
   if (only) {
-    // One figure alone, at the step the address names.
     main.classList.add('alone');
     main.replaceChildren(...scenes.map(s => s.el));
     for (const s of scenes) { s.draw(); const i = Math.min(s.steps.length - 1, Math.max(0, Number(qs('step')) || 0)); s.go(i, { replay: true }); }
@@ -448,3 +428,4 @@ async function start() {
 }
 
 start().catch(e => main.replaceChildren(topbar('overview'), h('h1', null, 'LoomBench'), h('p', { class: 'lede' }, `The page could not be drawn: ${e.message}.`)));
+

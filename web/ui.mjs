@@ -90,20 +90,36 @@ export function qs(name) {
   return new URLSearchParams(window.location.search).get(name) || null;
 }
 
-/** The top bar; `active` is 'overview', 'groups', 'results', 'controls', 'mix', 'peers', 'report', 'design', 'play' or null, and marks that link as the current page. */
+/** The top bar: 4 primary links (Overview, Lab & Runs, Design, Source), plus a sub-bar when browsing Lab & Runs views. */
 export function topbar(active) {
-  const link = (href, label, key) => h('a', {
+  const inLab = active !== 'overview' && active !== 'design';
+  const topLink = (href, label, isOn) => h('a', {
+    href,
+    class: isOn ? 'on' : false,
+    'aria-current': isOn ? 'page' : false,
+  }, label);
+  const subLink = (href, label, key) => h('a', {
     href,
     class: active === key ? 'on' : false,
     'aria-current': active === key ? 'page' : false,
   }, label);
   return h('header', { class: 'topbar' },
-    h('div', { class: 'who' },
-      h('a', { class: 'brand', href: './' }, 'LoomBench'),
-      h('span', { class: 'tag' }, 'a multi-agent benchmark')),
-    h('nav', null,
-      link('./', 'Overview', 'overview'), link('groups', 'Groups', 'groups'), link('results', 'Results', 'results'), link('controls', 'Controls', 'controls'), link('mix', 'Composition', 'mix'), link('peers', 'Peer influence', 'peers'), link('report', 'Report', 'report'),
-      link('design', 'Design', 'design'), link('play', 'Play', 'play'), h('a', { class: 'source', href: REPO }, 'Source')));
+    h('div', { class: 'topbar-main' },
+      h('div', { class: 'who' },
+        h('a', { class: 'brand', href: './' }, 'LoomBench'),
+        h('span', { class: 'tag' }, 'a multi-agent benchmark')),
+      h('nav', { 'aria-label': 'Primary' },
+        topLink('./', 'Overview', active === 'overview'),
+        topLink('groups', 'Lab & Runs', inLab),
+        topLink('design', 'Design', active === 'design'),
+        h('a', { class: 'source', href: REPO }, 'Source'))),
+    inLab ? h('nav', { class: 'subnav', 'aria-label': 'Explorer views' },
+      subLink('groups', 'Group Lab & --know', 'groups'),
+      subLink('results', 'All Runs & Cloths', 'results'),
+      subLink('controls', 'Switch Contrasts', 'controls'),
+      subLink('mix', 'k = 0..5 Sweeps', 'mix'),
+      subLink('peers', 'Peer Persuasion RCT', 'peers'),
+      subLink('play', 'Run a Match', 'play')) : null);
 }
 
 /** The pictures of a match a page can show: [key, button label, file suffix]. */
