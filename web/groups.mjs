@@ -176,8 +176,8 @@ function interactiveLab(d) {
         outcomeOut.replaceChildren(
           h('div', { class: 'small muted' }, `Empirical outcome on Jev (run `, h('code', null, cell.run), `, ${cell.matches} matches):`),
           h('div', { class: 'outcome-split' },
-            h('a', { class: 'outcome-thumb', href: `match?run=${encodeURIComponent(cell.run)}&id=m01` },
-              h('img', { src: `runs/${cell.run}/thumbs/m01-flat.png`, width: 96, height: 158, alt: `Seed 1 in ${cell.run}` }),
+            h('a', { class: 'outcome-thumb', href: `match?run=${encodeURIComponent(cell.run)}&id=m001` },
+              h('img', { src: `runs/${cell.run}/thumbs/m001-flat.png`, width: 96, height: 158, alt: `Seed 1 in ${cell.run}` }),
               'Seed 1 replay →'),
             h('div', { class: 'outcome-metrics' },
               metric('Attainment', `${pc(cell.rate)} (${cell.attained}/${cell.n})`),
@@ -198,8 +198,8 @@ function interactiveLab(d) {
         outcomeOut.replaceChildren(
           h('div', { class: 'small muted' }, `Empirical outcome on Jev (run `, h('code', null, arm.run), `, ${arm.seeds} seeds):`),
           h('div', { class: 'outcome-split' },
-            h('a', { class: 'outcome-thumb', href: `match?run=${encodeURIComponent(arm.run)}&id=m01` },
-              h('img', { src: `runs/${arm.run}/thumbs/m01-flat.png`, width: 96, height: 158, alt: `Seed 1 in ${arm.run}` }),
+            h('a', { class: 'outcome-thumb', href: `match?run=${encodeURIComponent(arm.run)}&id=m001` },
+              h('img', { src: `runs/${arm.run}/thumbs/m001-flat.png`, width: 96, height: 158, alt: `Seed 1 in ${arm.run}` }),
               'Seed 1 replay →'),
             h('div', { class: 'outcome-metrics' },
               metric('Focal agent share', pc1(arm.focal.to)),
@@ -408,17 +408,19 @@ function adversarialSection(k) {
       h('td', { class: 'num' }, `${pc1(a.known.focal.to)} (${signed(a.known.focal.change.mean, 1)} pp)`),
       h('td', { class: 'num' }, ci(a.knownVsPrivate, ' pp')),
       h('td', { class: 'num' }, `${n1(a.private.claims.focal)} → ${n1(a.known.claims.focal)}`),
-      h('td', { class: 'num' }, `${n1(a.private.refusals.others)} → ${n1(a.known.refusals.others)}`))));
+      h('td', { class: 'num' }, `${n1(a.private.refusals.others)} → ${n1(a.known.refusals.others)}`))))));
 }
 
 /** Section 5: Interactive side-by-side cloth viewer across knowledge conditions. */
-function clothGallery(runs) {
-  const byRun = new Map(runs.map(r => [r.run, r]));
+function clothGallery(k) {
   let seed = 1;
   const box = h('div', null);
   const seedBtns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => h('button', {
     type: 'button', class: 'seg-btn', onclick: () => { seed = s; draw(); },
   }, `Seed ${s}`));
+
+  const byCell = new Map(k.cells.map(c => [c.run, c]));
+  const byAdv = new Map(k.adversarial.flatMap(a => [[a.private.run, a.private], [a.known.run, a.known]]));
 
   const balancedRuns = [
     ['main', 'Private (default)'],
@@ -438,16 +440,18 @@ function clothGallery(runs) {
   ];
 
   function stripFor(list) {
+    const id = `m${String(seed).padStart(3, '0')}`;
     return h('div', { class: 'cloth-row' }, list.map(([runName, label]) => {
-      const r = byRun.get(runName);
-      const m = r?.matches?.find(x => (x.seed ?? x.design) === seed);
-      if (!m) return null;
-      const reached = m.results.filter(x => !x.placeholder && x.goal !== 'none');
-      const att = reached.length ? `${reached.filter(x => x.reached).length}/${reached.length} attained` : `max ${pc(Math.max(...m.results.map(x => (x.area ?? 0) * 100)))}`;
-      return h('a', { class: 'cloth-item', href: `match?run=${encodeURIComponent(runName)}&id=${encodeURIComponent(m.id)}` },
-        h('img', { src: `runs/${runName}/thumbs/${m.id}-flat.png`, width: 132, height: 218, loading: 'lazy', alt: `${label}, seed ${seed}` }),
+      const cell = byCell.get(runName), arm = byAdv.get(runName);
+      const sub = cell
+        ? `Match ${id} · ${pc(cell.rate)} attained`
+        : arm
+          ? `Match ${id} · Focal ${pc1(arm.focal.to)}`
+          : `Match ${id}`;
+      return h('a', { class: 'cloth-item', href: `match?run=${encodeURIComponent(runName)}&id=${id}` },
+        h('img', { src: `runs/${runName}/thumbs/${id}-flat.png`, width: 132, height: 218, loading: 'lazy', alt: `${label}, seed ${seed}` }),
         h('div', { class: 'cloth-cap' }, label),
-        h('div', { class: 'cloth-sub' }, `Match ${m.id} · ${att}`));
+        h('div', { class: 'cloth-sub' }, sub));
     }));
   }
 
@@ -589,7 +593,7 @@ function literatureSection(d) {
 
 async function start() {
   const page = document.getElementById('page');
-  const [d, runs] = await Promise.all([getJSON('api/overview.json'), getJSON('api/runs.json')]);
+  const d = await getJSON('api/overview.json');
   const k = d.knowledge;
 
   page.replaceChildren(
@@ -628,7 +632,7 @@ async function start() {
       h('p', { class: 'sub' },
         'A natural hypothesis is that cooperative or defensive agents are exploited only because they do not know their neighbour is blunt or instructed to Grow. Across all three paired experiments, disclosing dispositions or objectives fails to trigger defensive refusals.'),
       adversarialSection(k),
-      clothGallery(runs),
+      clothGallery(k),
       generalizationSection(d),
       literatureSection(d),
     ) : null,
